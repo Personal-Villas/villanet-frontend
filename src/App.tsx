@@ -1,11 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './auth/useAuth';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Pending from './pages/Pending';
 import AdminUsers from './pages/DashboardAdmin';
 import ProtectedRoute from './auth/ProtectedRoute';
-import DashboardAdmin from './pages/DashboardAdmin';
+import Properties from './pages/Properties';
+import PMCInbox from './pages/PMCInbox';
 
 export default function App() {
   const auth = useAuth();
@@ -17,16 +18,35 @@ export default function App() {
         <Route path="/login" element={<Login auth={auth} />} />
         <Route path="/signup" element={<Signup auth={auth} />} />
         <Route path="/pending" element={<Pending auth={auth} />} />
+
+        {/* Admin panel */}
         <Route path="/admin/users" element={
-          auth.user?.role === 'admin'
-            ? <AdminUsers auth={auth} />
-            : <Navigate to="/" />
+          auth.user?.role === 'admin' ? <AdminUsers auth={auth} /> : <Navigate to="/" />
         }/>
+
+        {/* Properties: admin/ta/pmc */}
+        <Route path="/properties" element={
+          auth.user && ['admin','ta','pmc'].includes(auth.user.role)
+            ? <Properties />
+            : <Navigate to="/login" />
+        }/>
+
+        {/* PMC inbox: pmc/admin */}
+        <Route path="/pmc" element={
+          auth.user && ['pmc','admin'].includes(auth.user.role)
+            ? <PMCInbox />
+            : <Navigate to="/login" />
+        }/>
+
+        {/* Home: redirige a algo útil según rol */}
         <Route path="/" element={
           <ProtectedRoute user={auth.user}>
-            <DashboardAdmin auth={auth}/>
+            {auth.user?.role === 'pmc'
+              ? <Navigate to="/pmc" />
+              : <Navigate to="/properties" />}
           </ProtectedRoute>
         }/>
+
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

@@ -1,33 +1,32 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api } from '../api/api';
+
+type Role = 'admin' | 'ta' | 'pmc';
+type Status = 'pending' | 'approved' | 'rejected';
 
 type UserRow = {
   id: string;
   email: string;
-  full_name: string;
-  role: string;
-  status: string;
-  trial_expires_at?: string;
+  full_name: string | null;
+  role: Role;
+  status: Status;
+  trial_expires_at?: string | null;
   created_at: string;
 };
 
 export default function AdminUsers({ auth }: any) {
   const [rows, setRows] = useState<UserRow[]>([]);
-  const [activeTab, setActiveTab] = useState('users');
-  const headers = { Authorization: `Bearer ${auth.accessToken}` };
+  const [activeTab, setActiveTab] = useState('users'); // (UI only)
+  const headers = { Authorization: `Bearer ${auth.accessToken}`, 'Content-Type': 'application/json' };
 
   async function load() {
-    const data = await api<UserRow[]>('/admin/users', { headers });
-    setRows(data);
+    // El backend devuelve { results: [...] }
+    const data = await api<{ results: UserRow[] }>('/admin/users', { headers });
+    setRows(data.results || []);
   }
 
   async function approve(id: string) {
     await api(`/admin/users/${id}/approve`, { method: 'POST', headers });
-    load();
-  }
-
-  async function approveFull(id: string) {
-    await api(`/admin/users/${id}/approve-full`, { method: 'POST', headers });
     load();
   }
 
@@ -36,57 +35,50 @@ export default function AdminUsers({ auth }: any) {
     load();
   }
 
-  async function suspend(id: string) {
-    await api(`/admin/users/${id}/suspend`, { method: 'POST', headers });
-    load();
-  }
-
-  async function revokeFull(id: string) {
-    await api(`/admin/users/${id}/revoke-full`, { method: 'POST', headers });
+  async function setRole(userId: string, role: Role) {
+    await api(`/admin/users/${userId}/role`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ role })
+    });
     load();
   }
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getStatusBadge = (status: string) => {
-    const styles = {
+  const getStatusBadge = (status: Status) => {
+    const styles: Record<Status, string> = {
       pending: 'bg-yellow-100 text-yellow-800 text-xs px-3 py-1 rounded-full font-medium',
       approved: 'bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-medium',
       rejected: 'bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full font-medium'
     };
-    const labels = {
+    const labels: Record<Status, string> = {
       pending: 'Pending',
       approved: 'Approved',
       rejected: 'Rejected'
     };
-    return (
-      <span className={styles[status as keyof typeof styles] || styles.pending}>
-        {labels[status as keyof typeof labels] || status}
-      </span>
-    );
+    return <span className={styles[status]}>{labels[status]}</span>;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-CA', {
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString('en-CA', {
       month: 'short',
       day: '2-digit',
       year: 'numeric'
     });
-  };
 
-  const hasFullAccess = (user: UserRow) => {
-    return user.status === 'approved' && (!user.trial_expires_at || user.role === 'admin');
-  };
+  // Mostrar “trial” si está aprobado, tiene trial_expires_at y su rol NO es admin
+  const hasTrial = (user: UserRow) =>
+    user.status === 'approved' && !!user.trial_expires_at && user.role === 'ta';
 
-  const hasTrial = (user: UserRow) => {
-    return user.status === 'approved' && !!user.trial_expires_at && user.role === 'agent';
-  };
+  const isAdmin = (user: UserRow) => user.role === 'admin';
 
-  const isAdmin = (user: UserRow) => {
-    return user.role === 'admin';
-  };
+  // Si está aprobado y no está en trial => lo consideramos “Full Access”
+  const hasFullAccess = (user: UserRow) =>
+    user.status === 'approved' && (!user.trial_expires_at || isAdmin(user));
 
   return (
     <div className="min-h-screen bg-gray-400/10 p-3 md:p-6">
@@ -98,22 +90,20 @@ export default function AdminUsers({ auth }: any) {
             <div className="flex items-center gap-3 bg-gray-700/50 rounded-lg px-4 py-2">
               <span className="text-sm text-gray-300">{auth.user?.email}</span>
               <div className="w-px h-4 bg-gray-500"></div>
-              <button 
-                onClick={auth.logout} 
+              <button
+                onClick={auth.logout}
                 className="text-sm text-gray-300 hover:text-white hover:bg-gray-600 rounded px-2 py-1 transition-colors"
               >
                 Salir
               </button>
             </div>
           </div>
-          
+
           <div className="flex gap-1 md:gap-2 overflow-x-auto pb-2 md:pb-0">
             <button
               onClick={() => setActiveTab('users')}
               className={`px-3 md:px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap text-sm md:text-base ${
-                activeTab === 'users'
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-gray-600 text-gray-300 hover:bg-gray-650'
+                activeTab === 'users' ? 'bg-gray-700 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-650'
               }`}
             >
               Users
@@ -121,9 +111,7 @@ export default function AdminUsers({ auth }: any) {
             <button
               onClick={() => setActiveTab('properties')}
               className={`px-3 md:px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap text-sm md:text-base ${
-                activeTab === 'properties'
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-gray-600 text-gray-300 hover:bg-gray-650'
+                activeTab === 'properties' ? 'bg-gray-700 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-650'
               }`}
             >
               Properties
@@ -131,9 +119,7 @@ export default function AdminUsers({ auth }: any) {
             <button
               onClick={() => setActiveTab('partners')}
               className={`px-3 md:px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap text-sm md:text-base ${
-                activeTab === 'partners'
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-gray-600 text-gray-300 hover:bg-gray-650'
+                activeTab === 'partners' ? 'bg-gray-700 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-650'
               }`}
             >
               Partners
@@ -141,9 +127,7 @@ export default function AdminUsers({ auth }: any) {
             <button
               onClick={() => setActiveTab('config')}
               className={`px-3 md:px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap text-sm md:text-base ${
-                activeTab === 'config'
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-gray-600 text-gray-300 hover:bg-gray-650'
+                activeTab === 'config' ? 'bg-gray-700 text-white' : 'bg-gray-600 text-gray-300 hover:bg-gray-650'
               }`}
             >
               Configuration
@@ -154,7 +138,7 @@ export default function AdminUsers({ auth }: any) {
         <div className="bg-white rounded-b-2xl shadow-xl">
           <div className="p-4 md:p-8">
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-4 md:mb-6">User Management</h2>
-            
+
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-hidden rounded-lg border border-gray-200">
               <table className="w-full">
@@ -176,6 +160,9 @@ export default function AdminUsers({ auth }: any) {
                       Access Type
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -184,33 +171,40 @@ export default function AdminUsers({ auth }: any) {
                   {rows.map((r) => (
                     <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {r.full_name || 'N/A'}
-                        </div>
+                        <div className="text-sm font-medium text-gray-900">{r.full_name || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-600">{r.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-600">
-                          {formatDate(r.created_at)}
-                        </div>
+                        <div className="text-sm text-gray-600">{formatDate(r.created_at)}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(r.status)}
-                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(r.status)}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {r.status === 'approved' && (
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            isAdmin(r)
-                              ? 'bg-purple-100 text-purple-800'
-                              : hasFullAccess(r) 
-                                ? 'bg-blue-100 text-blue-800' 
+                          <span
+                            className={`text-xs px-2 py-1 rounded ${
+                              isAdmin(r)
+                                ? 'bg-purple-100 text-purple-800'
+                                : hasFullAccess(r)
+                                ? 'bg-blue-100 text-blue-800'
                                 : 'bg-orange-100 text-orange-800'
-                          }`}>
+                            }`}
+                          >
                             {isAdmin(r) ? 'Admin' : hasFullAccess(r) ? 'Full Access' : '24h Trial'}
                           </span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <select
+                          value={r.role}
+                          onChange={(e) => setRole(r.id, e.target.value as Role)}
+                          className="text-sm border rounded px-2 py-1 bg-white"
+                        >
+                          <option value="admin">admin</option>
+                          <option value="ta">ta</option>
+                          <option value="pmc">pmc</option>
+                        </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2">
@@ -230,43 +224,7 @@ export default function AdminUsers({ auth }: any) {
                               </button>
                             </>
                           )}
-                          {!isAdmin(r) && hasTrial(r) && (
-                            <>
-                              <button
-                                onClick={() => approveFull(r.id)}
-                                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
-                              >
-                                Approve Full
-                              </button>
-                              <button
-                                onClick={() => suspend(r.id)}
-                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
-                              >
-                                Suspend
-                              </button>
-                            </>
-                          )}
-                          {!isAdmin(r) && hasFullAccess(r) && r.status === 'approved' && (
-                            <>
-                              <button
-                                onClick={() => revokeFull(r.id)}
-                                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
-                              >
-                                Revoke Full
-                              </button>
-                              <button
-                                onClick={() => suspend(r.id)}
-                                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
-                              >
-                                Suspend
-                              </button>
-                            </>
-                          )}
-                          {isAdmin(r) && r.status === 'approved' && (
-                            <span className="px-4 py-2 text-sm text-gray-500 italic">
-                              Admin (no actions)
-                            </span>
-                          )}
+
                           {r.status === 'rejected' && (
                             <button
                               onClick={() => approve(r.id)}
@@ -274,6 +232,10 @@ export default function AdminUsers({ auth }: any) {
                             >
                               Approve (24h)
                             </button>
+                          )}
+
+                          {isAdmin(r) && r.status === 'approved' && (
+                            <span className="px-4 py-2 text-sm text-gray-500 italic">Admin (no actions)</span>
                           )}
                         </div>
                       </td>
@@ -289,30 +251,42 @@ export default function AdminUsers({ auth }: any) {
                 <div key={r.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                        {r.full_name || 'N/A'}
-                      </h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-1">{r.full_name || 'N/A'}</h3>
                       <p className="text-xs text-gray-600 mb-2">{r.email}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatDate(r.created_at)}
-                      </p>
+                      <p className="text-xs text-gray-500">{formatDate(r.created_at)}</p>
                     </div>
                     <div className="flex flex-col gap-1 items-end">
                       {getStatusBadge(r.status)}
                       {r.status === 'approved' && (
-                        <span className={`text-xs px-2 py-1 rounded mt-1 ${
-                          isAdmin(r)
-                            ? 'bg-purple-100 text-purple-800'
-                            : hasFullAccess(r) 
-                              ? 'bg-blue-100 text-blue-800' 
+                        <span
+                          className={`text-xs px-2 py-1 rounded mt-1 ${
+                            isAdmin(r)
+                              ? 'bg-purple-100 text-purple-800'
+                              : hasFullAccess(r)
+                              ? 'bg-blue-100 text-blue-800'
                               : 'bg-orange-100 text-orange-800'
-                        }`}>
+                          }`}
+                        >
                           {isAdmin(r) ? 'Admin' : hasFullAccess(r) ? 'Full' : '24h'}
                         </span>
                       )}
                     </div>
                   </div>
-                  
+
+                  {/* Selector de rol en mobile */}
+                  <div className="mb-3">
+                    <label className="text-xs text-gray-600">Role</label>
+                    <select
+                      value={r.role}
+                      onChange={(e) => setRole(r.id, e.target.value as Role)}
+                      className="mt-1 w-full text-sm border rounded px-2 py-1 bg-white"
+                    >
+                      <option value="admin">admin</option>
+                      <option value="ta">ta</option>
+                      <option value="pmc">pmc</option>
+                    </select>
+                  </div>
+
                   <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-gray-100">
                     {r.status === 'pending' && (
                       <>
@@ -330,43 +304,7 @@ export default function AdminUsers({ auth }: any) {
                         </button>
                       </>
                     )}
-                    {!isAdmin(r) && hasTrial(r) && (
-                      <>
-                        <button
-                          onClick={() => approveFull(r.id)}
-                          className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                          Approve Full
-                        </button>
-                        <button
-                          onClick={() => suspend(r.id)}
-                          className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                          Suspend
-                        </button>
-                      </>
-                    )}
-                    {!isAdmin(r) && hasFullAccess(r) && r.status === 'approved' && (
-                      <>
-                        <button
-                          onClick={() => revokeFull(r.id)}
-                          className="w-full px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                          Revoke Full Access
-                        </button>
-                        <button
-                          onClick={() => suspend(r.id)}
-                          className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                          Suspend
-                        </button>
-                      </>
-                    )}
-                    {isAdmin(r) && r.status === 'approved' && (
-                      <span className="w-full text-center py-2 text-sm text-gray-500 italic">
-                        Admin (no actions)
-                      </span>
-                    )}
+
                     {r.status === 'rejected' && (
                       <button
                         onClick={() => approve(r.id)}
@@ -375,10 +313,17 @@ export default function AdminUsers({ auth }: any) {
                         Approve (24h)
                       </button>
                     )}
+
+                    {isAdmin(r) && r.status === 'approved' && (
+                      <span className="w-full text-center py-2 text-sm text-gray-500 italic">
+                        Admin (no actions)
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+            {/* /Mobile */}
           </div>
         </div>
       </div>
