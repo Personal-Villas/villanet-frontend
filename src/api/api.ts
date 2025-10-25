@@ -1,62 +1,107 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
-export async function api<T>(path: string, opts: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('access');
-  
+export class ApiError extends Error {
+  status: number;
+  data?: unknown;
+  constructor(status: number, message: string, data?: unknown) {
+    super(message);
+    this.status = status;
+    this.data = data;
+  }
+}
+
+export async function api<T = any>(
+  path: string,
+  opts: RequestInit = {}
+): Promise<T> {
+  const token = localStorage.getItem('access') || undefined;
+
+  // Detectar si body es FormData para no setear Content-Type manualmente
+  const isFormData = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
-    ...(opts.headers || {})
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(opts.headers || {}),
   };
 
-  try {
-    const res = await fetch(`${API_URL}${path}`, {
-      credentials: 'include',
-      headers,
-      ...opts
-    });
-
-    if (res.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-
-    if (res.status === 401) {
-      // 🔥 FIX: No redirigir si estamos en endpoints de autenticación
-      const isAuthEndpoint = path.includes('/auth/login') || 
-                            path.includes('/auth/register') || 
-                            path.includes('/auth/refresh');
-      
-      if (!isAuthEndpoint) {
-        localStorage.removeItem('access');
-        
-        // Solo redirigir si no estamos ya en una página pública
-        const currentPath = window.location.pathname;
-        if (currentPath !== '/login' && currentPath !== '/signup') {
-          window.location.href = '/login';
-        }
-      }
-      
-      throw new Error('Authentication required');
-    }
-
-    if (!res.ok) {
-      let errorMessage = `HTTP error! status: ${res.status}`;
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.message || errorMessage;
-      } catch {
-        // Si no se puede parsear como JSON, usar text
-        const errorText = await res.text();
-        errorMessage = errorText || errorMessage;
-      }
-      throw new Error(errorMessage);
-    }
-
-    return res.json() as Promise<T>;
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('Network error');
+  // Stringify body si viene un objeto y no es FormData/string
+  let body = opts.body as any;
+  if (!isFormData && body && typeof body === 'object' && !(body instanceof Blob)) {
+    body = JSON.stringify(body);
   }
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: opts.method || 'GET',
+    headers,
+    body,
+    credentials: 'include', // necesario para el refresh_token (SameSite=None; Secure)
+    signal: opts.signal,
+  });
+
+  // Throttling
+  if (res.status === 429) {
+    throw new ApiError(429, 'Rate limit exceeded. Please try again later.');
+  }
+
+  // 401: sólo redirigir si NO es un endpoint de auth
+  if (res.status === 401) {
+    const isAuthEndpoint =
+      path.startsWith('/auth/') ||
+      path.includes('/auth/login') ||
+      path.includes('/auth/register') ||
+      path.includes('/auth/refresh');
+
+    if (!isAuthEndpoint) {
+      // limpiamos access token y mandamos a login si corresponde
+      localStorage.removeItem('access');
+      const here = window.location.pathname;
+      if (here !== '/login' && here !== '/signup') {
+        window.location.href = '/login';
+      }
+    }
+
+    // intentar extraer mensaje de error
+    let msg = 'Authentication required';
+    try {
+      const data = await res.json();
+      msg = (data && (data.message || data.error)) || msg;
+      throw new ApiError(401, msg, data);
+    } catch {
+      throw new ApiError(401, msg);
+    }
+  }
+
+  // Otros errores HTTP
+  if (!res.ok) {
+    // intenta parsear JSON; si no, usa texto
+    let payload: any = undefined;
+    let message = `HTTP error ${res.status}`;
+    const ct = res.headers.get('content-type') || '';
+    try {
+      payload = ct.includes('application/json') ? await res.json() : await res.text();
+      if (payload && typeof payload === 'object') {
+        message = payload.message || payload.error || message;
+      } else if (typeof payload === 'string' && payload.trim().length) {
+        message = payload;
+      }
+    } catch {
+      // ignore parse errors
+    }
+    throw new ApiError(res.status, message, payload);
+  }
+
+  // 204 No Content
+  if (res.status === 204) {
+    return undefined as unknown as T;
+  }
+
+  // Respuesta JSON (o texto si no es JSON)
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    return (await res.json()) as T;
+  }
+  // Si no es JSON, devolvemos texto (tipado como any)
+  const text = await res.text();
+  return text as unknown as T;
 }
