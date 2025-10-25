@@ -6,6 +6,7 @@ import Pending from './pages/Pending';
 import AdminUsers from './pages/DashboardAdmin';
 import ProtectedRoute from './auth/ProtectedRoute';
 import Properties from './pages/Properties';
+import PropertyDetail from './pages/PropertyDetail';
 import PMCInbox from './pages/PMCInbox';
 
 export default function App() {
@@ -30,6 +31,9 @@ export default function App() {
             ? <Properties />
             : <Navigate to="/login" />
         }/>
+
+        {/* Property detail: property/:id */}
+        <Route path="/property/:id" element={<PropertyDetail />} />
 
         {/* PMC inbox: pmc/admin */}
         <Route path="/pmc" element={

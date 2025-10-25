@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, X, Bed, Bath, MapPin, SlidersHorizontal, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api } from '../api/api';
-import PropertyDetailModal from '../components/PropertyDetailModal';
+
 
 type Listing = {
   id: string;
@@ -15,23 +15,6 @@ type Listing = {
   location: string | null;
   heroImage: string | null;
   images_json?: string[];
-};
-
-type ListingDetail = {
-  listing_id: string;
-  name: string;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  price_usd: number | null;
-  location_text: string | null;
-  city?: string | null;
-  country?: string | null;
-  hero_image_url: string | null;
-  images_json?: string[];
-  address?: { full?: string | null };
-  prices?: { basePrice?: number | null };
-  publicDescription?: { summary?: string };
-  amenities?: string[];
 };
 
 function useDebounce<T>(v: T, ms: number) {
@@ -48,7 +31,7 @@ const PLACEHOLDER = 'https://images.unsplash.com/photo-1613490493576-7fde63acd81
 
 export default function Properties() {
   const { user, loading: authLoading, logout } = useAuth();
-
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [bedrooms, setBedrooms] = useState<string[]>([]);
   const [bathrooms, setBathrooms] = useState<string[]>([]);
@@ -59,8 +42,7 @@ export default function Properties() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [detail, setDetail] = useState<ListingDetail | null>(null);
-  const [detailCache, setDetailCache] = useState<Map<string, ListingDetail>>(new Map());
+
   
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,6 +57,7 @@ export default function Properties() {
       setLoading(false);
       return;
     }
+
 
     const controller = new AbortController();
     let timeoutId: number | undefined;
@@ -166,49 +149,16 @@ export default function Properties() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- Handlers ---
-  const handlePropertyClick = async (propertyId: string) => {
-    const property = items.find(item => 
-      item.id === propertyId || item.listing_id === propertyId
-    );
-    
-    if (!propertyId || propertyId === 'undefined') {
-      setError('Invalid property selected');
-      return;
-    }
-    
-    const realId = propertyId.startsWith('temp-') 
-      ? property?.listing_id 
-      : propertyId;
-    
-    if (!realId) {
-      setError('Cannot load property details');
-      return;
-    }
-    
-    try {
-      if (detailCache.has(realId)) {
-        setDetail(detailCache.get(realId)!);
-        return;
-      }
-      
-      const data = await api<ListingDetail>(`/listings/${realId}`);
-      setDetailCache(prev => new Map(prev).set(realId, data));
-      setDetail(data);
-    } catch (e: any) {
-      const msg = typeof e?.message === 'string' ? e.message : '';
-      if (msg.includes('429')) {
-        setError('Too many requests. Please wait a moment.');
-      } else if (msg.includes('404')) {
-        setError('Property not found. It may have been removed.');
-      } else {
-        setError('Failed to load property details.');
-      }
-    }
-  };
+// Helper para obtener el id correcto para la ruta
+const getRealId = (it: Listing) => (it as any).listing_id || it.id;
 
-  const handleCloseDetail = () => {
-    setDetail(null);
+// Reemplaza tu handlePropertyClick por:
+const goToDetail = (propertyIdOrObj: string | Listing) => {
+    const realId = typeof propertyIdOrObj === 'string'
+      ? propertyIdOrObj
+      : getRealId(propertyIdOrObj);
+    if (!realId) return;
+    navigate(`/property/${realId}`); 
   };
 
   // --- Helpers ---
@@ -452,7 +402,7 @@ export default function Properties() {
                 {/* Imagen clickeable */}
                 <div 
                   className="relative aspect-[4/3] overflow-hidden bg-neutral-100 cursor-pointer"
-                  onClick={() => handlePropertyClick(it.id)}
+                  onClick={() => goToDetail(it)}
                 >
                   <img
                     src={it.heroImage || PLACEHOLDER}
@@ -467,7 +417,7 @@ export default function Properties() {
                 <div className="p-4">
                   <h3 
                     className="text-lg font-medium text-neutral-900 mb-1 hover:text-orange-500 transition cursor-pointer"
-                    onClick={() => handlePropertyClick(it.id)}
+                    onClick={() => goToDetail(it)}
                   >
                     {it.name || 'Unnamed Property'}
                   </h3>
@@ -496,7 +446,7 @@ export default function Properties() {
                   {/* Botones visibles siempre */}
                   <div className="flex gap-2 pt-2 border-t border-neutral-100">
                     <button
-                      onClick={() => handlePropertyClick(it.id)}
+                      onClick={() => goToDetail(it)}
                       className="flex-1 bg-neutral-100 text-neutral-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-neutral-200 transition-colors"
                     >
                       More Info
@@ -572,8 +522,6 @@ export default function Properties() {
         )}
       </div>
 
-      {/* Detail Modal */}
-      <PropertyDetailModal detail={detail} onClose={handleCloseDetail} />
     </div>
   );
 }
