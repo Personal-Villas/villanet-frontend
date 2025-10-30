@@ -29,7 +29,12 @@ type Day = {
   minStay: number | null;
 };
 
-const fmt = (d: Date) => d.toISOString().slice(0,10);
+const fmt = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${da}`;
+};
 const addDays = (d: Date, n: number) => { 
   const x = new Date(d); 
   x.setDate(x.getDate() + n); 
