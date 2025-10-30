@@ -12,6 +12,7 @@ type Listing = {
   priceUSD: number | null;
   location: string | null;
   heroImage: string | null;
+  images_json: string[]; // se mantiene como array
 };
 
 function useDebounce<T>(v: T, ms: number) {
@@ -51,7 +52,7 @@ export default function Properties() {
   // Infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  // Reset pagination when filters change
+  // Reset pagination cuando cambian filtros
   useEffect(() => {
     setOffset(0);
     setItems([]);
@@ -85,11 +86,16 @@ export default function Properties() {
         }>(`/listings?${qs.toString()}`, { signal: controller.signal });
 
         if (!controller.signal.aborted) {
-          const normalized = (data.results || []).map(item => ({
-            ...item,
-            id: item.id || `temp-${Math.random()}`,
-            heroImage: item.heroImage || PLACEHOLDER
-          }));
+          const normalized: Listing[] = (data.results || []).map((item) => {
+            const images = Array.isArray(item.images_json) ? item.images_json : [];
+            const first = images[0];
+            return {
+              ...item,
+              id: item.id || `temp-${Math.random().toString(36).slice(2)}`,
+              images_json: images,
+              heroImage: (typeof first === 'string' && first) || item.heroImage || PLACEHOLDER,
+            };
+          });
 
           setItems(prev => offset === 0 ? normalized : [...prev, ...normalized]);
           setTotal(data.total);
@@ -113,7 +119,7 @@ export default function Properties() {
     return () => controller.abort();
   }, [deb, bedrooms, bathrooms, minPrice, maxPrice, offset, user, authLoading]);
 
-  // Intersection Observer for infinite scroll
+  // Intersection Observer para infinite scroll
   useEffect(() => {
     if (!observerTarget.current || loading || !hasMore) return;
 
@@ -133,6 +139,12 @@ export default function Properties() {
   const toggleOption = useCallback((value: string, setter: React.Dispatch<React.SetStateAction<string[]>>) => {
     setter(prev => prev.includes(value) ? prev.filter(x => x !== value) : [...prev, value]);
   }, []);
+
+  // Redirect to login page when logout is called
+  const handleLogout = useCallback(async () => {
+    await logout();
+    navigate('/login');
+  }, [logout, navigate]);
 
   const clearAllFilters = useCallback(() => {
     setQuery('');
@@ -200,7 +212,7 @@ export default function Properties() {
                   Dashboard
                 </button>
               )}
-              <button onClick={logout} className="text-orange-500 hover:text-orange-600" title="Logout">
+              <button onClick={handleLogout} className="text-orange-500 hover:text-orange-600"  title="Logout">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -339,7 +351,10 @@ export default function Properties() {
                   src={item.heroImage || PLACEHOLDER}
                   alt={item.name}
                   loading="lazy"
-                  onError={ev => ((ev.target as HTMLImageElement).src = PLACEHOLDER)}
+                  onError={(ev) => {
+                    const img = ev.target as HTMLImageElement;
+                    if (img.src !== PLACEHOLDER) img.src = PLACEHOLDER; // evita loop
+                  }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               </div>
