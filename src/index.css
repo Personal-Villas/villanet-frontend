@@ -2,3 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+
+* {
+    font-family: 'Helvetica Now Text', sans-serif;
+}
+
+
+/* Fuentes Helvetica Now */
+@font-face {
+    font-family: 'Helvetica Now Text';
+    src: url('../public/fonts/helveticanowtext-bold-demo.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+  
+  @font-face {
+    font-family: 'Helvetica Now Text';
+    src: url('../public/fonts/helveticanowtext-bolditalic-demo.ttf') format('truetype');
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+  }
+  
+  @font-face {
+    font-family: 'Helvetica Now Text';
+    src: url('../public/fonts/helveticanowtext-black-demo.ttf') format('truetype');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+  }
+  
+  @font-face {
+    font-family: 'Helvetica Now Text';
+    src: url('../public/fonts/helveticanowtext-blackitalic-demo.ttf') format('truetype');
+    font-weight: 900;
+    font-style: italic;
+    font-display: swap;
+  }

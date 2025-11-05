@@ -3,7 +3,7 @@ import { useAuth } from './auth/useAuth';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Pending from './pages/Pending';
-import AdminUsers from './pages/DashboardAdmin';
+import DashboardAdmin from './pages/DashboardAdmin';
 import ProtectedRoute from './auth/ProtectedRoute';
 import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
@@ -20,9 +20,9 @@ export default function App() {
         <Route path="/signup" element={<Signup auth={auth} />} />
         <Route path="/pending" element={<Pending auth={auth} />} />
 
-        {/* Admin panel */}
-        <Route path="/admin/users" element={
-          auth.user?.role === 'admin' ? <AdminUsers auth={auth} /> : <Navigate to="/" />
+        {/* Admin panel - maneja users, properties, partners, config */}
+        <Route path="/admin" element={
+          auth.user?.role === 'admin' ? <DashboardAdmin auth={auth} /> : <Navigate to="/" />
         }/>
 
         {/* Properties: admin/ta/pmc */}
@@ -45,7 +45,9 @@ export default function App() {
         {/* Home: redirige a algo útil según rol */}
         <Route path="/" element={
           <ProtectedRoute user={auth.user}>
-            {auth.user?.role === 'pmc'
+            {auth.user?.role === 'admin'
+              ? <Navigate to="/admin" />
+              : auth.user?.role === 'pmc'
               ? <Navigate to="/pmc" />
               : <Navigate to="/properties" />}
           </ProtectedRoute>

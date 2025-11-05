@@ -15,7 +15,7 @@ export default function Login({ auth }: any) {
     
     try {
       await auth.login(email, password);
-      navigate('/');
+      navigate('/properties');
     } catch (e: any) {
       setErr('Invalid credentials');
     } finally {
