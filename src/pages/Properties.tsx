@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, Bed, Bath, MapPin, SlidersHorizontal, LogOut, Calendar, AlertCircle, Clock, Heart, Share2, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Search, Bed, Bath, AlertCircle, Clock, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api } from '../api/api';
 import Header from '../components/Header';
 import HeroSection from '../components/HeroSection';
 import FiltersPanel from '../components/FiltersPanel';
+
 
 type Listing = {
   id: string;
@@ -50,22 +51,23 @@ const ITEMS_PER_PAGE = 24;
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80&auto=format&fit=crop';
 
 export default function Properties() {
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading/*, logout */ } = useAuth();
   const navigate = useNavigate();
   
   // Scroll state para mostrar/ocultar el search en navbar
   const [showNavbarSearch, setShowNavbarSearch] = useState(false);
   const heroSearchRef = useRef<HTMLDivElement>(null);
   
-  // Filters
-  const [query, setQuery] = useState('');
-  const [bedrooms, setBedrooms] = useState<string[]>([]);
-  const [bathrooms, setBathrooms] = useState<string[]>([]);
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+// Filters
+const [query, setQuery] = useState('');
+const [bedrooms, setBedrooms] = useState<string[]>([]);
+const [bathrooms, setBathrooms] = useState<string[]>([]);
+const [minPrice, setMinPrice] = useState('');
+const [maxPrice, setMaxPrice] = useState('');
+const [checkIn, setCheckIn] = useState('');
+const [checkOut, setCheckOut] = useState('');
+const [showFilters, setShowFilters] = useState(false);
+const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
 
   // Pagination state
   const [items, setItems] = useState<Listing[]>([]);
@@ -117,23 +119,23 @@ export default function Properties() {
     }
   }, [items.length, hasAvailabilityFilter]);
 
-  // Reset pagination when filters change - usar debouncedQuery
-  useEffect(() => {
-    setOffset(0);
-    setItems([]);
-    setHasMore(true);
-    setError(null);
-    setAvailabilitySession(null);
-    setAvailabilityCursor(null);
-    setPaginationMode('infinite');
-  }, [debouncedQuery, bedrooms, bathrooms, minPrice, maxPrice, checkIn, checkOut]);
+// Reset pagination when filters change
+useEffect(() => {
+  setOffset(0);
+  setItems([]);
+  setHasMore(true);
+  setError(null);
+  setAvailabilitySession(null);
+  setAvailabilityCursor(null);
+  setPaginationMode('infinite');
+}, [debouncedQuery, bedrooms, bathrooms, minPrice, maxPrice, checkIn, checkOut, selectedBadges]);
 
   // Fetch listings - usar debouncedQuery
   useEffect(() => {
     if (authLoading || !user) return;
-
+  
     const controller = new AbortController();
-
+  
     (async () => {
       setLoading(true);
       setError(null);
@@ -147,6 +149,7 @@ export default function Properties() {
         if (maxPrice) qs.set('maxPrice', String(Number(maxPrice) || ''));
         if (checkIn) qs.set('checkIn', checkIn);
         if (checkOut) qs.set('checkOut', checkOut);
+        if (selectedBadges.length) qs.set('badges', selectedBadges.join(',')); 
         qs.set('limit', String(ITEMS_PER_PAGE));
         
         if (availabilitySession && availabilityCursor !== null) {
@@ -229,13 +232,14 @@ export default function Properties() {
 
     return () => controller.abort();
   }, [
-    debouncedQuery, // <- usar debouncedQuery, no 'deb'
+    debouncedQuery,
     bedrooms,
     bathrooms,
     minPrice,
     maxPrice,
     checkIn,
     checkOut,
+    selectedBadges,
     offset,
     user,
     authLoading,
@@ -332,10 +336,10 @@ export default function Properties() {
     setter(prev => prev.includes(value) ? prev.filter(x => x !== value) : [...prev, value]);
   }, []);
 
-  const handleLogout = useCallback(async () => {
+  /*const handleLogout = useCallback(async () => {
     await logout();
     navigate('/login');
-  }, [logout, navigate]);
+  }, [logout, navigate]);*/
 
   const clearAllFilters = useCallback(() => {
     setQuery('');
@@ -345,6 +349,7 @@ export default function Properties() {
     setMaxPrice('');
     setCheckIn('');
     setCheckOut('');
+    setSelectedBadges([]);
     setError(null);
     setAvailabilitySession(null);
     setAvailabilityCursor(null);
@@ -358,6 +363,14 @@ export default function Properties() {
   const formatMoney = (n: number | null | undefined) =>
     n == null ? '—' : `$${n.toLocaleString()}`;
 
+  const handleBadgeToggle = useCallback((badgeId: string) => {
+    setSelectedBadges(prev => 
+      prev.includes(badgeId)
+        ? prev.filter(id => id !== badgeId)
+        : [...prev, badgeId]
+    );
+  }, []);
+
   const handleRetry = useCallback(() => {
     setError(null);
     setLoading(true);
@@ -366,7 +379,14 @@ export default function Properties() {
     setAvailabilityCursor(null);
   }, []);
 
-  const activeFiltersCount = bedrooms.length + bathrooms.length + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0) + (checkIn ? 1 : 0) + (checkOut ? 1 : 0);
+  const activeFiltersCount = 
+  bedrooms.length + 
+  bathrooms.length + 
+  (minPrice ? 1 : 0) + 
+  (maxPrice ? 1 : 0) + 
+  (checkIn ? 1 : 0) + 
+  (checkOut ? 1 : 0) +
+  selectedBadges.length; 
 
   const today = new Date().toISOString().split('T')[0];
   const minCheckOut = checkIn || today;
@@ -430,6 +450,8 @@ export default function Properties() {
         today={today}
         minCheckOut={minCheckOut}
         heroSearchRef={heroSearchRef}
+        selectedBadges={selectedBadges}      
+        onBadgeToggle={handleBadgeToggle}  
       />
 
       <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-8">

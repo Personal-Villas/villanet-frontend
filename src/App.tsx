@@ -11,7 +11,7 @@ import PMCInbox from './pages/PMCInbox';
 
 export default function App() {
   const auth = useAuth();
-  if (auth.loading) return <div className="p-10">Cargando...</div>;
+  if (auth.loading) return <div className="p-10">Loading...</div>;
 
   return (
     <BrowserRouter>

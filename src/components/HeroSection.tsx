@@ -1,4 +1,5 @@
 import { SearchBar } from './SearchBar';
+import { BadgeFilters } from './BadgeFilters';
 
 interface HeroSectionProps {
   query: string;
@@ -13,6 +14,8 @@ interface HeroSectionProps {
   today: string;
   minCheckOut: string;
   heroSearchRef: React.RefObject<HTMLDivElement>;
+  selectedBadges: string[];
+  onBadgeToggle: (badgeId: string) => void;
 }
 
 export default function HeroSection({
@@ -27,34 +30,44 @@ export default function HeroSection({
   activeFiltersCount,
   today,
   minCheckOut,
-  heroSearchRef
+  heroSearchRef,
+  selectedBadges,
+  onBadgeToggle
 }: HeroSectionProps) {
   return (
-    <div className="bg-gradient-to-b from-neutral-50 to-white border-b border-neutral-200">
-      <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 text-center">
-        <h2 className="text-5xl md:text-6xl font-serif font-bold text-neutral-900 mb-4">
-          Find your happy place.
-        </h2>
-        <p className="text-neutral-600 text-lg mb-8 max-w-2xl mx-auto">
-          Never book a bad vacation home again. Every Villanet comes with hotel-grade amenities, 
-          inspiring views, pristine cleaning and 24/7 concierge service.
-        </p>
-        <div ref={heroSearchRef} className="flex justify-center">
-          <SearchBar
-            query={query}
-            setQuery={setQuery}
-            checkIn={checkIn}
-            setCheckIn={setCheckIn}
-            checkOut={checkOut}
-            setCheckOut={setCheckOut}
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-            activeFiltersCount={activeFiltersCount}
-            today={today}
-            minCheckOut={minCheckOut}
-          />
+    <>
+      <div className="bg-gradient-to-b from-neutral-50 to-white">
+        <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 text-center">
+          <h2 className="text-5xl md:text-6xl font-serif font-bold text-neutral-900 mb-4">
+            Find your happy place.
+          </h2>
+          <p className="text-neutral-600 text-lg mb-8 max-w-2xl mx-auto">
+            Never book a bad vacation home again. Every Villanet comes with hotel-grade amenities, 
+            inspiring views, pristine cleaning and 24/7 concierge service.
+          </p>
+          <div ref={heroSearchRef} className="flex justify-center">
+            <SearchBar
+              query={query}
+              setQuery={setQuery}
+              checkIn={checkIn}
+              setCheckIn={setCheckIn}
+              checkOut={checkOut}
+              setCheckOut={setCheckOut}
+              showFilters={showFilters}
+              setShowFilters={setShowFilters}
+              activeFiltersCount={activeFiltersCount}
+              today={today}
+              minCheckOut={minCheckOut}
+            />
+          </div>
         </div>
       </div>
-    </div>
+      
+      {/* Badge Filters - Separate section below hero */}
+      <BadgeFilters 
+        selectedBadges={selectedBadges}
+        onBadgeToggle={onBadgeToggle}
+      />
+    </>
   );
 }
