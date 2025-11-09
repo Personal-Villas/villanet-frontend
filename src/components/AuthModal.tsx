@@ -10,37 +10,58 @@ import people3 from '../assets/images/people-3.png';
 import people4 from '../assets/images/people-4.png';
 import people5 from '../assets/images/people-5.png';
 import people6 from '../assets/images/people-6.png';
+import { publicApi } from '../api/api';
 
-// Mock de useAuth para el ejemplo
-const useAuth = () => ({
-  verifyCode: async (email, code, fullName) => {
-    console.log('Verifying code:', { email, code, fullName });
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
-});
+// Definición de tipos
+interface AuthModalProps {
+  onClose: () => void;
+  onSuccess: (user: any) => void;
+  imageLogin?: string;
+}
 
-// Mock de api para el ejemplo
-const api = async (url, options) => {
-  console.log('API call:', url, options);
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  return { message: 'Code sent', userExists: Math.random() > 0.5 };
+interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+  // Agrega más propiedades según tu API
+}
+
+interface ApiResponse {
+  message: string;
+  userExists: boolean;
+  user?: User;
+}
+
+// Hook useAuth simulado (deberías reemplazar esto con tu implementación real)
+const useAuth = () => {
+  return {
+    verifyCode: async (email: string, code: string, fullName?: string): Promise<ApiResponse> => {
+      // Simulación de verificación de código
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return { 
+        message: 'Code verified', 
+        userExists: true,
+        user: { id: '1', email, full_name: fullName }
+      };
+    }
+  };
 };
 
-const AuthModal = ({
+const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onSuccess,
   imageLogin,
 }) => {
-  const [mode, setMode] = useState('email');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState(['', '', '', '', '', '']);
-  const [fullName, setFullName] = useState('');
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [userExists, setUserExists] = useState(false);
+  const [mode, setMode] = useState<'email' | 'code'>('email');
+  const [email, setEmail] = useState<string>('');
+  const [code, setCode] = useState<string[]>(['', '', '', '', '', '']);
+  const [fullName, setFullName] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [userExists, setUserExists] = useState<boolean>(false);
   const { verifyCode } = useAuth();
   
-  const inputRefs = useRef([]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const bgImage = imageLogin ?? imageLoginDefault;
 
   useEffect(() => {
@@ -49,32 +70,29 @@ const AuthModal = ({
     }
   }, [mode]);
 
-  const handleSocialClick = (provider) => {
+  const handleSocialClick = (provider: string): void => {
     console.log(`[AUTH] ${provider} login - in progress 🚧`);
   };
 
-  const handleSendCode = async () => {
+  const handleSendCode = async (): Promise<void> => {
     if (!email.includes('@')) {
       setError('Please enter a valid email');
       return;
     }
-    
+  
     setError(null);
     setLoading(true);
-    
+  
     try {
-      const response = await api(
-        '/auth/send-code',
-        {
-          method: 'POST',
-          body: JSON.stringify({ email }),
-        }
-      );
-
+      const response = await publicApi('/auth/send-code', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }) as ApiResponse;
+  
       console.log('📥 /auth/send-code response:', response);
       setUserExists(response.userExists);
       setMode('code');
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ send-code error:', err);
       setError(err.message || 'Failed to send code');
     } finally {
@@ -82,7 +100,7 @@ const AuthModal = ({
     }
   };
 
-  const handleCodeChange = (index, value) => {
+  const handleCodeChange = (index: number, value: string): void => {
     if (value.length > 1) value = value[0];
     if (!/^\d*$/.test(value)) return;
     
@@ -95,7 +113,7 @@ const AuthModal = ({
     }
   };
 
-  const handleKeyDown = (index, e) => {
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Backspace' && !code[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -104,7 +122,7 @@ const AuthModal = ({
     }
   };
 
-  const handlePaste = (e) => {
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>): void => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text').slice(0, 6);
     if (!/^\d+$/.test(pastedData)) return;
@@ -122,26 +140,30 @@ const AuthModal = ({
     }
   };
 
-  const handleVerifyCode = async () => {
+  const handleVerifyCode = async (): Promise<void> => {
     const codeString = code.join('');
     if (codeString.length !== 6) {
       setError('Please enter the complete code');
       return;
     }
-    
+  
     if (!userExists && !fullName.trim()) {
       setError('Full name required for new users');
       return;
     }
-    
+  
     setError(null);
     setLoading(true);
-    
+  
     try {
-      await verifyCode(email, codeString, fullName);
-      onSuccess();
-      onClose();
-    } catch (err) {
+      const response = await verifyCode(email, codeString, fullName.trim() || undefined);
+  
+      console.log('✅ verify-code OK', response);
+      if (response.user) {
+        onSuccess(response.user);
+        onClose();
+      }
+    } catch (err: any) {
       console.error('❌ verify-code error:', err);
       setError(err.message || 'Invalid code');
       setCode(['', '', '', '', '', '']);
@@ -151,7 +173,7 @@ const AuthModal = ({
     }
   };
 
-  const handleGoBack = () => {
+  const handleGoBack = (): void => {
     setMode('email');
     setCode(['', '', '', '', '', '']);
     setFullName('');
@@ -223,7 +245,7 @@ const AuthModal = ({
           {mode === 'email' && (
             <>
               {/* Título solo en desktop, en mobile está sobre la imagen */}
-              <h3 className="hidden sm:block text-xl font-semibold text-neutral-900 mb-2">
+              <h3 className="hidden sm:block text-[23px] font-semibold text-neutral-900 mb-3">
                 Sign in or sign up to continue
               </h3>
               
@@ -232,13 +254,13 @@ const AuthModal = ({
               </p>
 
               {/* Botones sociales */}
-              <div className="flex gap-2 sm:gap-3 mb-4">
+              <div className="flex gap-2 sm:gap-3 mb-4 lg:mt-5">
                 <button
                   type="button"
                   onClick={() => handleSocialClick('apple')}
                   className="flex-1 border border-neutral-300 rounded-xl py-2.5 sm:py-2 flex items-center justify-center gap-2 hover:bg-neutral-50 transition text-sm font-medium"
                 >
-                  <img src={appleIcon} alt="Apple" className="w-9 h-9 lg:w-6 lg:h-6" />
+                  <img src={appleIcon} alt="Apple" className="w-9 h-9 lg:w-7 lg:h-7" />
                 </button>
                 <button
                   type="button"
@@ -257,7 +279,7 @@ const AuthModal = ({
               </div>
 
               {/* Separador OR */}
-              <div className="flex items-center gap-3 my-4">
+              <div className="flex items-center gap-3 my-4 lg:my-8">
                 <div className="h-px bg-neutral-200 flex-1" />
                 <span className="text-xs uppercase tracking-wider text-neutral-500 font-medium">or</span>
                 <div className="h-px bg-neutral-200 flex-1" />
@@ -270,7 +292,7 @@ const AuthModal = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
-                  className="w-full px-4 py-3 rounded-[50px] h-[70px] border border-neutral-300 focus:outline-none focus:border-neutral-900 transition mb-4 text-[17px]"
+                  className="w-full px-4 py-3 rounded-[50px] h-[70px] lg:h-[50px] border border-neutral-300 focus:outline-none focus:border-neutral-900 transition mb-4 text-[17px] lg:text-[15px]"
                 />
                 
                 {error && <p className="text-red-600 text-[17px] mb-4">{error}</p>}
@@ -279,15 +301,13 @@ const AuthModal = ({
                   type="button"
                   onClick={handleSendCode}
                   disabled={loading}
-                  className="w-full bg-neutral-900 text-white py-3 rounded-[50px] h-[70px] hover:bg-neutral-800 transition disabled:opacity-50 text-[20px]"
+                  className="w-full bg-neutral-900 text-white py-3 rounded-[50px] h-[70px] lg:h-[50px] hover:bg-neutral-800 transition disabled:opacity-50 text-[20px] lg:text-[17px]"
                 >
                   {loading ? 'Sending code...' : 'Continue'}
                 </button>
               </div>
 
               <div className="mt-6 pt-4">
-
-
                 <div className="flex items-center justify-center gap-3 text-xs text-neutral-600">
                   <div className="flex -space-x-2">
                     <img
@@ -338,7 +358,7 @@ const AuthModal = ({
                   to {email}
                 </p>
                 
-                <p className="text-sm text-neutral-500 mb-6">
+                <p className="text-sm text-neutral-500 mb-6 lg:mb-10">
                   Click the link or enter the code below to login
                 </p>
 
@@ -358,7 +378,7 @@ const AuthModal = ({
                     </div>
                   )}
 
-                  <div className="flex gap-2 mb-4 justify-center">
+                  <div className="flex gap-2 mb-4 lg:mb-10 justify-center">
                     {code.map((digit, idx) => (
                       <input
                         key={idx}
@@ -385,7 +405,7 @@ const AuthModal = ({
                     type="button"
                     onClick={handleVerifyCode}
                     disabled={loading}
-                    className="w-full bg-neutral-900 text-white py-3 rounded-xl font-semibold hover:bg-neutral-800 transition disabled:opacity-50 mb-3 text-base"
+                    className="w-full bg-neutral-900 text-white py-3 rounded-[50px] font-semibold hover:bg-neutral-800 transition disabled:opacity-50 mb-3 text-base"
                   >
                     {loading ? 'Verifying...' : 'Continue'}
                   </button>
@@ -393,7 +413,7 @@ const AuthModal = ({
                   <button
                     type="button"
                     onClick={handleGoBack}
-                    className="w-full text-neutral-600 text-sm hover:text-neutral-900 transition text-center"
+                    className="w-full text-neutral-600 text-sm hover:text-neutral-900 transition text-center lg:mt-3"
                   >
                     ← Go back
                   </button>
@@ -402,12 +422,24 @@ const AuthModal = ({
 
               <div className="mt-6 pt-4 border-t border-neutral-200">
                 <div className="flex items-center justify-center gap-4 text-sm text-neutral-600">
-                  <span className="inline-flex -space-x-1.5">
-                    <span className="w-7 h-7 rounded-full bg-neutral-300 border-2 border-white" />
-                    <span className="w-7 h-7 rounded-full bg-neutral-300 border-2 border-white" />
-                    <span className="w-7 h-7 rounded-full bg-neutral-300 border-2 border-white" />
-                  </span>
-                  <span>Join 636,748 happy Villaneters...</span>
+                  <div className="inline-flex -space-x-1.5">
+                    <img
+                      src={people1}
+                      alt="Person 1"
+                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
+                    />
+                    <img
+                      src={people2}
+                      alt="Person 2"
+                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
+                    />
+                    <img
+                      src={people3}
+                      alt="Person 3"
+                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
+                    />
+                  </div>
+                  <p className="text-sm text-neutral-600 ml-[-2px]">Join 636,748 happy Villaneters...</p>
                 </div>
               </div>
             </div>
@@ -417,7 +449,7 @@ const AuthModal = ({
         {/* Columna derecha - imagen desktop */}
         <div className="hidden sm:block sm:w-7/12 relative p-2">
           <div
-            className="w-full h-full bg-cover bg-center rounded-3xl shadow-lg"
+            className="w-full h-[650px] bg-cover bg-center rounded-3xl shadow-lg"
             style={{ backgroundImage: `url(${bgImage})` }}
           />
         </div>
