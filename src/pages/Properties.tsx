@@ -100,6 +100,23 @@ export default function Properties() {
   // Detect when to switch to traditional pagination
   const hasAvailabilityFilter = Boolean(checkIn && checkOut && user); // Solo usuarios autenticados pueden usar disponibilidad
 
+  // --- Modal handlers centralizados ---
+  const openAuthModal = useCallback(() => {
+    setShowAuthModal(true);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setShowAuthModal(false);
+  }, []);
+
+  const handleAuthSuccess = useCallback(() => {
+    closeAuthModal();
+    // Recargar propiedades después del login exitoso
+    setOffset(0);
+    setItems([]);
+    setHasMore(true);
+  }, [closeAuthModal]);
+
   // Detectar scroll para mostrar search en navbar
   useEffect(() => {
     const handleScroll = () => {
@@ -369,21 +386,13 @@ export default function Properties() {
   const goToDetail = useCallback((property: Listing) => {
     // Si no hay usuario, mostrar modal de auth
     if (!user) {
-      setShowAuthModal(true);
+      openAuthModal();
       return;
     }
     
     // Si hay usuario, navegar normalmente
     navigate(`/property/${property.id}`);
-  }, [navigate, user]);
-
-  const handleAuthSuccess = useCallback(() => {
-    setShowAuthModal(false);
-    // Recargar propiedades después del login exitoso
-    setOffset(0);
-    setItems([]);
-    setHasMore(true);
-  }, []);
+  }, [navigate, user, openAuthModal]);
 
   const formatMoney = (n: number | null | undefined) =>
     n == null ? '—' : `$${n.toLocaleString()}`;
@@ -444,7 +453,7 @@ export default function Properties() {
         minCheckOut={minCheckOut}
         showNavbarSearch={showNavbarSearch}
         showAuthButton={!user}
-        onAuthClick={() => setShowAuthModal(true)}
+        onAuthClick={openAuthModal}
       />
 
       <HeroSection
@@ -703,7 +712,7 @@ export default function Properties() {
               </p>
               {!user && (
                 <button 
-                  onClick={() => setShowAuthModal(true)} 
+                  onClick={openAuthModal} 
                   className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
                 >
                   Sign In to View Properties
@@ -809,7 +818,7 @@ export default function Properties() {
       {/* Auth Modal */}
       {showAuthModal && (
         <AuthModal 
-          onClose={() => setShowAuthModal(false)} 
+          onClose={closeAuthModal}
           onSuccess={handleAuthSuccess}
         />
       )}

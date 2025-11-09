@@ -146,6 +146,18 @@ export async function publicApi<T = any>(
 
   // Para endpoints públicos, el 401 es solo un error sin redirección
   if (res.status === 401) {
+    const isAuthEndpoint =
+      path.startsWith('/auth/') ||
+      path.includes('/auth/login') ||
+      path.includes('/auth/register') ||
+      path.includes('/auth/refresh');
+  
+    if (!isAuthEndpoint) {
+      // Solo limpiamos access token, NO redirigimos
+      localStorage.removeItem('access');
+    }
+  
+    // intentar extraer mensaje de error
     let msg = 'Authentication required';
     try {
       const data = await res.json();
