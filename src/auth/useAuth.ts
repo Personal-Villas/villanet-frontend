@@ -17,7 +17,6 @@ export function useAuth() {
 
   async function refresh() {
     try {
-      // 🔥 FIX PRINCIPAL: Verifica si hay token antes de intentar refresh
       const existingToken = localStorage.getItem('access');
       if (!existingToken) {
         set({ loading: false });
@@ -36,7 +35,6 @@ export function useAuth() {
       
       set({ user: me, accessToken, loading: false });
     } catch (err) {
-      // Si falla el refresh, limpia el token corrupto
       localStorage.removeItem('access');
       set({ loading: false });
     }
@@ -45,6 +43,19 @@ export function useAuth() {
   useEffect(() => { 
     refresh(); 
   }, []);
+
+  async function verifyCode(email: string, code: string, fullName?: string) {
+    const data = await api<{ accessToken: string; user: User }>(
+      '/auth/verify-code',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, code, full_name: fullName }),
+      }
+    );
+    
+    localStorage.setItem('access', data.accessToken);
+    set({ user: data.user, accessToken: data.accessToken, loading: false });
+  }
 
   async function login(email: string, password: string) {
     const data = await api<{ accessToken: string; user: User }>(
@@ -59,12 +70,12 @@ export function useAuth() {
     set({ user: data.user, accessToken: data.accessToken, loading: false });
   }
 
-  async function register(full_name: string, email: string, password: string) {
+  async function register(email: string, password: string, full_name: string) {
     const data = await api<{ accessToken: string; user: User }>(
       '/auth/register', 
       { 
         method: 'POST', 
-        body: JSON.stringify({ full_name, email, password }) 
+        body: JSON.stringify({ email, password, full_name }) 
       }
     );
     
@@ -74,7 +85,6 @@ export function useAuth() {
 
   async function logout() {
     try {
-      // Intenta notificar al servidor, pero no bloquees si falla
       await api('/auth/logout', { method: 'POST' });
     } catch (err) {
       console.warn('Logout request failed, clearing local state anyway');
@@ -84,5 +94,5 @@ export function useAuth() {
     }
   }
 
-  return { ...state, login, register, logout, refresh };
+  return { ...state, verifyCode, login, register, logout, refresh };
 }

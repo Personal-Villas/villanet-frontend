@@ -6,7 +6,7 @@ import { api } from '../api/api';
 import Header from '../components/Header';
 import HeroSection from '../components/HeroSection';
 import FiltersPanel from '../components/FiltersPanel';
-
+import AuthModal from '../components/AuthModal';
 
 type Listing = {
   id: string;
@@ -51,23 +51,23 @@ const ITEMS_PER_PAGE = 24;
 const PLACEHOLDER = 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80&auto=format&fit=crop';
 
 export default function Properties() {
-  const { user, loading: authLoading/*, logout */ } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   // Scroll state para mostrar/ocultar el search en navbar
   const [showNavbarSearch, setShowNavbarSearch] = useState(false);
   const heroSearchRef = useRef<HTMLDivElement>(null);
   
-// Filters
-const [query, setQuery] = useState('');
-const [bedrooms, setBedrooms] = useState<string[]>([]);
-const [bathrooms, setBathrooms] = useState<string[]>([]);
-const [minPrice, setMinPrice] = useState('');
-const [maxPrice, setMaxPrice] = useState('');
-const [checkIn, setCheckIn] = useState('');
-const [checkOut, setCheckOut] = useState('');
-const [showFilters, setShowFilters] = useState(false);
-const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+  // Filters
+  const [query, setQuery] = useState('');
+  const [bedrooms, setBedrooms] = useState<string[]>([]);
+  const [bathrooms, setBathrooms] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
 
   // Pagination state
   const [items, setItems] = useState<Listing[]>([]);
@@ -77,6 +77,9 @@ const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  // Auth modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Availability session state
   const [availabilitySession, setAvailabilitySession] = useState<string | null>(null);
@@ -95,7 +98,7 @@ const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const observerTarget = useRef<HTMLDivElement>(null);
 
   // Detect when to switch to traditional pagination
-  const hasAvailabilityFilter = Boolean(checkIn && checkOut);
+  const hasAvailabilityFilter = Boolean(checkIn && checkOut && user); // Solo usuarios autenticados pueden usar disponibilidad
 
   // Detectar scroll para mostrar search en navbar
   useEffect(() => {
@@ -119,23 +122,23 @@ const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
     }
   }, [items.length, hasAvailabilityFilter]);
 
-// Reset pagination when filters change
-useEffect(() => {
-  setOffset(0);
-  setItems([]);
-  setHasMore(true);
-  setError(null);
-  setAvailabilitySession(null);
-  setAvailabilityCursor(null);
-  setPaginationMode('infinite');
-}, [debouncedQuery, bedrooms, bathrooms, minPrice, maxPrice, checkIn, checkOut, selectedBadges]);
+  // Reset pagination when filters change
+  useEffect(() => {
+    setOffset(0);
+    setItems([]);
+    setHasMore(true);
+    setError(null);
+    setAvailabilitySession(null);
+    setAvailabilityCursor(null);
+    setPaginationMode('infinite');
+  }, [debouncedQuery, bedrooms, bathrooms, minPrice, maxPrice, checkIn, checkOut, selectedBadges]);
 
   // Fetch listings - usar debouncedQuery
   useEffect(() => {
-    if (authLoading || !user) return;
-  
+    if (authLoading) return; // SOLO verificar authLoading, no user
+
     const controller = new AbortController();
-  
+
     (async () => {
       setLoading(true);
       setError(null);
@@ -160,7 +163,10 @@ useEffect(() => {
           qs.set('offset', String(offset));
         }
 
-        const data = await api<ListingsResponse>(`/listings?${qs.toString()}`, { 
+        // ✅ USAR ENDPOINT PÚBLICO SI NO HAY USUARIO
+        const endpoint = user ? '/listings' : '/public/listings';
+        
+        const data = await api<ListingsResponse>(`${endpoint}?${qs.toString()}`, { 
           signal: controller.signal 
         });
 
@@ -201,28 +207,37 @@ useEffect(() => {
         }
       } catch (err: any) {
         if (!controller.signal.aborted) {
-          setError(
-            err.message?.includes('429') || err.message?.includes('503')
-              ? 'Too many requests. Waiting 60 seconds...'
-              : err.message?.includes('401')
-              ? 'Session expired. Please log in.'
-              : 'Server error. Please try again.'
-          );
-          
-          if (err.message?.includes('429') || err.message?.includes('503')) {
+          // Manejar errores específicos para endpoint público
+          if (!user && err instanceof Error && err.message?.includes('401')) {
+            console.log('Expected 401 for public endpoint - ignoring');
+            // Mostrar propiedades vacías para usuarios no autenticados
+            setItems([]);
+            setTotal(0);
             setHasMore(false);
-            setAvailabilitySession(null);
-            setAvailabilityCursor(null);
+          } else {
+            setError(
+              err.message?.includes('429') || err.message?.includes('503')
+                ? 'Too many requests. Waiting 60 seconds...'
+                : err.message?.includes('401')
+                ? 'Session expired. Please log in.'
+                : 'Server error. Please try again.'
+            );
             
-            setTimeout(() => {
-              setError(null);
-              setHasMore(true);
+            if (err.message?.includes('429') || err.message?.includes('503')) {
+              setHasMore(false);
+              setAvailabilitySession(null);
+              setAvailabilityCursor(null);
+              
+              setTimeout(() => {
+                setError(null);
+                setHasMore(true);
+                setRetryCount(prev => prev + 1);
+              }, 60000);
+            }
+            
+            if (!err.message?.includes('429') && !err.message?.includes('503') && !err.message?.includes('401')) {
               setRetryCount(prev => prev + 1);
-            }, 60000);
-          }
-          
-          if (!err.message?.includes('429') && !err.message?.includes('503') && !err.message?.includes('401')) {
-            setRetryCount(prev => prev + 1);
+            }
           }
         }
       } finally {
@@ -241,7 +256,7 @@ useEffect(() => {
     checkOut,
     selectedBadges,
     offset,
-    user,
+    user, // ← MANTENER user como dependencia
     authLoading,
     retryCount,
     availabilitySession,
@@ -336,11 +351,6 @@ useEffect(() => {
     setter(prev => prev.includes(value) ? prev.filter(x => x !== value) : [...prev, value]);
   }, []);
 
-  /*const handleLogout = useCallback(async () => {
-    await logout();
-    navigate('/login');
-  }, [logout, navigate]);*/
-
   const clearAllFilters = useCallback(() => {
     setQuery('');
     setBedrooms([]);
@@ -357,8 +367,23 @@ useEffect(() => {
   }, []);
 
   const goToDetail = useCallback((property: Listing) => {
+    // Si no hay usuario, mostrar modal de auth
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    // Si hay usuario, navegar normalmente
     navigate(`/property/${property.id}`);
-  }, [navigate]);
+  }, [navigate, user]);
+
+  const handleAuthSuccess = useCallback(() => {
+    setShowAuthModal(false);
+    // Recargar propiedades después del login exitoso
+    setOffset(0);
+    setItems([]);
+    setHasMore(true);
+  }, []);
 
   const formatMoney = (n: number | null | undefined) =>
     n == null ? '—' : `$${n.toLocaleString()}`;
@@ -391,30 +416,13 @@ useEffect(() => {
   const today = new Date().toISOString().split('T')[0];
   const minCheckOut = checkIn || today;
 
-  // Auth guards
+  // Loading state
   if (authLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900 mx-auto"></div>
           <p className="mt-4 text-neutral-600 font-sans">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-600 mb-2 font-sans">Authentication Required</h2>
-          <p className="text-neutral-600 mb-4 font-sans">Please log in to view properties</p>
-          <button
-            onClick={() => navigate('/login')}
-            className="bg-neutral-900 text-white px-6 py-3 rounded-lg hover:bg-neutral-800 transition font-sans font-medium"
-          >
-            Go to Login
-          </button>
         </div>
       </div>
     );
@@ -435,6 +443,8 @@ useEffect(() => {
         today={today}
         minCheckOut={minCheckOut}
         showNavbarSearch={showNavbarSearch}
+        showAuthButton={!user}
+        onAuthClick={() => setShowAuthModal(true)}
       />
 
       <HeroSection
@@ -635,7 +645,7 @@ useEffect(() => {
                     
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm text-neutral-600">
-                        Next avail. Nov 6 - Nov 7
+                        {user ? 'Next avail. Nov 6 - Nov 7' : 'Sign in to view availability'}
                       </p>
                       
                       <div className="flex items-center gap-1 text-sm text-neutral-600 whitespace-nowrap">
@@ -680,13 +690,26 @@ useEffect(() => {
               <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <Search className="w-10 h-10 text-neutral-400" />
               </div>
-              <h3 className="text-2xl font-bold text-neutral-900 mb-3">No properties found</h3>
+              <h3 className="text-2xl font-bold text-neutral-900 mb-3">
+                {user ? 'No properties found' : 'Explore Amazing Properties'}
+              </h3>
               <p className="text-neutral-500 mb-6">
-                {debouncedQuery || activeFiltersCount > 0 
-                  ? "Try adjusting your search criteria or filters" 
-                  : "No properties available at the moment"}
+                {!user 
+                  ? 'Sign in to view all property details and book your stay'
+                  : debouncedQuery || activeFiltersCount > 0 
+                    ? "Try adjusting your search criteria or filters" 
+                    : "No properties available at the moment"
+                }
               </p>
-              {activeFiltersCount > 0 && (
+              {!user && (
+                <button 
+                  onClick={() => setShowAuthModal(true)} 
+                  className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+                >
+                  Sign In to View Properties
+                </button>
+              )}
+              {activeFiltersCount > 0 && user && (
                 <button 
                   onClick={clearAllFilters} 
                   className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
@@ -782,6 +805,14 @@ useEffect(() => {
           </div>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal 
+          onClose={() => setShowAuthModal(false)} 
+          onSuccess={handleAuthSuccess}
+        />
+      )}
     </div>
   );
 }

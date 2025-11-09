@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { LogOut, LayoutDashboard } from 'lucide-react';
+import { LogOut, LayoutDashboard, User } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { SearchBar } from './SearchBar';
 
@@ -16,6 +16,8 @@ interface HeaderProps {
   today: string;
   minCheckOut: string;
   showNavbarSearch?: boolean;
+  showAuthButton?: boolean; // 🆕 NUEVA PROP
+  onAuthClick?: () => void; // 🆕 NUEVA PROP
 }
 
 export default function Header({
@@ -31,23 +33,23 @@ export default function Header({
   today,
   minCheckOut,
   showNavbarSearch = false,
+  showAuthButton = false, // 🆕 valor por defecto
+  onAuthClick, // 🆕 prop opcional
 }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/properties'); // Cambiar a /properties en lugar de /login
   };
 
   return (
     <header className="border-b border-neutral-200 sticky top-0 bg-white z-50 shadow-sm">
-      {/* safe-area padding a la derecha para iOS notches */}
       <div className="max-w-[1600px] mx-auto pl-4 pr-[max(env(safe-area-inset-right),1rem)] sm:px-6 lg:px-12 py-3 sm:py-4">
-        {/* GRID: [logo][centro][acciones] */}
         <div className="grid grid-cols-[auto,1fr,auto] items-center gap-2 sm:gap-4">
           
-          {/* Logo (no shrink) */}
+          {/* Logo */}
           <div
             className={`flex items-center shrink-0 transition-all duration-300 ${
               showNavbarSearch
@@ -63,7 +65,7 @@ export default function Header({
             </h1>
           </div>
 
-          {/* Centro: SearchBar (cuando está oculto, no ocupa ancho pero mantiene la columna) */}
+          {/* SearchBar */}
           <div
             className={`min-w-0 flex justify-center transition-all duration-300 mx-2 ${
               showNavbarSearch ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
@@ -85,32 +87,47 @@ export default function Header({
             />
           </div>
 
-          {/* Acciones (no shrink, íconos tamaño fijo en mobile) */}
+          {/* Acciones */}
           <div className="flex items-center gap-2 sm:gap-2 shrink-0 justify-end">
-            <span className="text-xs sm:text-sm text-neutral-600 hidden lg:block truncate max-w-[150px]">
-              {user?.full_name}
-            </span>
-
-            {user?.role === 'admin' && (
+            
+            {/* 🆕 BOTÓN DE AUTH CUANDO NO HAY USUARIO */}
+            {showAuthButton && !user && (
               <button
-                onClick={() => navigate('/admin')}
-                className="p-2 sm:px-4 sm:py-2 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition font-medium flex items-center gap-2"
-                title="Dashboard"
+                onClick={onAuthClick}
+                className="px-4 py-2 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition font-medium flex items-center gap-2"
               >
-                {/* Fija 20px en mobile para que no se achique */}
-                <LayoutDashboard className="w-5 h-5" />
-                <span className="hidden sm:inline text-sm">Dashboard</span>
+                <User className="w-4 h-4" />
+                <span className="text-sm">Join for free</span>
               </button>
             )}
 
-            <button
-              onClick={handleLogout}
-              className="text-neutral-600 hover:text-neutral-900 transition p-2 rounded-lg hover:bg-neutral-50"
-              title="Logout"
-            >
-              {/* Fija 20px en mobile para que no se achique */}
-              <LogOut className="w-5 h-5" />
-            </button>
+            {/* INFO DEL USUARIO CUANDO ESTÁ LOGUEADO */}
+            {user && (
+              <>
+                <span className="text-xs sm:text-sm text-neutral-600 hidden lg:block truncate max-w-[150px]">
+                  {user?.full_name || user?.email}
+                </span>
+
+                {user?.role === 'admin' && (
+                  <button
+                    onClick={() => navigate('/admin')}
+                    className="p-2 sm:px-4 sm:py-2 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition font-medium flex items-center gap-2"
+                    title="Dashboard"
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                    <span className="hidden sm:inline text-sm">Dashboard</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleLogout}
+                  className="text-neutral-600 hover:text-neutral-900 transition p-2 rounded-lg hover:bg-neutral-50"
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
