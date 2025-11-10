@@ -12,6 +12,16 @@ export interface User {
 
 type AuthState = { user?: User; accessToken?: string; loading: boolean; };
 
+// ✅ Interfaces para las respuestas de la API
+interface AuthResponse {
+  accessToken: string;
+  user: User;
+}
+
+interface RefreshResponse {
+  accessToken: string;
+}
+
 export function useAuth() {
   const [state, set] = useState<AuthState>({ loading: true });
 
@@ -23,7 +33,7 @@ export function useAuth() {
         return;
       }
 
-      const { accessToken } = await api<{accessToken: string}>('/auth/refresh', { 
+      const { accessToken } = await api<RefreshResponse>('/auth/refresh', { 
         method: 'POST' 
       });
       
@@ -44,8 +54,9 @@ export function useAuth() {
     refresh(); 
   }, []);
 
-  async function verifyCode(email: string, code: string, fullName?: string) {
-    const data = await api<{ accessToken: string; user: User }>(
+  // ✅ Ahora retorna explícitamente los datos
+  async function verifyCode(email: string, code: string, fullName?: string): Promise<AuthResponse> {
+    const data = await api<AuthResponse>(
       '/auth/verify-code',
       {
         method: 'POST',
@@ -55,10 +66,13 @@ export function useAuth() {
     
     localStorage.setItem('access', data.accessToken);
     set({ user: data.user, accessToken: data.accessToken, loading: false });
+    
+    return data; // ✅ Retorna los datos
   }
 
-  async function login(email: string, password: string) {
-    const data = await api<{ accessToken: string; user: User }>(
+  // ✅ Ahora retorna explícitamente los datos
+  async function login(email: string, password: string): Promise<AuthResponse> {
+    const data = await api<AuthResponse>(
       '/auth/login', 
       { 
         method: 'POST', 
@@ -68,10 +82,13 @@ export function useAuth() {
     
     localStorage.setItem('access', data.accessToken);
     set({ user: data.user, accessToken: data.accessToken, loading: false });
+    
+    return data; // ✅ Retorna los datos
   }
 
-  async function register(email: string, password: string, full_name: string) {
-    const data = await api<{ accessToken: string; user: User }>(
+  // ✅ Ahora retorna explícitamente los datos
+  async function register(email: string, password: string, full_name: string): Promise<AuthResponse> {
+    const data = await api<AuthResponse>(
       '/auth/register', 
       { 
         method: 'POST', 
@@ -81,6 +98,8 @@ export function useAuth() {
     
     localStorage.setItem('access', data.accessToken);
     set({ user: data.user, accessToken: data.accessToken, loading: false });
+    
+    return data; // ✅ Retorna los datos
   }
 
   async function logout() {

@@ -69,7 +69,7 @@ export function BadgeFilters({ selectedBadges, onBadgeToggle }: BadgeFiltersProp
     return (
         <div className="border-b border-neutral-200 bg-white w-full">
             <div className="w-full px-6 lg:px-12">
-                <div className="overflow-x-auto scrollbar-hide">
+                <div className="overflow-x-auto no-scrollbar">
                     <div className="flex gap-6 py-3 min-w-max">
                         {BADGES.map((badge) => {
                             const isSelected = selectedBadge === badge.id;

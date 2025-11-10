@@ -40,3 +40,12 @@
     font-style: italic;
     font-display: swap;
   }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;              /* Chrome, Safari, Edge */
+  }
+  
+  .no-scrollbar {
+    -ms-overflow-style: none;   /* IE y Edge antiguos */
+    scrollbar-width: none;      /* Firefox */
+  }

@@ -1,5 +1,16 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, LayoutDashboard, User, Home, MessageCircle, Download, UserCircle } from 'lucide-react';
+import { 
+  LogOut, 
+  LayoutDashboard, 
+  User, 
+  Home, 
+  MessageCircle, 
+  Download, 
+  UserCircle,
+  Menu,
+  X
+} from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { SearchBar } from './SearchBar';
 
@@ -33,11 +44,30 @@ export default function Header({
   today,
   minCheckOut,
   showNavbarSearch = false,
-  showAuthButton = false, 
+  showAuthButton = false,
   onAuthClick, 
 }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -95,15 +125,83 @@ export default function Header({
               showNavbarSearch ? 'hidden sm:flex' : 'flex'
             }`}>
               
-              {/* BOTÓN DE AUTH CUANDO NO HAY USUARIO */}
+              {/* BOTÓN DE AUTH + MENÚ CUANDO NO HAY USUARIO */}
               {showAuthButton && !user && (
-                <button
-                  onClick={onAuthClick}
-                  className="px-4 py-2 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition font-medium flex items-center gap-2"
-                >
-                  <User className="w-4 h-4" />
-                  <span className="text-sm">Join for free</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={onAuthClick}
+                    className="px-4 py-2 rounded-full text-neutral-900 border border-neutral-200 hover:text-neutral-800 transition flex items-center gap-2"
+                  >
+                    <span className="text-sm">Join for free</span>
+                  </button>
+
+                  {/* Menú tipo Wander - SOLO DESKTOP */}
+                  <div 
+                    ref={menuRef}
+                    className="relative hidden sm:block"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setMenuOpen(o => !o)}
+                      className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition"
+                    >
+                      {menuOpen ? (
+                        <X className="w-4 h-4" />
+                      ) : (
+                        <Menu className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {menuOpen && (
+                      <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-neutral-200 p-3">
+                        <div className="px-3 pb-3">
+                          <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                            Unlock access and rewards
+                          </p>
+                          <button
+                            onClick={onAuthClick}
+                            className="mt-2 w-full rounded-full bg-neutral-900 text-white text-sm font-medium py-2.5 hover:bg-neutral-800 transition"
+                          >
+                            Log in or sign up
+                          </button>
+                        </div>
+
+                        <div className="border-t border-neutral-200 my-2" />
+
+                        <div className="flex flex-col gap-1 px-3 pb-2 text-sm text-neutral-800">
+                          <button className="flex items-center justify-between py-1 hover:text-neutral-900">
+                            <span>Download mobile app</span>
+                          </button>
+                          <button className="flex items-center justify-between py-1 hover:text-neutral-900">
+                            <span>List on Villanet</span>
+                          </button>
+                          <button className="flex items-center justify-between py-1 hover:text-neutral-900">
+                            <span>Help Center</span>
+                          </button>
+                        </div>
+
+                        <div className="border-t border-neutral-200 my-2" />
+
+                        <div className="px-3 pb-1">
+                          <div className="flex items-center justify-between text-xs text-neutral-500 mb-1">
+                            <span>Theme</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button className="w-7 h-7 rounded-full border border-neutral-200 text-xs">
+                              ☾
+                            </button>
+                            <button className="w-7 h-7 rounded-full border border-neutral-900 text-xs">
+                              ●
+                            </button>
+                            <button className="w-7 h-7 rounded-full border border-neutral-200 text-xs">
+                              🖥
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
               {/* INFO DEL USUARIO CUANDO ESTÁ LOGUEADO */}

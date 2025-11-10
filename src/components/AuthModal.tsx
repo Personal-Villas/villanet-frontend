@@ -11,6 +11,7 @@ import people4 from '../assets/images/people-4.png';
 import people5 from '../assets/images/people-5.png';
 import people6 from '../assets/images/people-6.png';
 import { publicApi } from '../api/api';
+import { useAuth } from '../auth/useAuth'; // ✅ Importa el hook real
 
 // Definición de tipos
 interface AuthModalProps {
@@ -19,33 +20,11 @@ interface AuthModalProps {
   imageLogin?: string;
 }
 
-interface User {
-  id: string;
-  email: string;
-  full_name?: string;
-  // Agrega más propiedades según tu API
-}
-
 interface ApiResponse {
   message: string;
   userExists: boolean;
-  user?: User;
+  user?: any;
 }
-
-// Hook useAuth simulado (deberías reemplazar esto con tu implementación real)
-const useAuth = () => {
-  return {
-    verifyCode: async (email: string, code: string, fullName?: string): Promise<ApiResponse> => {
-      // Simulación de verificación de código
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { 
-        message: 'Code verified', 
-        userExists: true,
-        user: { id: '1', email, full_name: fullName }
-      };
-    }
-  };
-};
 
 const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
@@ -59,7 +38,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [userExists, setUserExists] = useState<boolean>(false);
-  const { verifyCode } = useAuth();
+  
+  // ✅ Usa el hook real de autenticación
+  const { verifyCode: realVerifyCode } = useAuth();
   
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const bgImage = imageLogin ?? imageLoginDefault;
@@ -156,11 +137,15 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
   
     try {
-      const response = await verifyCode(email, codeString, fullName.trim() || undefined);
+      // ✅ Usa la función real verifyCode que actualiza el estado global
+      const data = await realVerifyCode(email, codeString, fullName.trim() || undefined);
   
-      console.log('✅ verify-code OK', response);
-      if (response.user) {
-        onSuccess(response.user);
+      console.log('✅ verify-code OK', data);
+      
+      // ✅ El hook useAuth ya actualizó el estado global del usuario
+      // ✅ Ahora llamamos a onSuccess con el usuario real
+      if (data.user) {
+        onSuccess(data.user);
         onClose();
       }
     } catch (err: any) {

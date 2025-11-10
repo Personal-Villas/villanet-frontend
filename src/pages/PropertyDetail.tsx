@@ -2,6 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { MapPin, Bed, Bath, ChevronLeft, ChevronRight, ArrowLeft, Calendar, Moon } from 'lucide-react';
 import { api } from '../api/api';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 type Listing = {
   listing_id: string;
@@ -192,6 +194,13 @@ export default function PropertyDetail() {
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  // ✅ Estados para el Header (pueden ser vacíos ya que no usamos search/filters aquí)
+  const [query, setQuery] = useState('');
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+
   const [start, setStart] = useState(() => {
     const s = new Date();
     s.setDate(1);
@@ -324,13 +333,35 @@ export default function PropertyDetail() {
   const nextImage = () => setCurrentImageIndex(prev => (prev + 1) % images.length);
   const prevImage = () => setCurrentImageIndex(prev => (prev - 1 + images.length) % images.length);
 
+  // ✅ Calcular activeFiltersCount para el Header
+  const activeFiltersCount = 0; // En property detail no hay filtros activos
+
+  const today = new Date().toISOString().split('T')[0];
+  const minCheckOut = checkIn || today;
+
   if (loading && !listing) {
     return (
-      <div className="max-w-6xl mx-auto p-4 lg:p-6">
-        <div className="animate-pulse space-y-6">
-          <div className="aspect-[16/9] bg-neutral-200 rounded-2xl"></div>
-          <div className="h-8 bg-neutral-200 rounded w-2/3"></div>
-          <div className="h-4 bg-neutral-200 rounded w-1/2"></div>
+      <div className="min-h-screen bg-white">
+        <Header
+          query={query}
+          setQuery={setQuery}
+          checkIn={checkIn}
+          setCheckIn={setCheckIn}
+          checkOut={checkOut}
+          setCheckOut={setCheckOut}
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          activeFiltersCount={activeFiltersCount}
+          today={today}
+          minCheckOut={minCheckOut}
+          showNavbarSearch={false}
+        />
+        <div className="max-w-6xl mx-auto p-4 lg:p-6">
+          <div className="animate-pulse space-y-6">
+            <div className="aspect-[16/9] bg-neutral-200 rounded-2xl"></div>
+            <div className="h-8 bg-neutral-200 rounded w-2/3"></div>
+            <div className="h-4 bg-neutral-200 rounded w-1/2"></div>
+          </div>
         </div>
       </div>
     );
@@ -338,31 +369,47 @@ export default function PropertyDetail() {
 
   if (error && !listing) {
     return (
-      <div className="max-w-6xl mx-auto p-4 lg:p-6">
-        <button 
-          onClick={() => navigate('/properties')}
-          className="flex items-center gap-2 text-orange-500 hover:text-orange-600 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Properties
-        </button>
-        
-        <div className="text-center py-12">
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Error</h2>
-          <p className="text-neutral-600 mb-4">{error}</p>
-          <div className="flex gap-4 justify-center">
-            <button 
-              onClick={() => navigate('/properties')}
-              className="bg-neutral-500 text-white px-6 py-2 rounded-lg hover:bg-neutral-600 transition"
-            >
-              Back to Properties
-            </button>
-            <button 
-              onClick={() => window.location.reload()}
-              className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition"
-            >
-              Try Again
-            </button>
+      <div className="min-h-screen bg-white">
+        <Header
+          query={query}
+          setQuery={setQuery}
+          checkIn={checkIn}
+          setCheckIn={setCheckIn}
+          checkOut={checkOut}
+          setCheckOut={setCheckOut}
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          activeFiltersCount={activeFiltersCount}
+          today={today}
+          minCheckOut={minCheckOut}
+          showNavbarSearch={false}
+        />
+        <div className="max-w-6xl mx-auto p-4 lg:p-6">
+          <button 
+            onClick={() => navigate('/properties')}
+            className="flex items-center gap-2 text-orange-500 hover:text-orange-600 mb-6"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Properties
+          </button>
+          
+          <div className="text-center py-12">
+            <h2 className="text-xl font-semibold text-red-600 mb-2">Error</h2>
+            <p className="text-neutral-600 mb-4">{error}</p>
+            <div className="flex gap-4 justify-center">
+              <button 
+                onClick={() => navigate('/properties')}
+                className="bg-neutral-500 text-white px-6 py-2 rounded-lg hover:bg-neutral-600 transition"
+              >
+                Back to Properties
+              </button>
+              <button 
+                onClick={() => window.location.reload()}
+                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition"
+              >
+                Try Again
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -371,220 +418,255 @@ export default function PropertyDetail() {
 
   if (!listing) {
     return (
-      <div className="max-w-6xl mx-auto p-4 lg:p-6">
-        <div className="text-center py-12">
-          <h2 className="text-xl font-semibold text-neutral-900 mb-2">Property Not Found</h2>
-          <p className="text-neutral-600">The property you're looking for doesn't exist.</p>
-          <button 
-            onClick={() => navigate('/properties')}
-            className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition"
-          >
-            Back to Properties
-          </button>
+      <div className="min-h-screen bg-white">
+        <Header
+          query={query}
+          setQuery={setQuery}
+          checkIn={checkIn}
+          setCheckIn={setCheckIn}
+          checkOut={checkOut}
+          setCheckOut={setCheckOut}
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          activeFiltersCount={activeFiltersCount}
+          today={today}
+          minCheckOut={minCheckOut}
+          showNavbarSearch={false}
+        />
+        <div className="max-w-6xl mx-auto p-4 lg:p-6">
+          <div className="text-center py-12">
+            <h2 className="text-xl font-semibold text-neutral-900 mb-2">Property Not Found</h2>
+            <p className="text-neutral-600">The property you're looking for doesn't exist.</p>
+            <button 
+              onClick={() => navigate('/properties')}
+              className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition"
+            >
+              Back to Properties
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 lg:p-6 space-y-6 lg:space-y-8">
-      <button 
-        onClick={() => navigate('/properties')}
-        className="flex items-center gap-2 text-orange-500 hover:text-orange-600"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Properties
-      </button>
+    <div className="min-h-screen bg-white">
+      {/* ✅ Agregar el Header */}
+      <Header
+        query={query}
+        setQuery={setQuery}
+        checkIn={checkIn}
+        setCheckIn={setCheckIn}
+        checkOut={checkOut}
+        setCheckOut={setCheckOut}
+        showFilters={showFilters}
+        setShowFilters={setShowFilters}
+        activeFiltersCount={activeFiltersCount}
+        today={today}
+        minCheckOut={minCheckOut}
+        showNavbarSearch={false}
+      />
 
-      {/* Property Header - MOVED BEFORE IMAGE */}
-      <div>
-        <h1 className="text-2xl lg:text-3xl font-semibold">{listing.name}</h1>
-        <div className="flex items-center gap-2 text-neutral-600 mt-2">
-          <MapPin className="w-4 h-4 lg:w-5 lg:h-5" />
-          <span className="text-sm lg:text-base">
-            {listing.location_text || `${listing.city || ''}${listing.city && listing.country ? ', ' : ''}${listing.country || ''}`}
-          </span>
-        </div>
-      </div>
+      <div className="max-w-6xl mx-auto p-4 lg:p-6 space-y-6 lg:space-y-8">
+        <button 
+          onClick={() => navigate('/properties')}
+          className="flex items-center gap-2 text-orange-500 hover:text-orange-600"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Properties
+        </button>
 
-      {/* Image Carousel */}
-      <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-neutral-100">
-        <img 
-          src={images[currentImageIndex]} 
-          alt={listing.name} 
-          className="object-cover w-full h-full"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80&auto=format&fit=crop';
-          }}
-        />
-        
-        {images.length > 1 && (
-          <>
-            <button
-              onClick={prevImage}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full transition shadow-lg"
-            >
-              <ChevronLeft className="w-6 h-6 text-neutral-900" />
-            </button>
-            <button
-              onClick={nextImage}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full transition shadow-lg"
-            >
-              <ChevronRight className="w-6 h-6 text-neutral-900" />
-            </button>
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-              {currentImageIndex + 1} / {images.length}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Property Details */}
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        <div className="flex flex-wrap gap-4 lg:gap-6 text-base lg:text-lg text-neutral-800">
-          <span className="flex items-center gap-2">
-            <Bed className="w-4 h-4 lg:w-5 lg:h-5" /> 
-            {listing.bedrooms ?? '—'} Bedrooms
-          </span>
-          <span className="flex items-center gap-2">
-            <Bath className="w-4 h-4 lg:w-5 lg:h-5" /> 
-            {listing.bathrooms ?? '—'} Bathrooms
-          </span>
-        </div>
-        <p className="text-xl lg:text-2xl font-semibold text-[#203F3C]">
-          ${listing.price_usd?.toLocaleString() ?? '—'} / night
-        </p>
-      </div>
-
-      {/* Calendar Section */}
-      <div className="bg-white  p-4 lg:p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 lg:mb-6 gap-3">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-gray-600" />
-            <h2 className="text-lg lg:text-xl font-semibold">Availability Calendar</h2>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={prevMonth} 
-              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors bg-white"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <span className="text-xs lg:text-sm text-gray-700 min-w-[160px] lg:min-w-[200px] text-center font-medium">
-              {start.toLocaleString(undefined, { month:'short', year:'numeric' })} – {addDays(new Date(start), 45).toLocaleString(undefined, { month:'short', year:'numeric' })}
+        {/* Property Header - MOVED BEFORE IMAGE */}
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-semibold">{listing.name}</h1>
+          <div className="flex items-center gap-2 text-neutral-600 mt-2">
+            <MapPin className="w-4 h-4 lg:w-5 lg:h-5" />
+            <span className="text-sm lg:text-base">
+              {listing.location_text || `${listing.city || ''}${listing.city && listing.country ? ', ' : ''}${listing.country || ''}`}
             </span>
-            <button 
-              onClick={nextMonth} 
-              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors bg-white"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-2 mb-4 text-xs lg:text-sm">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-white border-2 border-gray-300"></div>
-            <span className="text-gray-600">Available</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-gray-200 border-2 border-gray-300"></div>
-            <span className="text-gray-600">Unavailable</span>
-          </div>
-        </div>
-
-        {availabilityError && (
-          <div className="mb-4 p-3 lg:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-yellow-800 font-medium text-sm lg:text-base">Availability Unavailable</h3>
-                <p className="text-yellow-600 text-xs lg:text-sm mt-1">{availabilityError}</p>
-              </div>
+        {/* Image Carousel */}
+        <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-neutral-100">
+          <img 
+            src={images[currentImageIndex]} 
+            alt={listing.name} 
+            className="object-cover w-full h-full"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80&auto=format&fit=crop';
+            }}
+          />
+          
+          {images.length > 1 && (
+            <>
               <button
-                onClick={retryAvailability}
-                className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition text-xs lg:text-sm font-medium"
+                onClick={prevImage}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full transition shadow-lg"
               >
-                Retry
+                <ChevronLeft className="w-6 h-6 text-neutral-900" />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full transition shadow-lg"
+              >
+                <ChevronRight className="w-6 h-6 text-neutral-900" />
+              </button>
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+                {currentImageIndex + 1} / {images.length}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Property Details */}
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="flex flex-wrap gap-4 lg:gap-6 text-base lg:text-lg text-neutral-800">
+            <span className="flex items-center gap-2">
+              <Bed className="w-4 h-4 lg:w-5 lg:h-5" /> 
+              {listing.bedrooms ?? '—'} Bedrooms
+            </span>
+            <span className="flex items-center gap-2">
+              <Bath className="w-4 h-4 lg:w-5 lg:h-5" /> 
+              {listing.bathrooms ?? '—'} Bathrooms
+            </span>
+          </div>
+          <p className="text-xl lg:text-2xl font-semibold text-[#203F3C]">
+            ${listing.price_usd?.toLocaleString() ?? '—'} / night
+          </p>
+        </div>
+
+        {/* Calendar Section */}
+        <div className="bg-white  p-4 lg:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 lg:mb-6 gap-3">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-gray-600" />
+              <h2 className="text-lg lg:text-xl font-semibold">Availability Calendar</h2>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={prevMonth} 
+                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors bg-white"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <span className="text-xs lg:text-sm text-gray-700 min-w-[160px] lg:min-w-[200px] text-center font-medium">
+                {start.toLocaleString(undefined, { month:'short', year:'numeric' })} – {addDays(new Date(start), 45).toLocaleString(undefined, { month:'short', year:'numeric' })}
+              </span>
+              <button 
+                onClick={nextMonth} 
+                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors bg-white"
+              >
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           </div>
-        )}
 
-        {loadingAvailability && (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
-            <p className="text-neutral-600">Loading availability...</p>
+          {/* Legend */}
+          <div className="flex items-center gap-2 mb-4 text-xs lg:text-sm">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-white border-2 border-gray-300"></div>
+              <span className="text-gray-600">Available</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-gray-200 border-2 border-gray-300"></div>
+              <span className="text-gray-600">Unavailable</span>
+            </div>
           </div>
-        )}
 
-        {!loadingAvailability && days.length === 0 && !availabilityError && (
-          <div className="p-8 text-center text-neutral-600">
-            <Calendar className="w-12 h-12 mx-auto mb-2 text-neutral-400" />
-            <p>No availability data for this period</p>
-          </div>
-        )}
+          {availabilityError && (
+            <div className="mb-4 p-3 lg:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-yellow-800 font-medium text-sm lg:text-base">Availability Unavailable</h3>
+                  <p className="text-yellow-600 text-xs lg:text-sm mt-1">{availabilityError}</p>
+                </div>
+                <button
+                  onClick={retryAvailability}
+                  className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition text-xs lg:text-sm font-medium"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
 
-        {!loadingAvailability && days.length > 0 && (
-          <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
-            {months.slice(0, 2).map(([ym, arr]) => (
-              <MonthGrid key={ym} ym={ym} days={arr} />
-            ))}
-          </div>
-        )}
-      </div>
+          {loadingAvailability && (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+              <p className="text-neutral-600">Loading availability...</p>
+            </div>
+          )}
 
-{/* Description */}
-{listing.description && (
-  <div>
-    <h3 className="text-lg lg:text-xl font-semibold mb-2">Description</h3>
-    <div className="text-neutral-700 leading-relaxed text-sm lg:text-base space-y-2">
-      {cleanDescription(listing.description).map((item, index) => {
-        if (typeof item === 'string') {
-          return <p key={index}>{item}</p>;
-        }
-        return item;
-      })}
-    </div>
-  </div>
-)}
+          {!loadingAvailability && days.length === 0 && !availabilityError && (
+            <div className="p-8 text-center text-neutral-600">
+              <Calendar className="w-12 h-12 mx-auto mb-2 text-neutral-400" />
+              <p>No availability data for this period</p>
+            </div>
+          )}
 
-      {/* Amenities */}
-      {Array.isArray(listing.amenities) && listing.amenities.length > 0 && (
-  <div>
-    <h3 className="text-lg lg:text-xl font-semibold mb-3">Amenities</h3>
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {listing.amenities.slice(0, 8).map((amenity, i) => (
-        <div key={i} className="flex items-center gap-2 text-neutral-600">
-          <div className="w-1.5 h-1.5 bg-orange-500 rounded-full" />
-          <span className="text-sm lg:text-base">{amenity}</span>
+          {!loadingAvailability && days.length > 0 && (
+            <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
+              {months.slice(0, 2).map(([ym, arr]) => (
+                <MonthGrid key={ym} ym={ym} days={arr} />
+              ))}
+            </div>
+          )}
         </div>
-      ))}
-    </div>
-    {listing.amenities.length > 8 && (
-      <p className="text-sm text-neutral-500 mt-3">
-        +{listing.amenities.length - 8} more amenities
-      </p>
-    )}
-  </div>
-)}
 
-      {/* Action Buttons */}
-      <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 pt-6 border-t sticky bottom-0 lg:static bg-white lg:bg-transparent pb-4 lg:pb-0">
-        <button 
-          onClick={() => navigate('/properties')}
-          className="flex-1 bg-neutral-100 text-neutral-700 px-6 py-3 rounded-lg font-medium hover:bg-neutral-200 transition-colors"
-        >
-          Back to Properties
-        </button>
-        <button 
-          onClick={() => alert('Booking functionality coming soon!')}
-          className="flex-1 bg-orange-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-600 transition-colors"
-        >
-          Book Now
-        </button>
+        {/* Description */}
+        {listing.description && (
+          <div>
+            <h3 className="text-lg lg:text-xl font-semibold mb-2">Description</h3>
+            <div className="text-neutral-700 leading-relaxed text-sm lg:text-base space-y-2">
+              {cleanDescription(listing.description).map((item, index) => {
+                if (typeof item === 'string') {
+                  return <p key={index}>{item}</p>;
+                }
+                return item;
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Amenities */}
+        {Array.isArray(listing.amenities) && listing.amenities.length > 0 && (
+          <div>
+            <h3 className="text-lg lg:text-xl font-semibold mb-3">Amenities</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {listing.amenities.slice(0, 8).map((amenity, i) => (
+                <div key={i} className="flex items-center gap-2 text-neutral-600">
+                  <div className="w-1.5 h-1.5 bg-orange-500 rounded-full" />
+                  <span className="text-sm lg:text-base">{amenity}</span>
+                </div>
+              ))}
+            </div>
+            {listing.amenities.length > 8 && (
+              <p className="text-sm text-neutral-500 mt-3">
+                +{listing.amenities.length - 8} more amenities
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 pt-6 border-t sticky bottom-0 lg:static bg-white lg:bg-transparent pb-4 lg:pb-0">
+          <button 
+            onClick={() => navigate('/properties')}
+            className="flex-1 bg-neutral-100 text-neutral-700 px-6 py-3 rounded-lg font-medium hover:bg-neutral-200 transition-colors"
+          >
+            Back to Properties
+          </button>
+          <button 
+            onClick={() => alert('Booking functionality coming soon!')}
+            className="flex-1 bg-orange-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-orange-600 transition-colors"
+          >
+            Book Now
+          </button>
+        </div>
       </div>
+      <Footer />
     </div>
   );
 }
