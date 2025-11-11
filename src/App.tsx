@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './auth/useAuth';
+import { AuthProvider } from './auth/AuthContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Pending from './pages/Pending';
@@ -8,7 +9,8 @@ import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
 import PMCInbox from './pages/PMCInbox';
 
-export default function App() {
+// ✅ Crear un componente interno que use el hook useAuth
+function AppRoutes() {
   const auth = useAuth();
 
   // Mostrar loading solo si hay token y estamos verificando
@@ -24,63 +26,71 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* 🆕 Rutas de autenticación */}
-        <Route path="/login" element={<Login auth={auth} />} />
-        <Route path="/signup" element={<Signup auth={auth} />} />
-        <Route path="/pending" element={<Pending auth={auth} />} />
+    <Routes>
+      {/* 🆕 Rutas de autenticación */}
+      <Route path="/login" element={<Login auth={auth} />} />
+      <Route path="/signup" element={<Signup auth={auth} />} />
+      <Route path="/pending" element={<Pending auth={auth} />} />
 
-        {/* 🆕 Properties - AHORA ES PÚBLICO */}
-        <Route 
-          path="/properties" 
-          element={<Properties />} 
-        />
+      {/* 🆕 Properties - AHORA ES PÚBLICO */}
+      <Route 
+        path="/properties" 
+        element={<Properties />} 
+      />
 
-        {/* 🆕 Property Detail - REQUIERE LOGIN */}
-        <Route 
-          path="/property/:id" 
-          element={
-            auth.user 
-              ? <PropertyDetail /> 
-              : <Navigate to="/properties" state={{ authRequired: true }} />
-          }
-        />
+      {/* 🆕 Property Detail - REQUIERE LOGIN */}
+      <Route 
+        path="/property/:id" 
+        element={
+          auth.user 
+            ? <PropertyDetail /> 
+            : <Navigate to="/properties" state={{ authRequired: true }} />
+        }
+      />
 
-        {/* Admin panel - Solo para admin autenticado */}
-        <Route 
-          path="/admin" 
-          element={
-            auth.user?.role === 'admin' 
-              ? <DashboardAdmin auth={auth} /> 
-              : <Navigate to="/properties" />
-          }
-        />
+      {/* Admin panel - Solo para admin autenticado */}
+      <Route 
+        path="/admin" 
+        element={
+          auth.user?.role === 'admin' 
+            ? <DashboardAdmin auth={auth} /> 
+            : <Navigate to="/properties" />
+        }
+      />
 
-        {/* PMC inbox - Solo para pmc/admin autenticado */}
-        <Route 
-          path="/pmc" 
-          element={
-            auth.user && ['pmc','admin'].includes(auth.user.role)
-              ? <PMCInbox />
-              : <Navigate to="/properties" />
-          }
-        />
+      {/* PMC inbox - Solo para pmc/admin autenticado */}
+      <Route 
+        path="/pmc" 
+        element={
+          auth.user && ['pmc','admin'].includes(auth.user.role)
+            ? <PMCInbox />
+            : <Navigate to="/properties" />
+        }
+      />
 
-        {/* Home: redirige según estado */}
-        <Route 
-          path="/" 
-          element={
-            auth.user?.role === 'admin'
-              ? <Navigate to="/admin" />
-              : auth.user?.role === 'pmc'
-              ? <Navigate to="/pmc" />
-              : <Navigate to="/properties" />
-          }
-        />
+      {/* Home: redirige según estado */}
+      <Route 
+        path="/" 
+        element={
+          auth.user?.role === 'admin'
+            ? <Navigate to="/admin" />
+            : auth.user?.role === 'pmc'
+            ? <Navigate to="/pmc" />
+            : <Navigate to="/properties" />
+        }
+      />
 
-        <Route path="*" element={<Navigate to="/properties" />} />
-      </Routes>
-    </BrowserRouter>
+      <Route path="*" element={<Navigate to="/properties" />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider> 
+      <BrowserRouter>
+        <AppRoutes /> 
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

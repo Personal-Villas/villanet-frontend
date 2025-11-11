@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { api } from '../api/api';
+import { useAuthContext } from './AuthContext';
 
 export interface User {
   id: string;
@@ -10,49 +10,22 @@ export interface User {
   full_name: string;
 }
 
-type AuthState = { user?: User; accessToken?: string; loading: boolean; };
-
 // ✅ Interfaces para las respuestas de la API
 interface AuthResponse {
   accessToken: string;
   user: User;
 }
 
-interface RefreshResponse {
+/*interface RefreshResponse {
   accessToken: string;
-}
+}*/
 
 export function useAuth() {
-  const [state, set] = useState<AuthState>({ loading: true });
+  // ✅ Usar el contexto en lugar de estado local
+  const { user, loading/*, isAuthenticated, updateAuthState */} = useAuthContext();
 
-  async function refresh() {
-    try {
-      const existingToken = localStorage.getItem('access');
-      if (!existingToken) {
-        set({ loading: false });
-        return;
-      }
-
-      const { accessToken } = await api<RefreshResponse>('/auth/refresh', { 
-        method: 'POST' 
-      });
-      
-      localStorage.setItem('access', accessToken);
-      
-      const me = await api<User>('/auth/me', { 
-        headers: { Authorization: `Bearer ${accessToken}` } 
-      });
-      
-      set({ user: me, accessToken, loading: false });
-    } catch (err) {
-      localStorage.removeItem('access');
-      set({ loading: false });
-    }
-  }
-
-  useEffect(() => { 
-    refresh(); 
-  }, []);
+  // ✅ Obtener accessToken de localStorage (para compatibilidad)
+  const accessToken = localStorage.getItem('access') || undefined;
 
   // ✅ Ahora retorna explícitamente los datos
   async function verifyCode(email: string, code: string, fullName?: string): Promise<AuthResponse> {
@@ -65,9 +38,11 @@ export function useAuth() {
     );
     
     localStorage.setItem('access', data.accessToken);
-    set({ user: data.user, accessToken: data.accessToken, loading: false });
     
-    return data; // ✅ Retorna los datos
+    // ✅ Disparar evento para que el contexto se actualice
+    window.dispatchEvent(new Event('authStateChange'));
+    
+    return data;
   }
 
   // ✅ Ahora retorna explícitamente los datos
@@ -81,9 +56,11 @@ export function useAuth() {
     );
     
     localStorage.setItem('access', data.accessToken);
-    set({ user: data.user, accessToken: data.accessToken, loading: false });
     
-    return data; // ✅ Retorna los datos
+    // ✅ Disparar evento para que el contexto se actualice
+    window.dispatchEvent(new Event('authStateChange'));
+    
+    return data;
   }
 
   // ✅ Ahora retorna explícitamente los datos
@@ -97,9 +74,11 @@ export function useAuth() {
     );
     
     localStorage.setItem('access', data.accessToken);
-    set({ user: data.user, accessToken: data.accessToken, loading: false });
     
-    return data; // ✅ Retorna los datos
+    // ✅ Disparar evento para que el contexto se actualice
+    window.dispatchEvent(new Event('authStateChange'));
+    
+    return data;
   }
 
   async function logout() {
@@ -109,9 +88,27 @@ export function useAuth() {
       console.warn('Logout request failed, clearing local state anyway');
     } finally {
       localStorage.removeItem('access');
-      set({ user: undefined, accessToken: undefined, loading: false });
+      
+      // ✅ Disparar evento para que el contexto se actualice
+      window.dispatchEvent(new Event('authStateChange'));
     }
   }
 
-  return { ...state, verifyCode, login, register, logout, refresh };
+  // ✅ Función refresh simplificada - ya no es necesaria porque el contexto maneja esto
+  async function refresh() {
+    // El contexto ya maneja el refresh automáticamente
+    window.dispatchEvent(new Event('authStateChange'));
+  }
+
+  // ✅ Retornar los datos del contexto + las funciones
+  return { 
+    user, 
+    accessToken, 
+    loading, 
+    verifyCode, 
+    login, 
+    register, 
+    logout, 
+    refresh 
+  };
 }

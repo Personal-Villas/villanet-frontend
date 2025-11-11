@@ -113,12 +113,17 @@ export default function Properties() {
   const handleAuthSuccess = useCallback((user: any) => {
     console.log('✅ Auth success, user received:', user);
     closeAuthModal();
+    
+    // ✅ Disparar evento para que el AuthContext se actualice
+    window.dispatchEvent(new Event('authStateChange'));
+    
+    // ✅ Forzar re-render del componente
     setRetryCount(prev => prev + 1);
     setOffset(0);
     setItems([]);
     setHasMore(true);
     
-    console.log('🔄 Forcing Properties re-render after login');
+    console.log('🔄 Auth state updated, Properties should re-render');
   }, [closeAuthModal]);
 
   // Detectar scroll para mostrar search en navbar
