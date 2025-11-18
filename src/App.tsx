@@ -28,16 +28,19 @@ function AppRoutes() {
 
   return (
     <Routes>
+      {/* 🆕 Ruta HOME como principal */}
+      <Route path="/" element={<Home />} />
+      
+      {/* 🆕 Ruta HOME alternativa */}
+      <Route path="/home" element={<Home />} />
+
       {/* 🆕 Rutas de autenticación */}
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />
       <Route path="/pending" element={<Pending auth={auth} />} />
-      <Route path="/home" element={<Home />} />
+
       {/* 🆕 Properties - AHORA ES PÚBLICO */}
-      <Route 
-        path="/properties" 
-        element={<Properties />} 
-      />
+      <Route path="/properties" element={<Properties />} />
 
       {/* 🆕 Property Detail - REQUIERE LOGIN */}
       <Route 
@@ -55,7 +58,7 @@ function AppRoutes() {
         element={
           auth.user?.role === 'admin' 
             ? <DashboardAdmin auth={auth} /> 
-            : <Navigate to="/properties" />
+            : <Navigate to="/" />
         }
       />
 
@@ -65,13 +68,13 @@ function AppRoutes() {
         element={
           auth.user && ['pmc','admin'].includes(auth.user.role)
             ? <PMCInbox />
-            : <Navigate to="/properties" />
+            : <Navigate to="/" />
         }
       />
 
-      {/* Home: redirige según estado */}
+      {/* Redirecciones para usuarios autenticados */}
       <Route 
-        path="/" 
+        path="/dashboard" 
         element={
           auth.user?.role === 'admin'
             ? <Navigate to="/admin" />
@@ -81,7 +84,8 @@ function AppRoutes() {
         }
       />
 
-      <Route path="*" element={<Navigate to="/home" />} />
+      {/* Catch-all: redirigir a home en lugar de properties */}
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 }
