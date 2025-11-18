@@ -36,7 +36,7 @@ export default function HeroSection({
 }: HeroSectionProps) {
   return (
     <>
-      <div className="bg-gradient-to-b from-neutral-50 to-white">
+      <div className="bg-gradient-to-b from-neutral-50 to-white mt-[60px]">
         <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 text-center">
           <h2 className="text-5xl md:text-6xl font-serif font-bold text-neutral-900 mb-4">
             Find your happy place.

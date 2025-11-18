@@ -1,109 +1,91 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  LogOut, 
-  LayoutDashboard, 
-  User, 
-  Home, 
-  MessageCircle, 
-  Download, 
-  UserCircle,
-  Menu,
-  X
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Menu, User, LogOut, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
-import { SearchBar } from './SearchBar';
 
-interface HeaderProps {
-  query: string;
-  setQuery: (query: string) => void;
-  checkIn: string;
-  setCheckIn: (date: string) => void;
-  checkOut: string;
-  setCheckOut: (date: string) => void;
-  showFilters: boolean;
-  setShowFilters: (show: boolean) => void;
-  activeFiltersCount: number;
-  today: string;
-  minCheckOut: string;
-  showNavbarSearch?: boolean;
-  showAuthButton?: boolean;
+interface UnifiedHeaderProps {
+  // Props comunes
   onAuthClick?: () => void;
+  
+  // Props específicas para modo "properties" (búsqueda/filtros)
+  mode?: 'simple' | 'search';
+  
+  // Props de búsqueda (solo si mode === 'search')
+  query?: string;
+  setQuery?: (query: string) => void;
+  checkIn?: string;
+  setCheckIn?: (date: string) => void;
+  checkOut?: string;
+  setCheckOut?: (date: string) => void;
+  showFilters?: boolean;
+  setShowFilters?: (show: boolean) => void;
+  activeFiltersCount?: number;
+  today?: string;
+  minCheckOut?: string;
+  showNavbarSearch?: boolean;
 }
 
-export default function Header({
-  query,
+export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
+  onAuthClick,
+  mode = 'simple',
+  query = '',
   setQuery,
-  checkIn,
+  checkIn = '',
   setCheckIn,
-  checkOut,
+  checkOut = '',
   setCheckOut,
-  showFilters,
+  showFilters = false,
   setShowFilters,
-  activeFiltersCount,
-  today,
-  minCheckOut,
+  activeFiltersCount = 0,
+  today = '',
+  minCheckOut = '',
   showNavbarSearch = false,
-  showAuthButton = false,
-  onAuthClick, 
-}: HeaderProps) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-
-  // Cerrar dropdown al hacer click fuera
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [menuOpen]);
+}) => {
+  const { user, loading, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/properties'); 
+    try {
+      await logout();
+      setIsMobileMenuOpen(false);
+      window.location.reload();
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
   };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const handleAuthClick = () => {
+    setIsMobileMenuOpen(false);
+    onAuthClick?.();
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E5E5E5]">
+        <div className="container mx-auto px-6">
+          <div className="flex items-center justify-between h-16">
+            <Logo />
+            <div className="text-sm text-gray-500">Loading...</div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <>
-      <header className="border-b border-neutral-200 sticky top-0 bg-white z-50 shadow-sm">
-        <div className="max-w-[1600px] mx-auto pl-4 pr-[max(env(safe-area-inset-right),1rem)] sm:px-6 lg:px-12 py-3 sm:py-4">
-          <div className="grid grid-cols-[auto,1fr,auto] items-center gap-2 sm:gap-4">
-            
-            {/* Logo - Se oculta en mobile cuando showNavbarSearch es true */}
-            <div
-              className={`flex items-center shrink-0 transition-all duration-300 ${
-                showNavbarSearch
-                  ? 'opacity-0 scale-95 w-0 overflow-hidden sm:opacity-100 sm:scale-100 sm:w-auto sm:overflow-visible'
-                  : 'opacity-100 scale-100'
-              }`}
-            >
-              <h1
-                className="text-lg sm:text-2xl font-bold text-neutral-900 tracking-tight cursor-pointer whitespace-nowrap"
-                onClick={() => navigate('/properties')}
-              >
-                Villanet
-              </h1>
-            </div>
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E5E5E5]">
+        <div className="container mx-auto px-6">
+          <div className="flex items-center justify-between h-16 gap-4">
+            {/* Logo */}
+            <Logo />
 
-            {/* SearchBar - En mobile ocupa todo el ancho cuando showNavbarSearch es true */}
-            <div
-              className={`min-w-0 transition-all duration-300 ${
-                showNavbarSearch 
-                  ? 'opacity-100 scale-100 flex justify-center col-span-2 sm:col-span-1' 
-                  : 'opacity-0 scale-95 pointer-events-none hidden sm:flex justify-center'
-              }`}
-            >
+            {/* Search Bar (solo visible en modo 'search' y cuando showNavbarSearch es true) */}
+            {mode === 'search' && showNavbarSearch && (
               <SearchBar
                 query={query}
                 setQuery={setQuery}
@@ -111,178 +93,333 @@ export default function Header({
                 setCheckIn={setCheckIn}
                 checkOut={checkOut}
                 setCheckOut={setCheckOut}
-                showFilters={showFilters}
-                setShowFilters={setShowFilters}
-                activeFiltersCount={activeFiltersCount}
                 today={today}
                 minCheckOut={minCheckOut}
-                compact
               />
-            </div>
+            )}
 
-            {/* Acciones Desktop - Se ocultan en mobile cuando showNavbarSearch es true */}
-            <div className={`items-center gap-2 sm:gap-2 shrink-0 justify-end ${
-              showNavbarSearch ? 'hidden sm:flex' : 'flex'
-            }`}>
-              
-              {/* BOTÓN DE AUTH + MENÚ CUANDO NO HAY USUARIO */}
-              {showAuthButton && !user && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={onAuthClick}
-                    className="px-4 py-2 rounded-full text-neutral-900 border border-neutral-200 hover:text-neutral-800 transition flex items-center gap-2"
+            {/* Navigation y Auth */}
+            <div className="flex items-center gap-4">
+              {/* Filters Button (solo visible cuando showNavbarSearch es true) */}
+              {mode === 'search' && showNavbarSearch && (
+                <button
+                  onClick={() => setShowFilters?.(!showFilters)}
+                  className="relative hidden md:flex items-center gap-2 px-4 py-2 border border-neutral-300 rounded-full hover:border-neutral-400 transition-colors"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  <span className="text-sm font-medium">Filters</span>
+                  {activeFiltersCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-neutral-900 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {activeFiltersCount}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {/* Desktop Navigation - Solo visible cuando NO está scrolleado */}
+              {!showNavbarSearch && (
+                <nav className="hidden md:flex items-center gap-6">
+                  <a
+                    href="/home"
+                    className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors"
                   >
-                    <span className="text-sm">Join for free</span>
-                  </button>
-
-                  {/* Menú tipo Wander - SOLO DESKTOP */}
-                  <div 
-                    ref={menuRef}
-                    className="relative hidden sm:block"
+                    Home
+                  </a>
+                  <a
+                    href="/properties"
+                    className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors"
                   >
-                    <button
-                      type="button"
-                      onClick={() => setMenuOpen(o => !o)}
-                      className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center hover:bg-neutral-50 transition"
-                    >
-                      {menuOpen ? (
-                        <X className="w-4 h-4" />
-                      ) : (
-                        <Menu className="w-4 h-4" />
-                      )}
-                    </button>
+                    Properties
+                  </a>
+                  <a
+                    href="#advisors"
+                    className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors"
+                  >
+                    Advisors
+                  </a>
+                  <a
+                    href="/about"
+                    className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors"
+                  >
+                    About
+                  </a>
 
-                    {menuOpen && (
-                      <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-neutral-200 p-3">
-                        <div className="px-3 pb-3">
-                          <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                            Unlock access and rewards
-                          </p>
-                          <button
-                            onClick={onAuthClick}
-                            className="mt-2 w-full rounded-full bg-neutral-900 text-white text-sm font-medium py-2.5 hover:bg-neutral-800 transition"
-                          >
-                            Log in or sign up
-                          </button>
-                        </div>
+                  {/* Auth Section */}
+                  {user ? (
+                    <UserMenu user={user} onLogout={handleLogout} />
+                  ) : (
+                    <AuthButtons onAuthClick={onAuthClick} />
+                  )}
+                </nav>
+              )}
 
-                        <div className="border-t border-neutral-200 my-2" />
-
-                        <div className="flex flex-col gap-1 px-3 pb-2 text-sm text-neutral-800">
-                          <button className="flex items-center justify-between py-1 hover:text-neutral-900">
-                            <span>Download mobile app</span>
-                          </button>
-                          <button className="flex items-center justify-between py-1 hover:text-neutral-900">
-                            <span>List on Villanet</span>
-                          </button>
-                          <button className="flex items-center justify-between py-1 hover:text-neutral-900">
-                            <span>Help Center</span>
-                          </button>
-                        </div>
-
-                        <div className="border-t border-neutral-200 my-2" />
-
-                        <div className="px-3 pb-1">
-                          <div className="flex items-center justify-between text-xs text-neutral-500 mb-1">
-                            <span>Theme</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button className="w-7 h-7 rounded-full border border-neutral-200 text-xs">
-                              ☾
-                            </button>
-                            <button className="w-7 h-7 rounded-full border border-neutral-900 text-xs">
-                              ●
-                            </button>
-                            <button className="w-7 h-7 rounded-full border border-neutral-200 text-xs">
-                              🖥
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+              {/* Auth buttons cuando está scrolleado - Solo para desktop */}
+              {showNavbarSearch && (
+                <div className="hidden md:flex items-center gap-4">
+                  {user ? (
+                    <UserMenu user={user} onLogout={handleLogout} />
+                  ) : (
+                    <AuthButtons onAuthClick={onAuthClick} />
+                  )}
                 </div>
               )}
 
-              {/* INFO DEL USUARIO CUANDO ESTÁ LOGUEADO */}
-              {user && (
-                <>
-                  <span className="text-xs sm:text-sm text-neutral-600 hidden lg:block truncate max-w-[150px]">
-                    {user?.full_name || user?.email}
-                  </span>
-
-                  {user?.role === 'admin' && (
-                    <button
-                      onClick={() => navigate('/admin')}
-                      className="p-2 sm:px-4 sm:py-2 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition font-medium flex items-center gap-2"
-                      title="Dashboard"
-                    >
-                      <LayoutDashboard className="w-5 h-5" />
-                      <span className="hidden sm:inline text-sm">Dashboard</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleLogout}
-                    className="text-neutral-600 hover:text-neutral-900 transition p-2 rounded-lg hover:bg-neutral-50"
-                    title="Logout"
-                  >
-                    <LogOut className="w-5 h-5" />
-                  </button>
-                </>
-              )}
+              {/* Mobile Menu Button - Siempre visible en mobile */}
+              <button
+                onClick={toggleMobileMenu}
+                className="md:hidden p-2 hover:bg-gray-100 rounded-md transition-colors"
+                type="button"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-6 h-6 text-gray-900" />
+                ) : (
+                  <Menu className="w-6 h-6 text-gray-900" />
+                )}
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* ========== BOTTOM NAVIGATION - Solo Mobile ========== */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 z-50">
-        <div className="grid grid-cols-4 h-16">
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
           
-          <button
-            onClick={() => navigate('/properties')}
-            className="flex flex-col items-center justify-center gap-1 text-neutral-900 hover:bg-neutral-50 transition active:scale-95"
-          >
-            <Home className="w-5 h-5" />
-            <span className="text-xs font-medium">Explore</span>
-          </button>
+          {/* Menu Panel */}
+          <div className="absolute top-0 right-0 w-80 h-full bg-white shadow-xl">
+            <div className="flex flex-col h-full">
+              {/* Header del menú móvil */}
+              <div className="flex items-center justify-between p-3 border-b border-gray-200">
+                <span className="text-lg font-bold text-gray-900">Menu</span>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
 
-          <button
-            onClick={() => console.log('Concierge')}
-            className="flex flex-col items-center justify-center gap-1 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition active:scale-95"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-xs font-medium">Concierge</span>
-          </button>
+              {/* Navigation Links */}
+              <nav className="flex-1 p-6 space-y-4">
+                <a
+                  href="/home"
+                  className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Home
+                </a>
+                <a
+                  href="/properties"
+                  className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Properties
+                </a>
+                <a
+                  href="#advisors"
+                  className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Advisors
+                </a>
+                <a
+                  href="/about"
+                  className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  About
+                </a>
 
-          <button
-            onClick={() => window.open('https://your-app-link.com', '_blank')}
-            className="flex flex-col items-center justify-center gap-1 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition active:scale-95"
-          >
-            <Download className="w-5 h-5" />
-            <span className="text-xs font-medium">Get the app</span>
-          </button>
+                {/* Mobile Filters Button (solo en modo search) */}
+                {mode === 'search' && (
+                  <button
+                    onClick={() => {
+                      setShowFilters?.(!showFilters);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
+                  >
+                    <span>Filters</span>
+                    {activeFiltersCount > 0 && (
+                      <span className="bg-neutral-900 text-white text-sm font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                        {activeFiltersCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </nav>
 
-          {user ? (
-            <button
-              onClick={() => navigate('/profile')}
-              className="flex flex-col items-center justify-center gap-1 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition active:scale-95"
-            >
-              <UserCircle className="w-5 h-5" />
-              <span className="text-xs font-medium">Profile</span>
-            </button>
-          ) : (
-            <button
-              onClick={onAuthClick}
-              className="flex flex-col items-center justify-center gap-1 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 transition active:scale-95"
-            >
-              <UserCircle className="w-5 h-5" />
-              <span className="text-xs font-medium">Sign in</span>
-            </button>
-          )}
+              {/* Auth Section Móvil */}
+              <div className="p-6 border-t border-gray-200">
+                {user ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <User className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <p className="font-medium text-gray-900">{user.full_name || user.email}</p>
+                        <p className="text-sm text-gray-500">Signed in</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleAuthClick}
+                      className="w-full py-3 px-4 text-center bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Join Network
+                    </button>
+                    <button
+                      onClick={handleAuthClick}
+                      className="w-full py-3 px-4 text-center border-2 border-gray-300 text-gray-900 font-bold rounded-lg hover:border-gray-400 transition-colors"
+                    >
+                      Login
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </nav>
+      )}
     </>
   );
+};
+
+// ===== SUB-COMPONENTS =====
+
+const Logo = () => (
+  <a href="/" className="flex items-center gap-3">
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="8" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
+      <circle cx="20" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
+      <circle cx="14" cy="20" r="3" stroke="#111111" strokeWidth="1.5" />
+      <path
+        d="M10.5 9.5L14 17L17.5 9.5"
+        stroke="#111111"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+    <span className="text-[#111111] font-bold text-xl tracking-[0.02em] leading-[1]">
+      villanet
+    </span>
+  </a>
+);
+
+interface SearchBarProps {
+  query: string;
+  setQuery?: (query: string) => void;
+  checkIn: string;
+  setCheckIn?: (date: string) => void;
+  checkOut: string;
+  setCheckOut?: (date: string) => void;
+  today: string;
+  minCheckOut: string;
 }
+
+const SearchBar: React.FC<SearchBarProps> = ({
+  query,
+  setQuery,
+  checkIn,
+  setCheckIn,
+  checkOut,
+  setCheckOut,
+  today,
+  minCheckOut,
+}) => (
+  <div className="hidden lg:flex items-center gap-2 flex-1 max-w-2xl mx-4">
+    {/* Search Input */}
+    <div className="relative flex-1">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+      <input
+        type="text"
+        placeholder="Search destinations..."
+        value={query}
+        onChange={(e) => setQuery?.(e.target.value)}
+        className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-full text-sm focus:outline-none focus:border-neutral-400"
+      />
+    </div>
+
+    {/* Check-in */}
+    <input
+      type="date"
+      value={checkIn}
+      onChange={(e) => setCheckIn?.(e.target.value)}
+      min={today}
+      className="px-4 py-2 border border-neutral-300 rounded-full text-sm focus:outline-none focus:border-neutral-400"
+    />
+
+    {/* Check-out */}
+    <input
+      type="date"
+      value={checkOut}
+      onChange={(e) => setCheckOut?.(e.target.value)}
+      min={minCheckOut}
+      className="px-4 py-2 border border-neutral-300 rounded-full text-sm focus:outline-none focus:border-neutral-400"
+    />
+  </div>
+);
+
+interface UserMenuProps {
+  user: any;
+  onLogout: () => void;
+}
+
+const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }) => (
+  <div className="flex items-center gap-4">
+    <div className="flex items-center gap-2 text-sm text-gray-700">
+      <User className="w-4 h-4" />
+      <span className="font-medium">{user.full_name || user.email}</span>
+    </div>
+    <button
+      onClick={onLogout}
+      className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors border-0 bg-transparent cursor-pointer"
+    >
+      <LogOut className="w-4 h-4" />
+      Logout
+    </button>
+  </div>
+);
+
+interface AuthButtonsProps {
+  onAuthClick?: () => void;
+}
+
+const AuthButtons: React.FC<AuthButtonsProps> = ({ onAuthClick }) => (
+  <>
+    <button
+      onClick={onAuthClick}
+      className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors border-0 bg-transparent cursor-pointer"
+    >
+      Login
+    </button>
+    <button
+      onClick={onAuthClick}
+      className="inline-flex items-center justify-center gap-2 h-9 rounded-md bg-gray-900 text-white font-bold border-0 hover:bg-gray-700 text-sm px-4 cursor-pointer"
+    >
+      Join Network
+    </button>
+  </>
+);
+
+export default UnifiedHeader;

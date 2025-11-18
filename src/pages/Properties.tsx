@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Bed, Bath, AlertCircle, Clock, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api } from '../api/api';
-import Header from '../components/Header';
+import { UnifiedHeader } from '../components/Header';
 import HeroSection from '../components/HeroSection';
 import FiltersPanel from '../components/FiltersPanel';
 import AuthModal from '../components/AuthModal';
-import Footer from '../components/Footer';
+import { Footer } from '../components/home/Footer';
 
 type Listing = {
   id: string;
@@ -31,7 +31,7 @@ type ListingsResponse = {
   availabilityCursor?: number;
 };
 
-// Hook de debounce MEJORADO
+// Hook de debounce
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -92,16 +92,16 @@ export default function Properties() {
   // Image carousel states
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
 
-  // Usar debouncedQuery en lugar de deb
+  // Debounced query
   const debouncedQuery = useDebounce(query, 600);
   
   // Infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
 
   // Detect when to switch to traditional pagination
-  const hasAvailabilityFilter = Boolean(checkIn && checkOut && user); // Solo usuarios autenticados pueden usar disponibilidad
+  const hasAvailabilityFilter = Boolean(checkIn && checkOut && user);
 
-  // --- Modal handlers centralizados ---
+  // --- Modal handlers ---
   const openAuthModal = useCallback(() => {
     setShowAuthModal(true);
   }, []);
@@ -114,10 +114,10 @@ export default function Properties() {
     console.log('✅ Auth success, user received:', user);
     closeAuthModal();
     
-    // ✅ Disparar evento para que el AuthContext se actualice
+    // Disparar evento para actualizar el contexto
     window.dispatchEvent(new Event('authStateChange'));
     
-    // ✅ Forzar re-render del componente
+    // Forzar re-render
     setRetryCount(prev => prev + 1);
     setOffset(0);
     setItems([]);
@@ -131,7 +131,6 @@ export default function Properties() {
     const handleScroll = () => {
       if (heroSearchRef.current) {
         const rect = heroSearchRef.current.getBoundingClientRect();
-        // Cuando el hero search sale del viewport, mostrar el del navbar
         setShowNavbarSearch(rect.bottom < 0);
       }
     };
@@ -159,9 +158,9 @@ export default function Properties() {
     setPaginationMode('infinite');
   }, [debouncedQuery, bedrooms, bathrooms, minPrice, maxPrice, checkIn, checkOut, selectedBadges]);
 
-  // Fetch listings - usar debouncedQuery
+  // Fetch listings
   useEffect(() => {
-    if (authLoading) return; // SOLO verificar authLoading, no user
+    if (authLoading) return;
 
     const controller = new AbortController();
 
@@ -189,7 +188,6 @@ export default function Properties() {
           qs.set('offset', String(offset));
         }
 
-        // ✅ USAR ENDPOINT PÚBLICO SI NO HAY USUARIO
         const endpoint = user ? '/listings' : '/public/listings';
         
         const data = await api<ListingsResponse>(`${endpoint}?${qs.toString()}`, { 
@@ -233,10 +231,8 @@ export default function Properties() {
         }
       } catch (err: any) {
         if (!controller.signal.aborted) {
-          // Manejar errores específicos para endpoint público
           if (!user && err instanceof Error && err.message?.includes('401')) {
             console.log('Expected 401 for public endpoint - ignoring');
-            // Mostrar propiedades vacías para usuarios no autenticados
             setItems([]);
             setTotal(0);
             setHasMore(false);
@@ -282,7 +278,7 @@ export default function Properties() {
     checkOut,
     selectedBadges,
     offset,
-    user, // ← MANTENER user como dependencia
+    user,
     authLoading,
     retryCount,
     availabilitySession,
@@ -393,13 +389,10 @@ export default function Properties() {
   }, []);
 
   const goToDetail = useCallback((property: Listing) => {
-    // Si no hay usuario, mostrar modal de auth
     if (!user) {
       openAuthModal();
       return;
     }
-    
-    // Si hay usuario, navegar normalmente
     navigate(`/property/${property.id}`);
   }, [navigate, user, openAuthModal]);
 
@@ -423,13 +416,13 @@ export default function Properties() {
   }, []);
 
   const activeFiltersCount = 
-  bedrooms.length + 
-  bathrooms.length + 
-  (minPrice ? 1 : 0) + 
-  (maxPrice ? 1 : 0) + 
-  (checkIn ? 1 : 0) + 
-  (checkOut ? 1 : 0) +
-  selectedBadges.length; 
+    bedrooms.length + 
+    bathrooms.length + 
+    (minPrice ? 1 : 0) + 
+    (maxPrice ? 1 : 0) + 
+    (checkIn ? 1 : 0) + 
+    (checkOut ? 1 : 0) +
+    selectedBadges.length; 
 
   const today = new Date().toISOString().split('T')[0];
   const minCheckOut = checkIn || today;
@@ -448,7 +441,9 @@ export default function Properties() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Header
+      {/* ✅ UNIFIED HEADER en modo "search" */}
+      <UnifiedHeader
+        mode="search"
         query={query}
         setQuery={setQuery}
         checkIn={checkIn}
@@ -461,7 +456,6 @@ export default function Properties() {
         today={today}
         minCheckOut={minCheckOut}
         showNavbarSearch={showNavbarSearch}
-        showAuthButton={!user}
         onAuthClick={openAuthModal}
       />
 
@@ -749,7 +743,6 @@ export default function Properties() {
         )}
       </div>
 
-      {/* ✅ Footer reutilizable */}
       <Footer />
 
       {/* Auth Modal */}

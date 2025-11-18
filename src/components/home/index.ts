@@ -1,0 +1,11 @@
+export { Header } from './Header';
+export { Hero } from './Hero';
+export { WhySection } from './WhySection';
+export { TrustLayer } from './TrustLayer';
+export { AdvisorsPmsSplit } from './AdvisorsPmsSplit';
+export { HowItWorks } from './HowItWorks';
+export { FloatingButton } from './FloatingButton';
+export { CTASection } from './CTASection';
+export { RegionsSection } from './RegionsSection';
+export { ProofSection } from './ProofSection';
+export { Footer } from './Footer';

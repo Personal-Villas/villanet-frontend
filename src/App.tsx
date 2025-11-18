@@ -8,6 +8,7 @@ import DashboardAdmin from './pages/DashboardAdmin';
 import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
 import PMCInbox from './pages/PMCInbox';
+import { Home } from './pages/Home';
 
 // ✅ Crear un componente interno que use el hook useAuth
 function AppRoutes() {
@@ -31,7 +32,7 @@ function AppRoutes() {
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />
       <Route path="/pending" element={<Pending auth={auth} />} />
-
+      <Route path="/home" element={<Home />} />
       {/* 🆕 Properties - AHORA ES PÚBLICO */}
       <Route 
         path="/properties" 
@@ -80,7 +81,7 @@ function AppRoutes() {
         }
       />
 
-      <Route path="*" element={<Navigate to="/properties" />} />
+      <Route path="*" element={<Navigate to="/home" />} />
     </Routes>
   );
 }
