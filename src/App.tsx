@@ -10,6 +10,8 @@ import PropertyDetail from './pages/PropertyDetail';
 import PMCInbox from './pages/PMCInbox';
 import { Home } from './pages/Home';
 import { About } from './pages/About';
+import { Advisors } from './pages/Advisors';
+import { PropertyManagers } from './pages/PropertyManagers';
 
 // ✅ Crear un componente interno que use el hook useAuth
 function AppRoutes() {
@@ -35,6 +37,8 @@ function AppRoutes() {
       {/* 🆕 Ruta HOME alternativa */}
       <Route path="/home" element={<Home />} />
       <Route path="/about" element={<About />} />
+      <Route path="/for-travel-advisors" element={<Advisors />} />
+      <Route path="/for-property-managers" element={<PropertyManagers />} />
       {/* 🆕 Rutas de autenticación */}
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />

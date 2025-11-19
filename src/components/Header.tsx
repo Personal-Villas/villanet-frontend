@@ -120,22 +120,16 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
               {!showNavbarSearch && (
                 <nav className="hidden md:flex items-center gap-6">
                   <a
-                    href="/home"
-                    className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors"
-                  >
-                    Home
-                  </a>
-                  <a
-                    href="/properties"
-                    className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors"
-                  >
-                    Properties
-                  </a>
-                  <a
-                    href="#advisors"
+                    href="/for-travel-advisors"
                     className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors"
                   >
                     Advisors
+                  </a>
+                  <a
+                    href="/for-property-managers"
+                    className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors"
+                  >
+                    Property Managers
                   </a>
                   <a
                     href="/about"
@@ -207,25 +201,18 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
               {/* Navigation Links */}
               <nav className="flex-1 p-6 space-y-4">
                 <a
-                  href="/home"
-                  className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Home
-                </a>
-                <a
-                  href="/properties"
-                  className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Properties
-                </a>
-                <a
-                  href="#advisors"
+                  href="/for-travel-advisors"
                   className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Advisors
+                </a>
+                <a
+                  href="/for-property-managers"
+                  className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Property Managers
                 </a>
                 <a
                   href="/about"
