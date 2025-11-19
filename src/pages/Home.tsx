@@ -13,10 +13,12 @@ import {
 } from "../components/home/index";
 import AuthModal from "../components/AuthModal";
 import { UnifiedHeader } from "../components/Header";
+import VillaNetRankModal from "../components/VillaNetRankModal";
 
 export const Home: React.FC = () => {
   // Estado del modal de autenticación
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showRankModal, setShowRankModal] = useState(false);
 
   // Función para abrir el modal
   const openAuthModal = useCallback(() => {
@@ -27,6 +29,14 @@ export const Home: React.FC = () => {
   const closeAuthModal = useCallback(() => {
     setShowAuthModal(false);
   }, []);
+
+  const openRankModal = () => {
+    setShowRankModal(true);
+  };
+
+  const closeRankModal = () => {
+    setShowRankModal(false);
+  };
 
   // Función cuando el usuario se autentica exitosamente
   const handleAuthSuccess = useCallback((user: any) => {
@@ -54,7 +64,13 @@ export const Home: React.FC = () => {
       <RegionsSection />
       <CTASection onAuthClick={openAuthModal} />
       <Footer />
-      <FloatingButton />
+      <FloatingButton onClick={openRankModal}/>
+
+      {/* Modal de Villa Net Rank */}
+      <VillaNetRankModal 
+        isOpen={showRankModal}
+        onClose={closeRankModal}
+      />
 
       {/* Modal de Auth */}
       {showAuthModal && (
@@ -63,6 +79,32 @@ export const Home: React.FC = () => {
           onSuccess={handleAuthSuccess}
         />
       )}
+      
+      <style>
+        {`
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          @keyframes pulse-subtle {
+            0%, 100% {
+              transform: scale(1);
+              opacity: 1;
+            }
+            50% {
+              transform: scale(1.05);
+              opacity: 0.9;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };

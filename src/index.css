@@ -1,12 +1,13 @@
+/* Importar Inter desde Google Fonts - DEBE IR PRIMERO */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-
 * {
-    font-family: 'Helvetica Now Text', sans-serif;
+    font-family: 'Inter', sans-serif;
 }
-
 
 /* Fuentes Helvetica Now */
 @font-face {
@@ -15,37 +16,99 @@
     font-weight: 700;
     font-style: normal;
     font-display: swap;
-  }
-  
-  @font-face {
+}
+
+@font-face {
     font-family: 'Helvetica Now Text';
     src: url('../public/fonts/helveticanowtext-bolditalic-demo.ttf') format('truetype');
     font-weight: 700;
     font-style: italic;
     font-display: swap;
-  }
-  
-  @font-face {
+}
+
+@font-face {
     font-family: 'Helvetica Now Text';
     src: url('../public/fonts/helveticanowtext-black-demo.ttf') format('truetype');
     font-weight: 900;
     font-style: normal;
     font-display: swap;
-  }
-  
-  @font-face {
+}
+
+@font-face {
     font-family: 'Helvetica Now Text';
     src: url('../public/fonts/helveticanowtext-blackitalic-demo.ttf') format('truetype');
     font-weight: 900;
     font-style: italic;
     font-display: swap;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;              /* Chrome, Safari, Edge */
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;   /* IE y Edge antiguos */
+  scrollbar-width: none;      /* Firefox */
+}
+
+@layer base {
+  :root {
+    /* Valores exactos del HTML original */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 6.7%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 6.7%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 6.7%;
+    
+    --primary: 0 0% 6.7%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 30 16% 82%;
+    --secondary-foreground: 0 0% 6.7%;
+    
+    --muted: 0 0% 96%;
+    --muted-foreground: 214 12% 47%;
+    
+    --accent: 30 16% 82%;
+    --accent-foreground: 0 0% 6.7%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 6.7%;
+    
+    --radius: 0.25rem;
   }
 
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;              /* Chrome, Safari, Edge */
+  .dark {
+    --background: 0 0% 6.7%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 6.7%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 6.7%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 6.7%;
+    --secondary: 30 16% 20%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 214 12% 60%;
+    --accent: 30 16% 20%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 100%;
   }
-  
-  .no-scrollbar {
-    -ms-overflow-style: none;   /* IE y Edge antiguos */
-    scrollbar-width: none;      /* Firefox */
+}
+
+/* Agregar utilidad para gradiente radial */
+@layer utilities {
+  .bg-gradient-radial {
+    background-image: radial-gradient(var(--tw-gradient-stops));
   }
+}

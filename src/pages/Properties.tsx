@@ -7,7 +7,7 @@ import { UnifiedHeader } from '../components/Header';
 import HeroSection from '../components/HeroSection';
 import FiltersPanel from '../components/FiltersPanel';
 import AuthModal from '../components/AuthModal';
-import { Footer } from '../components/home/Footer';
+import Footer from '../components/Footer';
 
 type Listing = {
   id: string;

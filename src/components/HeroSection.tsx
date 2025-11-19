@@ -38,10 +38,10 @@ export default function HeroSection({
     <>
       <div className="bg-gradient-to-b from-neutral-50 to-white mt-[60px]">
         <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 text-center">
-          <h2 className="text-5xl md:text-6xl font-serif font-bold text-neutral-900 mb-4">
+          <h2 className="text-5xl md:text-6xl font-[Inter] font-semibold text-neutral-900 mb-4">
             Find your happy place.
           </h2>
-          <p className="text-neutral-600 text-lg mb-8 max-w-2xl mx-auto">
+          <p className="text-neutral-600 font-[Inter] text-lg mb-8 max-w-2xl mx-auto">
             Never book a bad vacation home again. Every Villanet comes with hotel-grade amenities, 
             inspiring views, pristine cleaning and 24/7 concierge service.
           </p>
