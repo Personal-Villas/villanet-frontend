@@ -7,7 +7,7 @@ import Footer from '../components/Footer';
 import BookingModal from '../components/BookingModal';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import VillaNetRankModal from "../components/VillaNetRankModal";
-import AccordeonBooking from '../components/accordeonBooking';
+import AccordeonBooking from '../components/AccordeonBooking';
 
 type Listing = {
   listing_id: string;
