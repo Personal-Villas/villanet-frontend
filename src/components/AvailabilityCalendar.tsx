@@ -1,12 +1,5 @@
-import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Moon } from 'lucide-react';
-
-
-const addDays = (d: Date, n: number) => { 
-  const x = new Date(d); 
-  x.setDate(x.getDate() + n); 
-  return x; 
-};
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 type Day = {
   date: string;
@@ -19,15 +12,15 @@ type Day = {
 };
 
 function WeekHeader() {
-  const labels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const labels = ['Su','Mo','Tu','We','Th','Fr','Sa'];
   return (
-    <>
+    <tr className="flex w-full">
       {labels.map(l => (
-        <div key={l} className="text-xs font-semibold text-gray-700 text-center py-2.5 bg-white border-r border-b border-gray-200 last:border-r-0">
+        <th key={l} scope="col" className="text-gray-600 rounded-md w-full font-normal text-[0.8rem]">
           {l}
-        </div>
+        </th>
       ))}
-    </>
+    </tr>
   );
 }
 
@@ -36,6 +29,7 @@ function MonthGrid({ ym, days }: { ym: string; days: Day[] }) {
   const first = new Date(Y, M - 1, 1);
   const startWeekday = first.getDay();
   const numDays = new Date(Y, M, 0).getDate();
+  const prevMonthDays = new Date(Y, M - 1, 0).getDate();
 
   const byDay = new Map<number, Day>();
   for (const d of days) {
@@ -43,61 +37,92 @@ function MonthGrid({ ym, days }: { ym: string; days: Day[] }) {
     byDay.set(dayNum, d);
   }
 
-  const cells = [];
-  for (let i = 0; i < startWeekday; i++) cells.push(<div key={`pad-${i}`} className="p-2" />);
+  const rows = [];
+  let cells = [];
+  
+  // Previous month days
+  for (let i = startWeekday - 1; i >= 0; i--) {
+    cells.push(
+      <td key={`prev-${i}`} className="relative p-0 text-center text-sm focus-within:relative focus-within:z-20 w-full">
+        <button 
+          className="rdp-button_reset rdp-button h-9 w-full p-0 font-normal hover:bg-gray-50 rounded-md border border-gray-200 text-gray-400 opacity-50"
+          type="button"
+          tabIndex={-1}
+        >
+          {prevMonthDays - i}
+        </button>
+      </td>
+    );
+  }
+
+  // Current month days
   for (let day = 1; day <= numDays; day++) {
     const info = byDay.get(day);
     const available = info
       ? (info.allotment != null ? info.allotment > 0 : info.status === 'available')
-      : null;
+      : true;
     
-    const bgColor = 
-      available === true  ? 'bg-white hover:bg-gray-50' :
-      available === false ? 'bg-gray-100' :
-                            'bg-white hover:bg-gray-50';
-    
-    const priceColor = available === false ? 'text-gray-400' : 'text-gray-900';
-    const dayColor = available === false ? 'text-gray-400' : 'text-gray-600';
+    const isBlocked = available === false;
+    const baseClasses = "rdp-button_reset rdp-button h-9 w-full p-0 font-normal hover:bg-gray-50 rounded-md border border-gray-200";
+    const blockedClasses = isBlocked ? "bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300 line-through" : "";
     
     cells.push(
-      <div 
-        key={day} 
-        className={`p-2 border-r border-b border-gray-200 transition-colors ${bgColor} ${available === false ? 'cursor-not-allowed' : 'cursor-pointer'} min-h-[90px] flex flex-col`}
-      >
-        <div className={`text-xs mb-2 font-medium ${dayColor} text-right`}>
-          {String(day).padStart(2,'0')}
-        </div>
-        <div className={`lg:text-sm text-[10px] underline decoration-gray-300 underline-offset-4 font-semibold mb-2 ${priceColor} text-center`}>
-          ${Number.isFinite(info?.price as any) ? `${(info!.price as number).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
-        </div>
-        <div className="mt-auto flex items-center justify-center gap-2">
-          {info?.allotment != null && (
-            <div className="flex items-center gap-1 text-xs text-gray-600">
-              <span>{info.allotment}</span>
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-              </svg>
-            </div>
-          )}
-          {info?.minStay != null && info.minStay > 1 && (
-            <div className="flex items-center gap-1 text-xs text-gray-600">
-              <span>{info.minStay}</span>
-              <Moon className="w-3.5 h-3.5" />
-            </div>
-          )}
-        </div>
-      </div>
+      <td key={day} className="relative p-0 text-center text-sm focus-within:relative focus-within:z-20 w-full">
+        <button 
+          className={`${baseClasses} ${blockedClasses}`}
+          type="button"
+          tabIndex={day === 1 ? 0 : -1}
+        >
+          {day}
+        </button>
+      </td>
     );
+
+    if (cells.length === 7) {
+      rows.push(<tr key={`week-${rows.length}`} className="flex w-full mt-2">{cells}</tr>);
+      cells = [];
+    }
+  }
+
+  // Next month days to complete the last week
+  if (cells.length > 0) {
+    const remainingDays = 7 - cells.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      cells.push(
+        <td key={`next-${i}`} className="relative p-0 text-center text-sm focus-within:relative focus-within:z-20 w-full">
+          <button 
+            className="rdp-button_reset rdp-button h-9 w-full p-0 font-normal hover:bg-gray-50 rounded-md border border-gray-200 text-gray-400 opacity-50"
+            type="button"
+            tabIndex={-1}
+          >
+            {i}
+          </button>
+        </td>
+      );
+    }
+    rows.push(<tr key={`week-${rows.length}`} className="flex w-full mt-2">{cells}</tr>);
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <div className="text-base font-bold p-4 bg-white border-b border-gray-200 text-gray-900">
-        {first.toLocaleString('en-US', { month:'long', year:'numeric' })}
-      </div>
-      <div className="grid grid-cols-7">
-        <WeekHeader />
-        {cells}
+    <div className="bg-white rounded-lg p-4 border border-[#E9E9E9]">
+      <div className="rdp p-3 pointer-events-auto w-full">
+        <div className="w-full">
+          <div className="w-full rdp-caption_start rdp-caption_end">
+            <div className="flex justify-center pt-1 relative items-center mb-4">
+              <div className="text-base font-semibold text-gray-900">
+                {first.toLocaleString('en-US', { month:'long', year:'numeric' })}
+              </div>
+            </div>
+            <table className="w-full border-collapse">
+              <thead className="rdp-head">
+                <WeekHeader />
+              </thead>
+              <tbody className="rdp-tbody">
+                {rows}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -108,16 +133,16 @@ interface AvailabilityCalendarProps {
   loading: boolean;
   error: string | null;
   onRetry: () => void;
+  start: Date;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
 }
 
-export default function AvailabilityCalendar({ days, loading, error, onRetry }: AvailabilityCalendarProps) {
-  const [start, setStart] = useState(() => {
-    const s = new Date();
-    s.setDate(1);
-    return s;
-  });
-  
+export default function AvailabilityCalendar({ days, loading, error, onRetry, start, onPrevMonth, onNextMonth }: AvailabilityCalendarProps) {
 
+  const [mobileIndex, setMobileIndex] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
   const months = useMemo(() => {
     const map = new Map<string, Day[]>();
     for (const d of days) {
@@ -128,47 +153,57 @@ export default function AvailabilityCalendar({ days, loading, error, onRetry }: 
     return Array.from(map.entries()).sort(([a],[b]) => a < b ? -1 : 1);
   }, [days]);
 
-  const prevMonth = () => setStart(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-  const nextMonth = () => setStart(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+
+  const visibleMonths = useMemo(() => {
+    const result = [];
+    const currentYm = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+    
+    const currentIndex = months.findIndex(([ym]) => ym === currentYm);
+    
+    if (currentIndex >= 0) {
+      // Siempre mostrar exactamente 2 meses
+      for (let i = 0; i < 2 && currentIndex + i < months.length; i++) {
+        result.push(months[currentIndex + i]);
+      }
+    }
+    
+    // Si no hay suficientes meses, completar con meses vacíos para mantener el layout
+    while (result.length < 2) {
+      result.push([`empty-${result.length}`, []]);
+    }
+    
+    return result;
+  }, [months, start]); 
+
+  const allMonthsForMobile = useMemo(() => {
+    return months;
+  }, [months]);
+
+  const handleMobilePrev = () => {
+    if (mobileIndex > 0) {
+      setMobileIndex(prev => prev - 1);
+    }
+  };
+
+  const handleMobileNext = () => {
+    if (mobileIndex < allMonthsForMobile.length - 1) {
+      setMobileIndex(prev => prev + 1);
+    }
+  };
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const scrollWidth = container.scrollWidth / allMonthsForMobile.length;
+      container.scrollTo({
+        left: scrollWidth * mobileIndex,
+        behavior: 'smooth'
+      });
+    }
+  }, [mobileIndex, allMonthsForMobile.length]);
 
   return (
-    <div className="bg-white p-4 lg:p-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 lg:mb-6 gap-3">
-        <div className="flex items-center gap-3">
-          <Calendar className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg lg:text-xl font-semibold">Availability Calendar</h2>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={prevMonth} 
-            className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors bg-white"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <span className="text-xs lg:text-sm text-gray-700 min-w-[160px] lg:min-w-[200px] text-center font-medium">
-            {start.toLocaleString(undefined, { month:'short', year:'numeric' })} – {addDays(new Date(start), 45).toLocaleString(undefined, { month:'short', year:'numeric' })}
-          </span>
-          <button 
-            onClick={nextMonth} 
-            className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors bg-white"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 mb-4 text-xs lg:text-sm">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-white border-2 border-gray-300"></div>
-          <span className="text-gray-600">Available</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-gray-200 border-2 border-gray-300"></div>
-          <span className="text-gray-600">Unavailable</span>
-        </div>
-      </div>
-
+    <>
       {error && (
         <div className="mb-4 p-3 lg:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -201,12 +236,92 @@ export default function AvailabilityCalendar({ days, loading, error, onRetry }: 
       )}
 
       {!loading && days.length > 0 && (
-        <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
-          {months.slice(0, 2).map(([ym, arr]) => (
-            <MonthGrid key={ym} ym={ym} days={arr} />
-          ))}
-        </div>
+        <>
+          {/* Desktop View */}
+          <div className="hidden md:block">
+            <div className="relative">
+              <div className="flex items-center justify-between mb-6 max-w-5xl mx-auto">
+                <button 
+                  onClick={onPrevMonth} // ✅ Usando la función del padre
+                  className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+                  aria-label="Previous months"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button 
+                  onClick={onNextMonth} // ✅ Usando la función del padre
+                  className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900"
+                  aria-label="Next months"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+              
+              {/* Calendarios centrados y con buen espacio */}
+              <div className="flex justify-center">
+                <div className="grid grid-cols-2 gap-8 w-full max-w-4xl mx-auto">
+                  {visibleMonths.map(([ym, arr]) => (
+                    (ym as string).startsWith('empty-') ? (
+                      <div key={ym as string} className="bg-white rounded-lg p-4 border border-[#E9E9E9] opacity-0">
+                        {/* Mes vacío para mantener el layout */}
+                      </div>
+                    ) : (
+                      <MonthGrid key={ym as string} ym={ym as string} days={arr as Day[]} />
+                    )
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile View */}
+          <div className="block md:hidden">
+            <div className="relative">
+              <div className="flex items-center justify-between mb-4">
+                <button 
+                  onClick={handleMobilePrev}
+                  disabled={mobileIndex === 0}
+                  className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <span className="text-sm font-medium text-gray-700">
+                  {mobileIndex + 1} / {allMonthsForMobile.length}
+                </span>
+                <button 
+                  onClick={handleMobileNext}
+                  disabled={mobileIndex === allMonthsForMobile.length - 1}
+                  className="p-2 rounded-lg hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="overflow-hidden" ref={scrollContainerRef}>
+                <div className="flex transition-transform duration-300" style={{ transform: `translateX(-${mobileIndex * 100}%)` }}>
+                  {allMonthsForMobile.map(([ym, arr]) => (
+                    <div key={ym} className="flex-[0_0_100%] min-w-0 px-2">
+                      <MonthGrid ym={ym} days={arr} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center gap-6 mt-8">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-white border border-gray-200 rounded"></div>
+              <span className="text-xs text-gray-600">Available</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-gray-300 rounded"></div>
+              <span className="text-xs text-gray-600">Blocked</span>
+            </div>
+          </div>
+        </>
       )}
-    </div>
+    </>
   );
 }
