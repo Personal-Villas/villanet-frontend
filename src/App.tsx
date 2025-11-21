@@ -13,12 +13,13 @@ import { About } from './pages/About';
 import { Advisors } from './pages/Advisors';
 import { PropertyManagers } from './pages/PropertyManagers';
 
-// ✅ Crear un componente interno que use el hook useAuth
+// ✅ Componente interno que usa el hook useAuth
 function AppRoutes() {
   const auth = useAuth();
+  const token = localStorage.getItem('access');
 
-  // Mostrar loading solo si hay token y estamos verificando
-  if (auth.loading && localStorage.getItem('access')) {
+  // ✅ Mostrar loading SOLO si hay token Y estamos verificando
+  if (auth.loading && token) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -31,33 +32,32 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* 🆕 Ruta HOME como principal */}
+      {/* ✅ Rutas públicas - accesibles sin autenticación */}
       <Route path="/" element={<Home />} />
-      
-      {/* 🆕 Ruta HOME alternativa */}
       <Route path="/home" element={<Home />} />
       <Route path="/about" element={<About />} />
       <Route path="/for-travel-advisors" element={<Advisors />} />
       <Route path="/for-property-managers" element={<PropertyManagers />} />
-      {/* 🆕 Rutas de autenticación */}
+      
+      {/* ✅ Rutas de autenticación */}
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />
       <Route path="/pending" element={<Pending auth={auth} />} />
 
-      {/* 🆕 Properties - AHORA ES PÚBLICO */}
+      {/* ✅ Properties - PÚBLICO (cualquiera puede ver el listado) */}
       <Route path="/properties" element={<Properties />} />
 
-      {/* 🆕 Property Detail - REQUIERE LOGIN */}
+      {/* ✅ Property Detail - REQUIERE LOGIN para ver detalles */}
       <Route 
         path="/property/:id" 
         element={
           auth.user 
             ? <PropertyDetail /> 
-            : <Navigate to="/properties" state={{ authRequired: true }} />
+            : <Navigate to="/login" state={{ from: window.location.pathname, authRequired: true }} />
         }
       />
 
-      {/* Admin panel - Solo para admin autenticado */}
+      {/* ✅ Admin panel - Solo para admin autenticado */}
       <Route 
         path="/admin" 
         element={
@@ -67,30 +67,30 @@ function AppRoutes() {
         }
       />
 
-      {/* PMC inbox - Solo para pmc/admin autenticado */}
+      {/* ✅ PMC inbox - Solo para pmc/admin autenticado */}
       <Route 
         path="/pmc" 
         element={
-          auth.user && ['pmc','admin'].includes(auth.user.role)
+          auth.user && ['pmc', 'admin'].includes(auth.user.role)
             ? <PMCInbox />
             : <Navigate to="/" />
         }
       />
 
-      {/* Redirecciones para usuarios autenticados */}
+      {/* ✅ Redirecciones inteligentes según rol */}
       <Route 
         path="/dashboard" 
         element={
           auth.user?.role === 'admin'
-            ? <Navigate to="/admin" />
+            ? <Navigate to="/admin" replace />
             : auth.user?.role === 'pmc'
-            ? <Navigate to="/pmc" />
-            : <Navigate to="/properties" />
+            ? <Navigate to="/pmc" replace />
+            : <Navigate to="/properties" replace />
         }
       />
 
-      {/* Catch-all: redirigir a home en lugar de properties */}
-      <Route path="*" element={<Navigate to="/" />} />
+      {/* ✅ Catch-all: redirigir a home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
