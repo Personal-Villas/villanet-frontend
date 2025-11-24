@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bed, Users, MapPin, DollarSign, Star, ShieldCheck, Sparkles, ChefHat, Calendar, Waves, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Bed, Users, MapPin, DollarSign, Star, ShieldCheck, Sparkles, ChefHat, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api } from '../api/api';
 import AuthModal from '../components/AuthModal';
@@ -251,6 +251,8 @@ export default function Properties() {
 
         if (!controller.signal.aborted) {
           const normalized: Listing[] = (data.results || []).map((item) => {
+            console.log('Rank data:', item.rank, typeof item.rank);
+            
             const images = Array.isArray(item.images_json) ? item.images_json : [];
             const first = images[0];
             return {
@@ -258,7 +260,8 @@ export default function Properties() {
               id: item.id || `temp-${Math.random().toString(36).slice(2)}`,
               images_json: images,
               heroImage: (typeof first === 'string' && first) || item.heroImage || PLACEHOLDER,
-              rank: item.rank || Math.random() * 0.5 + 9.2, // Mock rank if not provided
+              // Fuerza rank a número
+              rank: typeof item.rank === 'number' ? item.rank : Number(item.rank) || Math.random() * 0.5 + 9.2,
               sleeps: item.sleeps || (item.bedrooms || 1) * 2,
               propertyManager: item.propertyManager || 'Blue Sky Luxury Villas',
               trustAccount: item.trustAccount ?? true,
@@ -386,6 +389,20 @@ export default function Properties() {
     }));
   }, []);
 
+  // ✅ CORREGIDO: Función helper segura para formatMoney
+  const formatMoney = (n: number | null | undefined) => {
+    if (n == null) return '—';
+    const amount = Number(n);
+    return isNaN(amount) ? '—' : `$${(amount / 100).toLocaleString()}`;
+  };
+
+  // ✅ CORREGIDO: Función helper segura para ranks
+  const formatRank = (rank: number | null | undefined) => {
+    if (rank == null) return '—';
+    const num = Number(rank);
+    return isNaN(num) ? '—' : num.toFixed(1);
+  };
+
   // Pagination Controls Component
   const PaginationControls = () => {
     if (paginationMode !== 'pagination' || !hasAvailabilityFilter) return null;
@@ -455,9 +472,6 @@ export default function Properties() {
     }
     navigate(`/property/${property.id}`);
   }, [navigate, user, openAuthModal]);
-
-  const formatMoney = (n: number | null | undefined) =>
-    n == null ? '—' : `$${(n / 100).toLocaleString()}`;
 
   const handleBadgeToggle = useCallback((badgeId: string) => {
     setSelectedBadges(prev => 
@@ -607,7 +621,10 @@ export default function Properties() {
                           
                           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
                             <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                            <span className="text-xs font-semibold text-foreground">{item.rank?.toFixed(1)}</span>
+                            {/* ✅ CORREGIDO: Usando formatRank helper */}
+                            <span className="text-xs font-semibold text-foreground">
+                              {formatRank(item.rank)}
+                            </span>
                           </div>
                         </div>
                         
@@ -666,7 +683,10 @@ export default function Properties() {
                           <div className="flex items-center gap-1.5">
                             <Star className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0" />
                             <span className="text-muted-foreground truncate">
-                              Rank: <span className="font-semibold text-foreground">{item.rank?.toFixed(1)}</span>
+                              Rank: <span className="font-semibold text-foreground">
+                                {/* ✅ CORREGIDO: Usando formatRank helper */}
+                                {formatRank(item.rank)}
+                              </span>
                             </span>
                           </div>
                           
