@@ -396,12 +396,6 @@ const AuthButtons: React.FC<AuthButtonsProps> = ({ onAuthClick }) => (
   <>
     <button
       onClick={onAuthClick}
-      className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors border-0 bg-transparent cursor-pointer"
-    >
-      Login
-    </button>
-    <button
-      onClick={onAuthClick}
       className="inline-flex items-center justify-center gap-2 h-9 rounded-md bg-gray-900 text-white font-bold border-0 hover:bg-gray-700 text-sm px-4 cursor-pointer"
     >
       Join Network
