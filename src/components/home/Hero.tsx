@@ -1,7 +1,10 @@
 import React from "react";
 import { Award, CircleCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const Hero: React.FC = () => {
+  const navigate = useNavigate();
+  
   return (
     <section id="top" className="relative w-full">
       {/* Fondo "hero" */}
@@ -25,7 +28,7 @@ export const Hero: React.FC = () => {
               scoring framework.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <button className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-black text-white hover:bg-gray-800 text-base px-8 py-6 font-medium">
+              <button onClick={() => navigate('/advisor-signup')} className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-black text-white hover:bg-gray-800 text-base px-8 py-6 font-medium">
                 Join the Advisor Network
               </button>
               <button className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-white border border-gray-300 text-gray-900 hover:bg-gray-50 text-base px-8 py-6 font-medium">

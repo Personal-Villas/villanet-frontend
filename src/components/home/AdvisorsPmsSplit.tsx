@@ -9,6 +9,7 @@ import {
   Users,
   Heart,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const AdvisorsPmsSplit: React.FC = () => {
   return (
@@ -27,6 +28,7 @@ export const AdvisorsPmsSplit: React.FC = () => {
 };
 
 const AdvisorsSection: React.FC = () => {
+  const navigate = useNavigate();
   return (
     <div id="advisors" className="py-12 md:pr-12">
       <div className="max-w-md">
@@ -84,7 +86,7 @@ const AdvisorsSection: React.FC = () => {
           </li>
         </ul>
 
-        <button className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium h-10 px-4 py-2 bg-black text-white hover:bg-black/90 group">
+        <button onClick={() => navigate('/advisor-signup')} className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium h-10 px-4 py-2 bg-black text-white hover:bg-black/90 group">
           Join the Advisor Network
           <svg
             xmlns="http://www.w3.org/2000/svg"
