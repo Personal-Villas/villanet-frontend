@@ -108,6 +108,7 @@ const AdvisorsSection: React.FC = () => {
 };
 
 const PropertyManagersSection: React.FC = () => {
+  const navigate = useNavigate();
   return (
     <div id="pms" className="py-12 md:pl-12">
       <div className="max-w-md">
@@ -169,7 +170,7 @@ const PropertyManagersSection: React.FC = () => {
           Currently free during Beta.
         </p>
 
-        <button className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium h-10 px-4 py-2 border bg-background border-black text-black hover:bg-black/5 group">
+        <button onClick={() => navigate('/property-manager-signup')} className="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium h-10 px-4 py-2 border bg-background border-black text-black hover:bg-black/5 group">
           Apply as a Verified PM
           <svg
             xmlns="http://www.w3.org/2000/svg"
