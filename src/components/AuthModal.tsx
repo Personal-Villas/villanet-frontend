@@ -1,17 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import imageLoginDefault from '../assets/images/villanet-login.png';
-import googleIcon from '../assets/images/google.png';
-import appleIcon from '../assets/images/apple.png';
-import facebookIcon from '../assets/images/facebook.png';
-import people1 from '../assets/images/people-1.png';
-import people2 from '../assets/images/people-2.png';
-import people3 from '../assets/images/people-3.png';
-import people4 from '../assets/images/people-4.png';
-import people5 from '../assets/images/people-5.png';
-import people6 from '../assets/images/people-6.png';
+//import googleIcon from '../assets/images/google.png';
+//import appleIcon from '../assets/images/apple.png';
+//import facebookIcon from '../assets/images/facebook.png';
+//import people1 from '../assets/images/people-1.png';
+//import people2 from '../assets/images/people-2.png';
+//import people3 from '../assets/images/people-3.png';
+//import people4 from '../assets/images/people-4.png';
+//import people5 from '../assets/images/people-5.png';
+//import people6 from '../assets/images/people-6.png';
 import { publicApi } from '../api/api';
-import { useAuth } from '../auth/useAuth'; // ✅ Importa el hook real
+import { useAuth } from '../auth/useAuth'; 
+import { useNavigate } from 'react-router-dom';
 
 // Definición de tipos
 interface AuthModalProps {
@@ -41,6 +42,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   
   // ✅ Usa el hook real de autenticación
   const { verifyCode: realVerifyCode } = useAuth();
+  const navigate = useNavigate();
   
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const bgImage = imageLogin ?? imageLoginDefault;
@@ -51,9 +53,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [mode]);
 
-  const handleSocialClick = (provider: string): void => {
+  /*const handleSocialClick = (provider: string): void => {
     console.log(`[AUTH] ${provider} login - in progress 🚧`);
-  };
+  };*/
 
   const handleSendCode = async (): Promise<void> => {
     if (!email.includes('@')) {
@@ -147,6 +149,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
       if (data.user) {
         onSuccess(data.user);
         onClose();
+        navigate('/properties');
       }
     } catch (err: any) {
       console.error('❌ verify-code error:', err);
@@ -220,7 +223,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
         {/* Columna izquierda - contenido principal */}
         <div className="flex-1 p-4 sm:p-8 flex flex-col min-h-0">
           {/* Logo solo en desktop */}
-          <div className="hidden sm:flex items-center gap-2 mb-6">
+          <div className="hidden sm:flex items-center mx-auto gap-2 mb-6">
             <div className="w-10 h-10 bg-neutral-900 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-lg">V</span>
             </div>
@@ -230,16 +233,16 @@ const AuthModal: React.FC<AuthModalProps> = ({
           {mode === 'email' && (
             <>
               {/* Título solo en desktop, en mobile está sobre la imagen */}
-              <h3 className="hidden sm:block text-[23px] font-semibold text-neutral-900 mb-3">
+              <h3 className="hidden sm:block text-[23px] font-semibold text-neutral-900 mb-3 mt-[100px] md:mb-[20px]">
                 Sign in or sign up to continue
               </h3>
               
-              <p className="hidden sm:block text-sm text-neutral-600 mb-6">
+              <p className="hidden sm:block text-sm text-neutral-600 mb-6 md:mb-[30px]">
                 Create a free account or sign in to continue. We will never sell your personal information.
               </p>
 
               {/* Botones sociales */}
-              <div className="flex gap-2 sm:gap-3 mb-4 lg:mt-5">
+           {/*    <div className="flex gap-2 sm:gap-3 mb-4 lg:mt-5">
                 <button
                   type="button"
                   onClick={() => handleSocialClick('apple')}
@@ -262,13 +265,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   <img src={facebookIcon} alt="Facebook" className="w-9 h-9 lg:w-6 lg:h-6" />
                 </button>
               </div>
-
+*/}
               {/* Separador OR */}
-              <div className="flex items-center gap-3 my-4 lg:my-8">
+             {/*  <div className="flex items-center gap-3 my-4 lg:my-8">
                 <div className="h-px bg-neutral-200 flex-1" />
                 <span className="text-xs uppercase tracking-wider text-neutral-500 font-medium">or</span>
                 <div className="h-px bg-neutral-200 flex-1" />
-              </div>
+              </div>*/}
 
               <div className="flex-1">
                 <input
@@ -292,7 +295,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
 
-              <div className="mt-6 pt-4">
+              {/*	<div className="mt-6 pt-4">
                 <div className="flex items-center justify-center gap-3 text-xs text-neutral-600">
                   <div className="flex -space-x-2">
                     <img
@@ -328,19 +331,19 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
                   <span>Join 636,748 happy Villaneters...</span>
                 </div>
-              </div>
+              </div>*/}
             </>
           )}
 
           {mode === 'code' && (
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col lg:mt-[50px]">
               <div className="flex-1">
-                <h3 className="text-xl font-semibold text-neutral-900 mb-2">
-                  We sent you a 6-digit code
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2 ">
+                  We sent you a 6-digit code to {email}
                 </h3>
                 
-                <p className="text-sm text-neutral-600 mb-2">
-                  to {email}
+                <p className="text-[10px] text-neutral-600 mb-4">
+                Please check your email for the code. If you don't see it, check your spam folder.
                 </p>
                 
                 <p className="text-sm text-neutral-500 mb-6 lg:mb-10">
@@ -363,7 +366,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                     </div>
                   )}
 
-                  <div className="flex gap-2 mb-4 lg:mb-10 justify-center">
+                  <div className="flex gap-2 mb-4 lg:mb-10 justify-center lg:my-[80px]">
                     {code.map((digit, idx) => (
                       <input
                         key={idx}
@@ -405,7 +408,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-neutral-200">
+              {/*	<div className="mt-6 pt-4 border-t border-neutral-200">
                 <div className="flex items-center justify-center gap-4 text-sm text-neutral-600">
                   <div className="inline-flex -space-x-1.5">
                     <img
@@ -426,7 +429,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
                   <p className="text-sm text-neutral-600 ml-[-2px]">Join 636,748 happy Villaneters...</p>
                 </div>
-              </div>
+              </div>*/}
             </div>
           )}
         </div>
