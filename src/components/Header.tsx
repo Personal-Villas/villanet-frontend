@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, User, LogOut, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 interface UnifiedHeaderProps {
   // Props comunes
@@ -42,12 +43,14 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
 }) => {
   const { user, loading, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();   
+
 
   const handleLogout = async () => {
     try {
       await logout();
       setIsMobileMenuOpen(false);
-      window.location.reload();
+      navigate('/');
     } catch (error) {
       console.error('Error during logout:', error);
     }
