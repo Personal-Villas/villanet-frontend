@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bed, Users, MapPin, DollarSign, Star, ShieldCheck, Sparkles, ChefHat, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Bed, MapPin, DollarSign, Star, ShieldCheck, Sparkles, ChefHat, ChevronLeft, ChevronRight, Bath } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api } from '../api/api';
 import AuthModal from '../components/AuthModal';
@@ -24,7 +24,6 @@ type Listing = {
   dailyCleaning?: boolean;
   chefIncluded?: boolean;
   category?: string[];
-  sleeps?: number;
 };
 
 type ListingsResponse = {
@@ -72,7 +71,7 @@ export default function Properties() {
   const [checkOut, setCheckOut] = useState('');
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('rank');
-  const [guests, setGuests] = useState(8);
+
 
   // Pagination state
   const [items, setItems] = useState<Listing[]>([]);
@@ -111,6 +110,9 @@ export default function Properties() {
 
   // Check if availability filters are applied
   const hasAvailabilityFilter = checkIn || checkOut;
+
+  // --- CORREGIDO: Calcular currentLocationLabel dinámicamente ---
+  const currentLocationLabel = debouncedQuery.trim() || 'Top Villa Destinations';
 
   // --- Modal handlers ---
   const openAuthModal = useCallback(() => {
@@ -209,7 +211,7 @@ export default function Properties() {
     checkIn,
     checkOut,
     selectedBadges,
-    sortBy   // <-- AGREGAR ESTO
+    sortBy
   ]);
 
   // Fetch listings
@@ -262,7 +264,6 @@ export default function Properties() {
               heroImage: (typeof first === 'string' && first) || item.heroImage || PLACEHOLDER,
               // Fuerza rank a número
               rank: typeof item.rank === 'number' ? item.rank : Number(item.rank) || Math.random() * 0.5 + 9.2,
-              sleeps: item.sleeps || (item.bedrooms || 1) * 2,
               propertyManager: item.propertyManager || 'Blue Sky Luxury Villas',
               trustAccount: item.trustAccount ?? true,
               dailyCleaning: item.dailyCleaning ?? true,
@@ -504,23 +505,36 @@ export default function Properties() {
 
   return (
     <>
+      {/* ✅ CORREGIDO: SEO dinámico que ya no fuerza Punta Mita */}
       <SEO
-        title={`${items.length} Luxury Villas in Punta Mita, Mexico`}
-        description={`Discover ${items.length} luxury villas in Punta Mita, Mexico. Private beachfront properties with premium amenities. Book your dream vacation today.`}
+        title={
+          debouncedQuery.trim()
+            ? `${items.length} Luxury Villas in ${currentLocationLabel}`
+            : `${items.length} Luxury Villas for Travel Advisors`
+        }
+        description={
+          debouncedQuery.trim()
+            ? `Discover ${items.length} luxury villas in ${currentLocationLabel}. Private villas with premium amenities.`
+            : `Discover vetted luxury villas with trusted property managers. Filter by dates, destination, and more.`
+        }
         canonical="/properties"
         image="/og-villas.jpg"
-        h1="Luxury Villas in Punta Mita"
+        h1={
+          debouncedQuery.trim()
+            ? `Luxury Villas in ${currentLocationLabel}`
+            : 'Explore Luxury Villas'
+        }
         schemaMarkup={generateLocalBusinessSchema({
-          name: "VillaNet Luxury Villas",
-          description: "Premium luxury villa rentals in Punta Mita, Mexico",
+          name: "VillaNet – Trusted Villa Network",
+          description: "Network of vetted luxury villas and professional property managers worldwide.",
           url: "https://villanet.com",
           telephone: "+1-555-123-4567",
           address: {
-            street: "Punta Mita Resort",
-            city: "Punta Mita",
-            state: "Nayarit",
-            postalCode: "63734",
-            country: "MX"
+            street: "",
+            city: "",
+            state: "",
+            postalCode: "",
+            country: "US"
           },
           priceRange: "$$$$"
         })}
@@ -533,12 +547,14 @@ export default function Properties() {
           onAuthClick={openAuthModal} 
         />
 
-        {/* ✅ FIX: Search Header con el nuevo handler handleSortChange */}
+
         <PropertiesHeader
           itemsCount={items.length}
-          location="Punta Mita, Mexico"
+          location={debouncedQuery.trim() || 'All Locations'}
+          query={query}
+          setQuery={setQuery}
           sortBy={sortBy}
-          setSortBy={handleSortChange} 
+          setSortBy={handleSortChange}
           badges={badges}
           selectedBadges={selectedBadges}
           onBadgeToggle={handleBadgeToggle}
@@ -546,8 +562,9 @@ export default function Properties() {
           setCheckIn={setCheckIn}
           checkOut={checkOut}
           setCheckOut={setCheckOut}
-          guests={guests}
-          setGuests={setGuests}
+          bedrooms={bedrooms}
+          setBedrooms={setBedrooms}
+          onClearAllFilters={clearAllFilters}
         />
 
         {/* Main Content */}
@@ -656,7 +673,7 @@ export default function Properties() {
                           </h3>
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                             <MapPin className="w-3.5 h-3.5" />
-                            <span>{item.location || 'Punta Mita, Riviera Nayarit'}</span>
+                            <span>{item.location || 'Location not specified'}</span>
                           </div>
                         </a>
                         
@@ -668,8 +685,8 @@ export default function Properties() {
                           </div>
                           <span>•</span>
                           <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            <span>Sleeps {item.sleeps}</span>
+                            <Bath className="w-4 h-4" />
+                            <span>{item.bathrooms ?? '—'} BA</span>
                           </div>
                           <span>•</span>
                           <div className="flex items-center gap-1">
