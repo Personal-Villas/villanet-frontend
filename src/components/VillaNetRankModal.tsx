@@ -79,6 +79,7 @@ export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
         <div className="border-t border-[#E5E5E5] my-6" />
 
         {/* CTA Button */}
+        <div className="hidden">
         <a
           className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white hover:bg-gray-700 transition-colors px-6 py-3 rounded-md text-base font-medium"
           href="/framework"
@@ -86,7 +87,7 @@ export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
           View the Full Villa Net Framework
           <ChevronRight className="h-5 w-5" />
         </a>
-
+        </div>
         {/* Close Button */}
         <button
           type="button"

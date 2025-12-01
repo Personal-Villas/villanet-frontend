@@ -57,6 +57,18 @@ function useDebounce<T>(value: T, delay: number): T {
 const ITEMS_PER_PAGE = 12;
 const PLACEHOLDER = '/assets/hero-villa-Cl4d2Edi.jpg';
 
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdrJh0sAAAAAPy3DKaQXrWS_YLJeEtRCN4E4wNj';
+
+// Info icon component
+const Info = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10"></circle>
+    <path d="M12 16v-4"></path>
+    <path d="M12 8h.01"></path>
+  </svg>
+);
+
+
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -72,7 +84,6 @@ export default function Properties() {
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('rank');
 
-
   // Pagination state
   const [items, setItems] = useState<Listing[]>([]);
   const [offset, setOffset] = useState(0);
@@ -81,6 +92,14 @@ export default function Properties() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  // Message modal
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageListing, setMessageListing] = useState<Listing | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const [messageLoading, setMessageLoading] = useState(false);
+  const [messageError, setMessageError] = useState<string | null>(null);
+  const [messageSuccess, setMessageSuccess] = useState(false);
 
   // Auth modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -111,10 +130,10 @@ export default function Properties() {
   // Check if availability filters are applied
   const hasAvailabilityFilter = checkIn || checkOut;
 
-  // --- CORREGIDO: Calcular currentLocationLabel dinámicamente ---
+  // Calcular currentLocationLabel dinámicamente
   const currentLocationLabel = debouncedQuery.trim() || 'Top Villa Destinations';
 
-  // --- Modal handlers ---
+  // Modal handlers
   const openAuthModal = useCallback(() => {
     setShowAuthModal(true);
   }, []);
@@ -132,6 +151,72 @@ export default function Properties() {
     setShowRankModal(false);
   }, []);
 
+  // Handlers para el modal de mensajes - SIN necesidad de login
+  const openMessageModalFor = useCallback((listing: Listing) => {
+    setMessageListing(listing);
+    setMessageText('');
+    setMessageError(null);
+    setMessageSuccess(false);
+    setShowMessageModal(true);
+  }, []);
+
+  const closeMessageModal = useCallback(() => {
+    setShowMessageModal(false);
+    setMessageListing(null);
+    setMessageText('');
+    setMessageError(null);
+    setMessageSuccess(false);
+  }, []);
+
+  const handleMessageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageListing) return;
+
+    if (!messageText.trim()) {
+      setMessageError('Please write your question about this villa.');
+      return;
+    }
+
+    if (!RECAPTCHA_SITE_KEY) {
+      setMessageError('reCAPTCHA is not configured. Please contact support.');
+      return;
+    }
+
+    try {
+      setMessageLoading(true);
+      setMessageError(null);
+
+      const grecaptcha = (window as any).grecaptcha;
+      if (!grecaptcha) {
+        throw new Error('reCAPTCHA is not loaded yet. Please try again in a moment.');
+      }
+
+      const recaptchaToken = await grecaptcha.execute(RECAPTCHA_SITE_KEY, {
+        action: 'property_message',
+      });
+
+      const payload = {
+        listingId: messageListing.id,
+        message: messageText.trim(),
+        recaptchaToken,
+      };
+
+      await api('/public/property-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      setMessageSuccess(true);
+      setMessageText('');
+    } catch (err: any) {
+      console.error(err);
+      setMessageError(err?.message || 'Error sending your message. Please try again.');
+    } finally {
+      setMessageLoading(false);
+    }
+  };
+
   const handleAuthSuccess = useCallback((user: any) => {
     console.log('✅ Auth success, user received:', user);
     closeAuthModal();
@@ -148,7 +233,7 @@ export default function Properties() {
     console.log('🔄 Auth state updated, Properties should re-render');
   }, [closeAuthModal]);
 
-  // ✅ FIX: Handler para cambio de sort que resetea antes de cambiar
+  // Handler para cambio de sort que resetea antes de cambiar
   const handleSortChange = useCallback((newSort: string) => {
     setSortBy(newSort);
   }, []);
@@ -160,11 +245,9 @@ export default function Properties() {
         setLoadingBadges(true);
         const data = await api<{ badges: CrudBadge[] }>('/badges');
         // Transformar los badges para incluir is_quick basado en algún criterio
-        // Por ejemplo, podemos usar is_dynamic o simplemente tomar los primeros 4 como quick
         const transformedBadges = data.badges.map((badge, index) => ({
           ...badge,
-          // Usar is_dynamic para determinar si es quick filter, o alternativamente los primeros 4
-          is_quick: index < 4 // O usar: badge.is_dynamic !== false
+          is_quick: index < 4
         }));
         setBadges(transformedBadges);
       } catch (error) {
@@ -182,6 +265,21 @@ export default function Properties() {
     };
 
     fetchBadges();
+  }, []);
+
+  // Cargar script de Google reCAPTCHA v3
+  useEffect(() => {
+    if (!RECAPTCHA_SITE_KEY) return;
+
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      `script[src^="https://www.google.com/recaptcha/api.js?render="]`
+    );
+    if (existingScript) return;
+
+    const script = document.createElement('script');
+    script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+    script.async = true;
+    document.body.appendChild(script);
   }, []);
 
   // Switch to pagination mode when availability filters are applied and many results
@@ -390,14 +488,14 @@ export default function Properties() {
     }));
   }, []);
 
-  // ✅ CORREGIDO: Función helper segura para formatMoney
+  // Función helper segura para formatMoney
   const formatMoney = (n: number | null | undefined) => {
     if (n == null) return '—';
     const amount = Number(n);
     return isNaN(amount) ? '—' : `$${(amount / 100).toLocaleString()}`;
   };
 
-  // ✅ CORREGIDO: Función helper segura para ranks
+  // Función helper segura para ranks
   const formatRank = (rank: number | null | undefined) => {
     if (rank == null) return '—';
     const num = Number(rank);
@@ -505,7 +603,7 @@ export default function Properties() {
 
   return (
     <>
-      {/* ✅ CORREGIDO: SEO dinámico que ya no fuerza Punta Mita */}
+      {/* SEO dinámico que ya no fuerza Punta Mita */}
       <SEO
         title={
           debouncedQuery.trim()
@@ -546,7 +644,6 @@ export default function Properties() {
           mode="simple"
           onAuthClick={openAuthModal} 
         />
-
 
         <PropertiesHeader
           itemsCount={items.length}
@@ -638,7 +735,6 @@ export default function Properties() {
                           
                           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
                             <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                            {/* ✅ CORREGIDO: Usando formatRank helper */}
                             <span className="text-xs font-semibold text-foreground">
                               {formatRank(item.rank)}
                             </span>
@@ -701,7 +797,6 @@ export default function Properties() {
                             <Star className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0" />
                             <span className="text-muted-foreground truncate">
                               Rank: <span className="font-semibold text-foreground">
-                                {/* ✅ CORREGIDO: Usando formatRank helper */}
                                 {formatRank(item.rank)}
                               </span>
                             </span>
@@ -738,7 +833,10 @@ export default function Properties() {
                           >
                             View Villa
                           </button>
-                          <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent">
+                          <button
+                            onClick={() => openMessageModalFor(item)}
+                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
+                          >
                             Message
                           </button>
                         </div>
@@ -850,16 +948,82 @@ export default function Properties() {
             onClose={closeRankModal}
           />
         )}
+
+        {/* Message Modal */}
+        {showMessageModal && messageListing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-neutral-200 p-6 relative">
+              <button
+                onClick={closeMessageModal}
+                className="absolute right-4 top-4 text-neutral-500 hover:text-neutral-800 text-xl leading-none"
+                aria-label="Close message modal"
+              >
+                ×
+              </button>
+
+              <h2 className="text-lg font-semibold text-neutral-900 mb-1">
+                Ask about this villa
+              </h2>
+              <p className="text-sm text-neutral-600 mb-4">
+                Your message will be sent to the team of{' '}
+                <span className="font-medium">{messageListing.name}</span>.
+              </p>
+
+              <form onSubmit={handleMessageSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-800 mb-2">
+                    Your question*
+                  </label>
+                  <textarea
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    rows={4}
+                    maxLength={1000}
+                    className="w-full resize-none rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
+                    placeholder="E.g. Is the pool heated? Are pets allowed? Can you confirm the exact beach access?"
+                  />
+                  <div className="mt-1 text-xs text-neutral-400 text-right">
+                    {messageText.length}/1000
+                  </div>
+                </div>
+
+                {messageError && (
+                  <p className="text-xs text-red-600">
+                    {messageError}
+                  </p>
+                )}
+
+                {messageSuccess && (
+                  <p className="text-xs text-green-600">
+                    Your message was sent successfully. Our team will contact you soon.
+                  </p>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={closeMessageModal}
+                    className="px-4 py-2 text-sm font-medium text-neutral-700 border border-neutral-300 rounded-lg hover:bg-neutral-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={messageLoading}
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 disabled:opacity-60"
+                  >
+                    {messageLoading ? 'Sending...' : 'Send message'}
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-neutral-400 mt-1">
+                  Protected by reCAPTCHA. Spam and automated messages are blocked.
+                </p>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
 }
-
-// Add missing Info icon
-const Info = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <circle cx="12" cy="12" r="10"></circle>
-    <path d="M12 16v-4"></path>
-    <path d="M12 8h.01"></path>
-  </svg>
-);

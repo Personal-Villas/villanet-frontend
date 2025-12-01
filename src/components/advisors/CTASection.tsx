@@ -5,7 +5,7 @@ export const CTASection: React.FC = () => {
     <>
       <div className="shrink-0 bg-border h-[1px] w-full mx-auto max-w-6xl" />
       
-      <section className="py-16 px-6 bg-[#FAFAFA] dark:bg-accent/10">
+      <section className="hidden py-16 px-6 bg-[#FAFAFA] dark:bg-accent/10">
         <div className="container mx-auto max-w-2xl text-center">
           <p className="text-base md:text-lg text-muted-foreground mb-6">
             Already part of the network?

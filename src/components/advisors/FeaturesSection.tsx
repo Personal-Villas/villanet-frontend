@@ -1,6 +1,10 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 export const FeaturesSection: React.FC = () => {
+
+  const navigate = useNavigate();
+
   return (
     <>
       <div className="shrink-0 bg-border h-[1px] w-full mx-auto max-w-6xl" />
@@ -14,7 +18,7 @@ export const FeaturesSection: React.FC = () => {
             Villa Net gives travel advisors the confidence and transparency they deserve — plus real-time data and support that makes every booking seamless.
           </p>
           <div className="flex justify-center">
-            <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-[#000000] text-white hover:bg-black/90 h-10 text-base py-[14px] px-9 rounded-md shadow-none">
+            <button onClick={() => navigate('/advisor-signup')} className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-[#000000] text-white hover:bg-black/90 h-10 text-base py-[14px] px-9 rounded-md shadow-none">
               Request Access →
             </button>
           </div>
