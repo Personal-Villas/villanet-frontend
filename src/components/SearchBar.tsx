@@ -177,13 +177,13 @@ export default function PropertiesHeader({
 
   const datesLabel = formatDates(checkIn, checkOut);
 
-  const bedroomsLabel =
+  /*const bedroomsLabel =
     bedrooms.length === 0
       ? "Bedrooms"
       : bedrooms.includes("5+")
       ? "5+ BR"
       : `${bedrooms.join(", ")} BR`;
-
+*/
   const hasActiveFilters =
     query.trim().length > 0 ||
     !!selectedDestination ||

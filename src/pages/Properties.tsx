@@ -168,7 +168,7 @@ export default function Properties() {
 
   // Badges state from API
   const [badges, setBadges] = useState<CrudBadge[]>([]);
-  const [loadingBadges, setLoadingBadges] = useState(true);
+  //const [loadingBadges, setLoadingBadges] = useState(true);
 
   // Check if availability filters are applied
   const hasAvailabilityFilter = checkIn || checkOut;
@@ -285,7 +285,7 @@ export default function Properties() {
   useEffect(() => {
     const fetchBadges = async () => {
       try {
-        setLoadingBadges(true);
+        //setLoadingBadges(true);
         const data = await api<{ badges: CrudBadge[] }>('/badges');
         // Transformar los badges para incluir is_quick basado en algún criterio
         const transformedBadges = data.badges.map((badge, index) => ({
@@ -303,7 +303,7 @@ export default function Properties() {
           { id: 'heated-pool', name: 'Heated Pool', slug: 'heated-pool', icon: 'waves', is_quick: true }
         ]);
       } finally {
-        setLoadingBadges(false);
+        //setLoadingBadges(false);
       }
     };
 
