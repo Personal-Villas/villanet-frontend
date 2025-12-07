@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bed, MapPin, DollarSign, Star, ShieldCheck, Sparkles, ChefHat, ChevronLeft, ChevronRight, Bath } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
-import { api } from '../api/api';
+import { api, publicApi } from '../api/api'; 
 import AuthModal from '../components/AuthModal';
 import VillaNetRankModal from '../components/VillaNetRankModal';
 import SEO, { generateLocalBusinessSchema } from '../components/SEO';
@@ -16,14 +16,36 @@ type Listing = {
   bathrooms: number | null;
   priceUSD: number | null;
   location: string | null;
+  villaNetDestinationTag?: string | null;
+  villaNetCity?: string | null;
+  villaNetPropertyManagerName?: string | null;
+  villaNetCommissionRate?: number | null;
   heroImage: string | null;
   images_json: string[];
-  rank?: number;
+  rank?: number | null;
   propertyManager?: string;
   trustAccount?: boolean;
   dailyCleaning?: boolean;
   chefIncluded?: boolean;
   category?: string[];
+  villanetChefIncluded?: boolean;
+  villanetHeatedPool?: boolean;
+  villanetOceanView?: boolean;
+  villanetTrueBeachFront?: boolean;
+  villanetGolfCartIncluded?: boolean;
+  villanetTennis?: boolean;
+  villanetPickleball?: boolean;
+  villanetPrivateGym?: boolean;
+  villanetPrivateCinema?: boolean;
+  villanetCookIncluded?: boolean;
+  villanetWaiterButlerIncluded?: boolean;
+  villanetOceanFront?: boolean;
+  villanetWalkToBeach?: boolean;
+  villanetAccessible?: boolean;
+  villanetGatedCommunity?: boolean;
+  villanetGolfVilla?: boolean;
+  villanetResortVilla?: boolean;
+  villanetResortCollectionName?: string;
 };
 
 type ListingsResponse = {
@@ -59,6 +81,25 @@ const PLACEHOLDER = '/assets/hero-villa-Cl4d2Edi.jpg';
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdrJh0sAAAAAPy3DKaQXrWS_YLJeEtRCN4E4wNj';
 
+// Lista de destinos predefinidos
+const DESTINATIONS = [
+  "Cayman Islands",
+  "Puerto Vallarta, Mexico",
+  "Casa de Campo, Dominican Republic",
+  "St. Martin / St. Maarten",
+  "Bahamas",
+  "Turks & Caicos",
+  "Cap Cana, Dominican Republic",
+  "St. Barts",
+  "Riviera Maya, Mexico",
+  "Punta Cana, Dominican Republic",
+  "British Virgin Islands",
+  "Jamaica",
+  "Anguilla",
+  "Punta Mita, Mexico",
+  "Barbados"
+];
+
 // Info icon component
 const Info = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -68,10 +109,12 @@ const Info = ({ className }: { className?: string }) => (
   </svg>
 );
 
-
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  
+  // 🔥 NUEVO: Estado para el destino seleccionado
+  const [selectedDestination, setSelectedDestination] = useState('');
   
   // Filters
   const [query, setQuery] = useState('');
@@ -131,7 +174,7 @@ export default function Properties() {
   const hasAvailabilityFilter = checkIn || checkOut;
 
   // Calcular currentLocationLabel dinámicamente
-  const currentLocationLabel = debouncedQuery.trim() || 'Top Villa Destinations';
+  const currentLocationLabel = debouncedQuery.trim() || selectedDestination || 'Top Villa Destinations';
 
   // Modal handlers
   const openAuthModal = useCallback(() => {
@@ -302,6 +345,7 @@ export default function Properties() {
     setPaginationMode('infinite');
   }, [
     debouncedQuery,
+    selectedDestination, // 🔥 Añadido: reset cuando cambia el destino
     bedrooms,
     bathrooms,
     minPrice,
@@ -325,6 +369,7 @@ export default function Properties() {
       try {
         const qs = new URLSearchParams();
         if (debouncedQuery.trim().length >= 3) qs.set('q', debouncedQuery.trim());
+        if (selectedDestination) qs.set('destination', selectedDestination); // 🔥 NUEVO: Añadir destination
         if (bedrooms.length) qs.set('bedrooms', bedrooms.join(','));
         if (bathrooms.length) qs.set('bathrooms', bathrooms.join(','));
         if (minPrice) qs.set('minPrice', String(Number(minPrice) || ''));
@@ -343,29 +388,61 @@ export default function Properties() {
           qs.set('offset', String(offset));
         }
 
+        // 🔥 CAMBIO: Usar publicApi cuando el usuario no está autenticado
         const endpoint = user ? '/listings' : '/public/listings';
+        const apiToUse = user ? api : publicApi;
         
-        const data = await api<ListingsResponse>(`${endpoint}?${qs.toString()}`, { 
+        const data = await apiToUse<ListingsResponse>(`${endpoint}?${qs.toString()}`, { 
           signal: controller.signal 
         });
 
         if (!controller.signal.aborted) {
-          const normalized: Listing[] = (data.results || []).map((item) => {
+          const normalized: Listing[] = (data.results || []).map((item: any) => {
             console.log('Rank data:', item.rank, typeof item.rank);
             
             const images = Array.isArray(item.images_json) ? item.images_json : [];
             const first = images[0];
+            
             return {
               ...item,
               id: item.id || `temp-${Math.random().toString(36).slice(2)}`,
               images_json: images,
               heroImage: (typeof first === 'string' && first) || item.heroImage || PLACEHOLDER,
-              // Fuerza rank a número
-              rank: typeof item.rank === 'number' ? item.rank : Number(item.rank) || Math.random() * 0.5 + 9.2,
-              propertyManager: item.propertyManager || 'Blue Sky Luxury Villas',
+              // Rank: usar el que viene de VillaNet; si no, fallback
+              rank: item.rank,
+        
+              // 🔹 Property manager: primero VillaNet, luego cualquier otro, luego default
+              propertyManager:
+                item.villaNetPropertyManagerName ||
+                item.propertyManager ||
+                'Blue Sky Luxury Villas',
+        
               trustAccount: item.trustAccount ?? true,
               dailyCleaning: item.dailyCleaning ?? true,
-              chefIncluded: item.chefIncluded ?? true,
+              
+              // 🔥 Usar los nuevos campos VillaNet para chefIncluded
+              chefIncluded: item.villanetChefIncluded ?? item.chefIncluded ?? true,
+              
+              // 🔥 Mapear los demás campos booleanos de VillaNet
+              villanetChefIncluded: item.villanetChefIncluded ?? false,
+              villanetHeatedPool: item.villanetHeatedPool ?? false,
+              villanetOceanView: item.villanetOceanView ?? false,
+              villanetTrueBeachFront: item.villanetTrueBeachFront ?? false,
+              villanetGolfCartIncluded: item.villanetGolfCartIncluded ?? false,
+              villanetTennis: item.villanetTennis ?? false,
+              villanetPickleball: item.villanetPickleball ?? false,
+              villanetPrivateGym: item.villanetPrivateGym ?? false,
+              villanetPrivateCinema: item.villanetPrivateCinema ?? false,
+              villanetCookIncluded: item.villanetCookIncluded ?? false,
+              villanetWaiterButlerIncluded: item.villanetWaiterButlerIncluded ?? false,
+              villanetOceanFront: item.villanetOceanFront ?? false,
+              villanetWalkToBeach: item.villanetWalkToBeach ?? false,
+              villanetAccessible: item.villanetAccessible ?? false,
+              villanetGatedCommunity: item.villanetGatedCommunity ?? false,
+              villanetGolfVilla: item.villanetGolfVilla ?? false,
+              villanetResortVilla: item.villanetResortVilla ?? false,
+              villanetResortCollectionName: item.villanetResortCollectionName ?? null,
+        
               category: item.category || ['Ultra Luxe', 'Beachfront']
             };
           });
@@ -434,6 +511,7 @@ export default function Properties() {
     return () => controller.abort();
   }, [
     debouncedQuery,
+    selectedDestination, // 🔥 Añadido: dependencia del destino
     bedrooms,
     bathrooms,
     minPrice,
@@ -496,11 +574,29 @@ export default function Properties() {
   };
 
   // Función helper segura para ranks
-  const formatRank = (rank: number | null | undefined) => {
-    if (rank == null) return '—';
-    const num = Number(rank);
-    return isNaN(num) ? '—' : num.toFixed(1);
+  const formatRank = (rank: number | string | null | undefined) => {
+    if (rank == null) return "—";
+    return rank.toString(); 
   };
+
+  // 🔥 NUEVO: Función para limpiar todos los filtros incluyendo destination
+  const clearAllFilters = useCallback(() => {
+    setQuery('');
+    setSelectedDestination(''); // 🔥 Limpiar destination también
+    setBedrooms([]);
+    setBathrooms([]);
+    setMinPrice('');
+    setMaxPrice('');
+    setCheckIn('');
+    setCheckOut('');
+    setSelectedBadges([]);
+    setSortBy('rank');
+    setOffset(0);
+    setError(null);
+    setAvailabilitySession(null);
+    setAvailabilityCursor(null);
+    setPaginationMode('infinite');
+  }, []);
 
   // Pagination Controls Component
   const PaginationControls = () => {
@@ -548,22 +644,6 @@ export default function Properties() {
     );
   };
 
-  const clearAllFilters = useCallback(() => {
-    setQuery('');
-    setBedrooms([]);
-    setBathrooms([]);
-    setMinPrice('');
-    setMaxPrice('');
-    setCheckIn('');
-    setCheckOut('');
-    setSelectedBadges([]);
-    setSortBy('rank');
-    setError(null);
-    setAvailabilitySession(null);
-    setAvailabilityCursor(null);
-    setPaginationMode('infinite');
-  }, []);
-
   const goToDetail = useCallback((property: Listing) => {
     if (!user) {
       openAuthModal();
@@ -580,6 +660,7 @@ export default function Properties() {
     );
   }, []);
 
+  // Calcular filtros activos
   const activeFiltersCount = 
     bedrooms.length + 
     bathrooms.length + 
@@ -587,7 +668,9 @@ export default function Properties() {
     (maxPrice ? 1 : 0) + 
     (checkIn ? 1 : 0) + 
     (checkOut ? 1 : 0) +
-    selectedBadges.length; 
+    selectedBadges.length +
+    (selectedDestination ? 1 : 0) + // 🔥 Añadir destination a la cuenta
+    (query ? 1 : 0);
 
   // Loading state
   if (authLoading) {
@@ -606,19 +689,19 @@ export default function Properties() {
       {/* SEO dinámico que ya no fuerza Punta Mita */}
       <SEO
         title={
-          debouncedQuery.trim()
+          debouncedQuery.trim() || selectedDestination
             ? `${items.length} Luxury Villas in ${currentLocationLabel}`
             : `${items.length} Luxury Villas for Travel Advisors`
         }
         description={
-          debouncedQuery.trim()
+          debouncedQuery.trim() || selectedDestination
             ? `Discover ${items.length} luxury villas in ${currentLocationLabel}. Private villas with premium amenities.`
             : `Discover vetted luxury villas with trusted property managers. Filter by dates, destination, and more.`
         }
         canonical="/properties"
         image="/og-villas.jpg"
         h1={
-          debouncedQuery.trim()
+          debouncedQuery.trim() || selectedDestination
             ? `Luxury Villas in ${currentLocationLabel}`
             : 'Explore Luxury Villas'
         }
@@ -645,9 +728,10 @@ export default function Properties() {
           onAuthClick={openAuthModal} 
         />
 
+        {/* 🔹 CAMBIO: Pasar total en lugar de items.length y añadir props de destination */}
         <PropertiesHeader
-          itemsCount={items.length}
-          location={debouncedQuery.trim() || 'All Locations'}
+          itemsCount={total}
+          location={debouncedQuery.trim() || selectedDestination || 'All Locations'}
           query={query}
           setQuery={setQuery}
           sortBy={sortBy}
@@ -662,6 +746,10 @@ export default function Properties() {
           bedrooms={bedrooms}
           setBedrooms={setBedrooms}
           onClearAllFilters={clearAllFilters}
+          // 🔥 NUEVO: Props para el selector de destino
+          destinations={DESTINATIONS}
+          selectedDestination={selectedDestination}
+          onSelectDestination={setSelectedDestination}
         />
 
         {/* Main Content */}
@@ -673,6 +761,13 @@ export default function Properties() {
                 {items.map((item, idx) => {
                   const images = item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
                   const currentIndex = imageIndices[item.id] || 0;
+                  
+                  // 🔹 NUEVO: Normalizar ubicación mostrada
+                  const displayLocation =
+                    item.villaNetDestinationTag ||
+                    item.villaNetCity ||
+                    item.location ||
+                    'Location not specified';
                   
                   return (
                     <div
@@ -767,9 +862,10 @@ export default function Properties() {
                           <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
                             {item.name}
                           </h3>
+                          {/* 🔹 CAMBIO: Usar displayLocation normalizada */}
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                             <MapPin className="w-3.5 h-3.5" />
-                            <span>{item.location || 'Location not specified'}</span>
+                            <span>{displayLocation}</span>
                           </div>
                         </a>
                         
@@ -913,10 +1009,12 @@ export default function Properties() {
               </div>
             )}
 
-            {/* End message */}
+            {/* 🔹 CAMBIO: End message que muestra "X of Y villas" */}
             {!loading && items.length > 0 && !hasMore && paginationMode === 'infinite' && (
               <div className="flex justify-center mt-8">
-                <div className="text-sm text-muted-foreground">Showing {items.length} villas</div>
+                <div className="text-sm text-muted-foreground">
+                  Showing {items.length} of {total} villas
+                </div>
               </div>
             )}
           </div>

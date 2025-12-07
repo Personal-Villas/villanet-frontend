@@ -4,11 +4,13 @@ import { X, CircleCheckBig, Star, ChevronRight } from "lucide-react";
 interface VillaNetRankModalProps {
   isOpen: boolean;
   onClose: () => void;
+  rank?: number; // ⬅️ AGREGADO: prop opcional para mostrar el rank específico
 }
 
 export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
   isOpen,
   onClose,
+  rank, // ⬅️ AGREGADO
 }) => {
   if (!isOpen) return null;
 
@@ -46,6 +48,20 @@ export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
         </div>
 
         <div className="border-t border-[#E5E5E5] my-6" />
+
+        {/* 🔹 NUEVO: Mostrar el rank específico de la propiedad si existe */}
+        {rank && (
+          <div className="flex items-center justify-center py-6 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border border-yellow-200 mb-6">
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-600 mb-2">This Property's Rank</p>
+              <div className="flex items-center justify-center gap-2">
+                <Star className="h-8 w-8 fill-yellow-500 text-yellow-500" />
+                <p className="text-5xl font-bold text-gray-900">{rank.toFixed(1)}</p>
+              </div>
+              <p className="text-sm text-gray-500 mt-2">out of 10.0</p>
+            </div>
+          </div>
+        )}
 
         {/* Content */}
         <div className="space-y-4">
@@ -88,6 +104,7 @@ export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
           <ChevronRight className="h-5 w-5" />
         </a>
         </div>
+        
         {/* Close Button */}
         <button
           type="button"
