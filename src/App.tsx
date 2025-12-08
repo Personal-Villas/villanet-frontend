@@ -14,6 +14,9 @@ import { Advisors } from './pages/Advisors';
 import { PropertyManagers } from './pages/PropertyManagers';
 import { AdvisorSignup } from './pages/AdvisorSignup';
 import { PropertyManagerSignup } from './pages/PropertyManagerSignup';
+import { TrustFramework } from './pages/TrustFramework';
+import { TermsOfService } from './pages/TermsOfService';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
 
 // ✅ Componente interno que usa el hook useAuth
 function AppRoutes() {
@@ -42,6 +45,9 @@ function AppRoutes() {
       <Route path="/for-property-managers" element={<PropertyManagers />} />
       <Route path="/advisor-signup" element={<AdvisorSignup />} />
       <Route path="/property-manager-signup" element={<PropertyManagerSignup />} />
+      <Route path="/trust-framework" element={<TrustFramework />} />
+      <Route path="/terms-of-service" element={<TermsOfService />} /> 
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       {/* ✅ Rutas de autenticación */}
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />

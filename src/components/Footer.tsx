@@ -40,24 +40,24 @@ const Footer: React.FC = () => {
           {/* Enlaces en dos filas */}
           <div className="flex flex-col gap-2">
             <div className="flex gap-7 text-sm text-[#6B7280]">
-              <a href="/about" className="hover:text-foreground transition-colors">
+              <a href="trust-framework#principles" className="hover:text-foreground transition-colors">
                 Villa Net Principles
               </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a href="trust-framework#rank-framework" className="hover:text-foreground transition-colors">
                 Villa Net Rank™ Framework
               </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a href="trust-framework#admission-standards" className="hover:text-foreground transition-colors">
                 Partner Admission Standards
               </a>
             </div>
             <div className="flex gap-7 text-sm text-[#6B7280]">
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a href="/privacy-policy" className="hover:text-foreground transition-colors">
                 Privacy Policy
               </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a href="/terms-of-service" className="hover:text-foreground transition-colors">
                 Terms of Service
               </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a href="trust-framework#contact" className="hover:text-foreground transition-colors">
                 Contact
               </a>
             </div>
