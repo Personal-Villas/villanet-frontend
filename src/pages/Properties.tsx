@@ -112,8 +112,6 @@ const Info = ({ className }: { className?: string }) => (
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  
-  // 🔥 NUEVO: Estado para el destino seleccionado
   const [selectedDestination, setSelectedDestination] = useState('');
   
   // Filters
@@ -143,35 +141,17 @@ export default function Properties() {
   const [messageLoading, setMessageLoading] = useState(false);
   const [messageError, setMessageError] = useState<string | null>(null);
   const [messageSuccess, setMessageSuccess] = useState(false);
-
-  // Auth modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
-  
-  // Villa Net Rank modal state
   const [showRankModal, setShowRankModal] = useState(false);
-
-  // Availability session state
   const [availabilitySession, setAvailabilitySession] = useState<string | null>(null);
   const [availabilityCursor, setAvailabilityCursor] = useState<number | null>(null);
-
-  // Pagination mode
   const [paginationMode, setPaginationMode] = useState<'infinite' | 'pagination'>('infinite');
-
-  // Image carousel states
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
-
-  // Debounced query
   const debouncedQuery = useDebounce(query, 600);
-  
-  // Infinite scroll observer
   const observerTarget = useRef<HTMLDivElement>(null);
-
-  // Badges state from API
   const [badges, setBadges] = useState<CrudBadge[]>([]);
-  //const [loadingBadges, setLoadingBadges] = useState(true);
-
-  // Check if availability filters are applied
   const hasAvailabilityFilter = checkIn || checkOut;
+
 
   // Calcular currentLocationLabel dinámicamente
   const currentLocationLabel = debouncedQuery.trim() || selectedDestination || 'Top Villa Destinations';
@@ -279,6 +259,17 @@ export default function Properties() {
   // Handler para cambio de sort que resetea antes de cambiar
   const handleSortChange = useCallback((newSort: string) => {
     setSortBy(newSort);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const badgeParam = params.get('badge');
+    
+    if (badgeParam) {
+      setSelectedBadges([badgeParam]);
+      // Limpiar el parámetro de la URL después de aplicarlo
+      window.history.replaceState({}, '', '/properties');
+    }
   }, []);
   
   // Fetch badges from API

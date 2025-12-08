@@ -1,5 +1,6 @@
 import React from "react";
 import robertCracknell from "../../assets/images/robert-history.jpg";
+import jhonyBlanco from "../../assets/images/jhony-history.jpg";
 
 export const FoundersSection: React.FC = () => {
   const founders = [
@@ -14,7 +15,7 @@ export const FoundersSection: React.FC = () => {
       name: "Jhony Blanco",
       role: "Co-Founder & CTO",
       description: "A systems engineer passionate about hospitality data, Jhony leads the architecture behind Villa Net's proprietary ranking and verification systems.",
-      image: null,
+      image: jhonyBlanco,
       alt: "Jhony Blanco, Co-Founder & CTO"
     }
   ];

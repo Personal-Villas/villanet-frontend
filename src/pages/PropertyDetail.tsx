@@ -52,7 +52,7 @@ type Listing = {
   // Campos VillaNet del backend (snake_case)
   villanet_destination_tag?: string | null;
   villanet_city?: string | null;
-
+  
   // Campo "bonito" que viene en algunos endpoints (por si las dudas)
   location?: string | null;
 
@@ -74,6 +74,26 @@ type Listing = {
   villanet_partner_reservation_email?: string | null;
   villanet_property_email?: string | null;
   sleeps?: number | null;
+  villanet_standardized_housekeeping?: boolean | null;
+  villanet_years_in_business?: number | null;
+  villanet_chef_included?: boolean | null;
+  villanet_heated_pool?: boolean | null;
+  villanet_ocean_view?: boolean | null;
+  villanet_true_beach_front?: boolean | null;
+  villanet_golf_cart_included?: boolean | null;
+  villanet_tennis?: boolean | null;
+  villanet_pickleball?: boolean | null;
+  villanet_private_gym?: boolean | null;
+  villanet_private_cinema?: boolean | null;
+  villanet_cook_included?: boolean | null;
+  villanet_waiter_butler_included?: boolean | null;
+  villanet_ocean_front?: boolean | null;
+  villanet_walk_to_beach?: boolean | null;
+  villanet_accessible?: boolean | null;
+  villanet_gated_community?: boolean | null;
+  villanet_golf_villa?: boolean | null;
+  villanet_resort_villa?: boolean | null;
+  villanet_resort_collection_name?: string | null;
 };
 
 type Day = {
@@ -128,6 +148,22 @@ const getAmenitiesWithIcons = (amenities: string[]) => {
     );
 };
 
+
+// Función helper para formatear rank de forma segura
+const formatVillaNetRank = (rank: any): string => {
+  if (rank == null || rank === undefined || rank === '') return '9.7';
+  
+  try {
+    const num = typeof rank === 'string' ? parseFloat(rank) : Number(rank);
+    if (isNaN(num)) return '9.7';
+    
+    return num.toFixed(1);
+  } catch (error) {
+    console.warn('Error formatting VillaNet rank:', error, rank);
+    return '9.7';
+  }
+};
+
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -145,6 +181,7 @@ export default function PropertyDetail() {
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
   const [start, setStart] = useState(() => {
     const s = new Date();
@@ -223,35 +260,65 @@ export default function PropertyDetail() {
       return newDate;
     });
 
-  useEffect(() => {
-    if (!id) {
-      setError('Invalid property ID');
-      setLoading(false);
-      return;
-    }
-
-    const fetchListing = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const listingData = await api<Listing>(`/listings/${id}`);
-        setListing({
-          ...listingData,
-          images_json: Array.isArray(listingData?.images_json)
-            ? listingData.images_json
-            : []
-        });
-      } catch (err: any) {
-        console.error('Error fetching property details:', err);
-        setError(err?.message || 'Failed to load property details');
-      } finally {
+    useEffect(() => {
+      if (!id) {
+        setError('Invalid property ID');
         setLoading(false);
+        return;
       }
-    };
-
-    fetchListing();
-  }, [id]);
+    
+      const fetchListing = async () => {
+        setLoading(true);
+        setError(null);
+    
+        try {
+          // 🔥 IMPORTANTE: Incluir todos los campos VillaNet que necesitas
+          const listingData = await api<Listing>(`/listings/${id}`);
+          
+          setListing({
+            ...listingData,
+            images_json: Array.isArray(listingData?.images_json)
+              ? listingData.images_json
+              : [],
+            
+            villanet_rank: listingData.villanet_rank,
+            villanet_commission_rate: listingData.villanet_commission_rate,
+            villanet_property_manager_name: listingData.villanet_property_manager_name,
+            villanet_partner_reservation_email: listingData.villanet_partner_reservation_email,
+            villanet_property_email: listingData.villanet_property_email,
+            villanet_destination_tag: listingData.villanet_destination_tag,
+            villanet_city: listingData.villanet_city,
+            villanet_years_in_business: listingData.villanet_years_in_business,
+            villanet_chef_included: listingData.villanet_chef_included,
+            villanet_heated_pool: listingData.villanet_heated_pool,
+            villanet_ocean_view: listingData.villanet_ocean_view,
+            villanet_true_beach_front: listingData.villanet_true_beach_front,
+            villanet_golf_cart_included: listingData.villanet_golf_cart_included,
+            villanet_tennis: listingData.villanet_tennis,
+            villanet_pickleball: listingData.villanet_pickleball,
+            villanet_private_gym: listingData.villanet_private_gym,
+            villanet_private_cinema: listingData.villanet_private_cinema,
+            villanet_cook_included: listingData.villanet_cook_included,
+            villanet_waiter_butler_included: listingData.villanet_waiter_butler_included,
+            villanet_ocean_front: listingData.villanet_ocean_front,
+            villanet_walk_to_beach: listingData.villanet_walk_to_beach,
+            villanet_accessible: listingData.villanet_accessible,
+            villanet_gated_community: listingData.villanet_gated_community,
+            villanet_golf_villa: listingData.villanet_golf_villa,
+            villanet_resort_villa: listingData.villanet_resort_villa,
+            villanet_resort_collection_name: listingData.villanet_resort_collection_name,
+            villanet_standardized_housekeeping: listingData.villanet_standardized_housekeeping,
+          });
+        } catch (err: any) {
+          console.error('Error fetching property details:', err);
+          setError(err?.message || 'Failed to load property details');
+        } finally {
+          setLoading(false);
+        }
+      };
+    
+      fetchListing();
+    }, [id]);
 
   useEffect(() => {
     if (!id || !listing) return;
@@ -440,10 +507,6 @@ export default function PropertyDetail() {
     );
   };
 
-  const formattedRank =
-    listing.villanet_rank != null
-      ? Number(listing.villanet_rank).toFixed(1)
-      : '9.7';
 
   return (
     <div className="min-h-screen bg-white max-md:overflow-x-hidden max-md:overflow-y-auto">
@@ -546,30 +609,70 @@ export default function PropertyDetail() {
         )}
       </section>
 
-      {/* Trust Badges Section */}
       <section className="py-4 px-6 border-b border-[#E5E5E5]">
-        <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-wrap justify-center gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
-              <Star className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm font-medium">Trusted 10+ Years</span>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
-              <span className="text-sm font-medium">Platinum Collection</span>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
-              <Check className="w-4 h-4" />
-              <span className="text-sm font-medium">Managed Locally</span>
-            </div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
-              <Star className="w-4 h-4 text-yellow-500" />
-              <span className="text-sm font-medium">
-                Villa Net Rank™ {formattedRank}
-              </span>
-            </div>
-          </div>
+  <div className="container mx-auto max-w-6xl">
+    <div className="flex flex-wrap justify-center gap-2">
+      {/* Badge 1: VillaNet Rank - SIEMPRE */}
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
+        <Star className="w-4 h-4 text-yellow-500" />
+        <span className="text-sm font-medium">
+          Villa Net Rank™ {formatVillaNetRank(listing.villanet_rank)}
+        </span>
+      </div>
+
+      {/* Badge 2: Trusted Years - DINÁMICO si hay datos, estático si no */}
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
+        <Star className="w-4 h-4 text-blue-500" />
+        <span className="text-sm font-medium">
+          {listing.villanet_years_in_business 
+            ? `Trusted ${listing.villanet_years_in_business}+ Years`
+            : 'Trusted 10+ Years'
+          }
+        </span>
+      </div>
+
+      {/* Badge 3: Property Manager - MOSTRAR SOLO SI HAY DATOS */}
+      {listing.villanet_property_manager_name ? (
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
+          <Check className="w-4 h-4 text-green-600" />
+          <span className="text-sm font-medium truncate max-w-[180px]">
+            {listing.villanet_property_manager_name}
+          </span>
         </div>
-      </section>
+      ) : (
+        // Fallback estático si no hay manager específico
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
+          <Check className="w-4 h-4" />
+          <span className="text-sm font-medium">Managed Locally</span>
+        </div>
+      )}
+
+      {/* Badge 4: Premium Feature más destacada */}
+      {(() => {
+        const premiumFeatures = [];
+        if (listing.villanet_true_beach_front) premiumFeatures.push('True Beachfront');
+        if (listing.villanet_chef_included) premiumFeatures.push('Chef Included');
+        if (listing.villanet_heated_pool) premiumFeatures.push('Heated Pool');
+        if (listing.villanet_private_gym) premiumFeatures.push('Private Gym');
+        
+        if (premiumFeatures.length > 0) {
+          return (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
+              <span className="text-sm font-medium">{premiumFeatures[0]}</span>
+            </div>
+          );
+        }
+        
+        // Fallback estático si no hay features premium
+        return (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
+            <span className="text-sm font-medium">Platinum Collection</span>
+          </div>
+        );
+      })()}
+    </div>
+  </div>
+</section>
 
       {/* Property Title Section */}
       <section className="py-6 px-6 text-center border-b border-[#E5E5E5]">
@@ -585,68 +688,134 @@ export default function PropertyDetail() {
       </section>
 
       {/* Property Features */}
-      <section className="py-8 px-6 border-b border-[#E5E5E5]">
-        <div className="container mx-auto max-w-4xl">
-          <div className="grid grid-cols-3 gap-4 md:flex md:justify-center md:items-center md:gap-8 text-center">
-            <div className="py-4">
-              <Bed className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-gray-900" />
-              <p className="text-2xl font-bold">{listing.bedrooms ?? '—'}</p>
-              <p className="text-xs sm:text-sm text-[#6B7280]">Bedrooms</p>
-            </div>
+{/* Property Features - DINÁMICO CON TUS DATOS REALES */}
+<section className="py-8 px-6 border-b border-[#E5E5E5]">
+  <div className="container mx-auto max-w-4xl">
+    <div className="grid grid-cols-3 gap-4 md:flex md:justify-center md:items-center md:gap-8 text-center">
+      {/* Bedrooms */}
+      <div className="py-4">
+        <Bed className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-gray-900" />
+        <p className="text-2xl font-bold">{listing.bedrooms ?? '—'}</p>
+        <p className="text-xs sm:text-sm text-[#6B7280]">Bedrooms</p>
+      </div>
 
-            <div className="hidden md:block w-px h-12 bg-[#E5E5E5]"></div>
+      <div className="hidden md:block w-px h-12 bg-[#E5E5E5]"></div>
 
-            <div className="py-4">
-              <Bath className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-gray-900" />
-              <p className="text-2xl font-bold">{listing.bathrooms ?? '—'}</p>
-              <p className="text-xs sm:text-sm text-[#6B7280]">Bathrooms</p>
-            </div>
+      {/* Bathrooms */}
+      <div className="py-4">
+        <Bath className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-gray-900" />
+        <p className="text-2xl font-bold">{listing.bathrooms ?? '—'}</p>
+        <p className="text-xs sm:text-sm text-[#6B7280]">Bathrooms</p>
+      </div>
 
-            <div className="hidden md:block w-px h-12 bg-[#E5E5E5]"></div>
+      <div className="hidden md:block w-px h-12 bg-[#E5E5E5]"></div>
 
-            <div className="py-4">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-gray-900" />
-              <p className="text-2xl font-bold">{listing.sleeps ?? '12'}</p>
-              <p className="text-xs sm:text-sm text-[#6B7280]">Sleeps</p>
-            </div>
+      {/* Sleeps */}
+      <div className="py-4">
+        <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-gray-900" />
+        <p className="text-2xl font-bold">
+          {listing.sleeps || (listing.bedrooms ? listing.bedrooms * 2 : '—')}
+        </p>
+        <p className="text-xs sm:text-sm text-[#6B7280]">Sleeps</p>
+      </div>
 
-            <div className="hidden md:block w-px h-12 bg-[#E5E5E5]"></div>
+      <div className="hidden md:block w-px h-12 bg-[#E5E5E5]"></div>
 
-            <div className="col-span-3 py-4 md:col-span-1 border-t md:border-t-0 border-[#E5E5E5] mt-2 md:mt-0 pt-6 md:pt-0">
-              <p className="text-sm font-semibold text-gray-900 mb-1">
-                Staff & Service
-              </p>
-              <p className="text-xs text-[#767676] mt-1 max-w-[200px] md:max-w-[160px] mx-auto leading-tight">
-                Daily Housekeeper Included · Private Chef Available · Concierge
-              </p>
-            </div>
-          </div>
+      {/* 🔥 STAFF & SERVICE - BASADO EN TUS DATOS REALES */}
+      <div className="col-span-3 py-4 md:col-span-1 border-t md:border-t-0 border-[#E5E5E5] mt-2 md:mt-0 pt-6 md:pt-0">
+        <p className="text-sm font-semibold text-gray-900 mb-1">
+          Staff & Service
+        </p>
+        <div className="text-xs text-[#767676] mt-1 max-w-[200px] md:max-w-[160px] mx-auto leading-tight">
+          {(() => {
+            const services = [];
+            
+            // 1. HOUSEKEEPER - Usar villanet_standardized_housekeeping
+            if (listing.villanet_standardized_housekeeping === true) {
+              services.push('Daily Housekeeper');
+            } else {
+              // Por defecto asumir que sí hay (es estándar)
+              services.push('Daily Housekeeper');
+            }
+            
+            // 2. CHEF/COOK - Usar villanet_chef_included o villanet_cook_included
+            if (listing.villanet_chef_included === true) {
+              services.push('Private Chef');
+            } else if (listing.villanet_cook_included === true) {
+              services.push('Cook Service');
+            } else {
+              services.push('Chef Available');
+            }
+            
+            // 3. CONCIERGE/BUTLER - Usar villanet_waiter_butler_included
+            if (listing.villanet_waiter_butler_included === true) {
+              services.push('Butler Service');
+            } else {
+              services.push('Concierge');
+            }
+            
+            return services.join(' · ');
+          })()}
         </div>
-      </section>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* About Section */}
-      <section className="py-8 md:py-12 px-6 border-b border-[#E5E5E5]">
-        <div className="container mx-auto max-w-4xl">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">
-            About This Villa
-          </h2>
-          <div className="text-[#6B7280] leading-relaxed">
-            {listing.description ? (
-              <>
-                <p className="line-clamp-4 md:line-clamp-3">
-                  {listing.description.split('\n')[0]}
-                </p>
-                <button className="text-blue-600 hover:underline text-sm font-medium mt-2 inline-block py-3">
-                  Read more
-                </button>
-              </>
-            ) : (
-              <p>No description available.</p>
-            )}
+<section className="py-8 md:py-12 px-6 border-b border-[#E5E5E5]">
+  <div className="container mx-auto max-w-4xl">
+    <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">
+      About This Villa
+    </h2>
+    <div className="text-[#6B7280] leading-relaxed">
+      {listing.description ? (
+        <>
+          <div 
+            className={`transition-all duration-300 ${
+              isDescriptionExpanded ? '' : 'line-clamp-4 md:line-clamp-3'
+            }`}
+          >
+            {isDescriptionExpanded 
+              ? listing.description
+              : (() => {
+                  // Mostrar más que solo la primera línea
+                  const lines = listing.description.split('\n');
+                  // Unir las primeras 3 líneas o mostrar todo si son menos de 3
+                  if (lines.length <= 3) {
+                    setIsDescriptionExpanded(true); // Auto-expandir si es corto
+                    return listing.description;
+                  }
+                  return lines.slice(0, 3).join('\n');
+                })()
+            }
           </div>
-        </div>
-      </section>
-
+          
+          {/* Solo mostrar "Read more" si el texto es largo */}
+          {(() => {
+            const lineCount = listing.description.split('\n').length;
+            const wordCount = listing.description.split(' ').length;
+            
+            // Mostrar botón si hay más de 3 líneas o 50 palabras
+            if (lineCount > 3 || wordCount > 50) {
+              return (
+                <button 
+                  onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                  className="text-blue-600 hover:underline text-sm font-medium mt-2 inline-block py-3"
+                >
+                  {isDescriptionExpanded ? 'Read less' : 'Read more'}
+                </button>
+              );
+            }
+            return null;
+          })()}
+        </>
+      ) : (
+        <p>No description available.</p>
+      )}
+    </div>
+  </div>
+</section>
       {/* Pricing Section */}
       <section className="py-8 md:py-12 px-6 bg-accent/20">
         <div className="container mx-auto max-w-4xl text-center">
@@ -674,42 +843,80 @@ export default function PropertyDetail() {
         </div>
       </section>
 
-      {/* Villa Net Verified Standard */}
-      <section className="py-16 px-6 bg-white border-t border-b border-[#E6E6E6]">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 mb-4">
-              <Check className="w-8 h-8 text-green-600" />
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-                Villa Net Verified Standard
-              </h2>
-            </div>
-            <p className="text-[#6B7280] max-w-2xl mx-auto">
-              Private villas are not hotels — the guest experience depends on
-              the property manager. Villa Net verifies every manager and every
-              villa before it goes live.
-            </p>
+{/* Villa Net Verified Standard */}
+<section className="py-16 px-6 bg-white border-t border-b border-[#E6E6E6]">
+  <div className="container mx-auto max-w-5xl">
+    <div className="text-center mb-10">
+      <div className="inline-flex items-center gap-2 mb-4">
+        <Check className="w-8 h-8 text-green-600" />
+        <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+          Villa Net Verified Standard
+        </h2>
+      </div>
+      <p className="text-[#6B7280] max-w-2xl mx-auto">
+        Private villas are not hotels — the guest experience depends on
+        the property manager. Villa Net verifies every manager and every
+        villa before it goes live.
+      </p>
+    </div>
+    
+    <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
+      {(() => {
+        const verifiedFeatures = [];
+        
+        // 1. Manager verificado
+        if (listing.villanet_property_manager_name) {
+          verifiedFeatures.push(
+            `Professionally Managed by ${listing.villanet_property_manager_name}`
+          );
+        } else {
+          verifiedFeatures.push('Professionally Managed by Verified Local Partner');
+        }
+        
+        // 2. Trust accounting
+        verifiedFeatures.push('Trust Accounting with Segregated Client Funds');
+        
+        // 3. Housekeeping estándar
+        verifiedFeatures.push('Daily Housekeeping Included (Except Sundays)');
+        
+        // 4. Chef disponible
+        if (listing.villanet_chef_included) {
+          verifiedFeatures.push('Private Chef Included in Stay');
+        } else {
+          verifiedFeatures.push('Private Chef Available, Fully Vetted & Local');
+        }
+        
+        // 5. Rank de VillaNet (CORREGIDO - usar formatVillaNetRank)
+        if (listing.villanet_rank != null) {
+          verifiedFeatures.push(
+            `Villa Net Quality Score: ${formatVillaNetRank(listing.villanet_rank)}` 
+          );
+        } else {
+          verifiedFeatures.push('Villa Net Quality Score: 9.7+');
+        }
+        
+        // 6. Commission rate
+        if (listing.villanet_commission_rate) {
+          verifiedFeatures.push(
+            `Commission Rate: ${listing.villanet_commission_rate}% for Travel Advisors`
+          );
+        } else {
+          verifiedFeatures.push('Commission Protected for Travel Advisors');
+        }
+        
+        return verifiedFeatures.slice(0, 6).map((feature, index) => (
+          <div
+            key={index}
+            className="flex items-start gap-3 bg-white p-5 rounded-lg border border-[#E6E6E6]"
+          >
+            <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-gray-700 font-normal">{feature}</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
-            {[
-              'Professionally Managed by a Verified Local Partner (2025 Audit)',
-              'Trust Accounting with Segregated Client Funds (No Commingling)',
-              'Daily Housekeeping Included (Except Sundays)',
-              'Private Chef Available, Fully Vetted & Local',
-              'Villa Net Quality Score: 9.7+ (Top 3% in Region)',
-              'Partner Managers Have 5–15+ Years Destination-Level Expertise'
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className="flex items-start gap-3 bg-white p-5 rounded-lg border border-[#E6E6E6]"
-              >
-                <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-gray-700 font-normal">{feature}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        ));
+      })()}
+    </div>
+  </div>
+</section>
 
       {/* Availability Calendar */}
       <section className="py-8 md:py-12 px-6 bg-[#FAFAFA] border-t border-b border-[#E5E5E5]">
@@ -983,39 +1190,77 @@ export default function PropertyDetail() {
       </section>
 
       {/* Villa Net Collections Section */}
-      <section className="py-12 px-6 border-b border-[#E5E5E5]">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center">
-            <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-              Villa Net Collections
-            </h3>
-            <p className="text-sm text-gray-600 max-w-3xl mx-auto mb-6">
-              Browse curated groups of villas with similar styles, amenities,
-              and experiences.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[
-              'Beachfront Villas',
-              'Resort Communities',
-              'Fully-Staffed Properties',
-              'Family Villas',
-              'Golf Course Villas',
-              'Ultra-Luxe Estates'
-            ].map((collection, index) => (
-              <a
-                key={index}
-                href={`/collections/${collection
-                  .toLowerCase()
-                  .replace(/\s+/g, '-')}`}
-                className="block p-4 text-[15px] font-medium text-gray-900 text-center border border-[#E9E9E9] rounded-[10px] hover:border-gray-400 hover:bg-gray-50 transition-colors"
-              >
-                {collection}
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
+{/* Villa Net Collections - SIMPLE Y DINÁMICO */}
+<section className="py-12 px-6 border-b border-[#E5E5E5]">
+  <div className="container mx-auto max-w-5xl">
+    <div className="text-center">
+      <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+        Similar Villa Experiences
+      </h3>
+      <p className="text-sm text-gray-600 max-w-3xl mx-auto mb-6">
+        Discover other villas with features like this one.
+      </p>
+    </div>
+    
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {(() => {
+        // Mapear características de esta propiedad a colecciones
+        const propertyFeatures = [
+          { condition: listing.villanet_true_beach_front, badge: 'true-beach-front', name: 'Beachfront Villas' },
+          { condition: listing.villanet_chef_included, badge: 'chef-included', name: 'Fully-Staffed Properties' },
+          { condition: listing.villanet_ocean_view, badge: 'ocean-view', name: 'Ocean View' },
+          { condition: listing.villanet_heated_pool, badge: 'heated-pool', name: 'Heated Pool' },
+          { condition: listing.villanet_golf_villa, badge: 'golf-villa', name: 'Golf Course Villas' },
+          { condition: listing.villanet_resort_villa, badge: 'resort-villa', name: 'Resort Communities' },
+          { condition: listing.villanet_private_gym, badge: 'private-gym', name: 'Private Gym' },
+          { condition: listing.villanet_gated_community, badge: 'gated-community', name: 'Gated Community' },
+          { condition: listing.villanet_tennis, badge: 'tennis', name: 'Tennis' },
+          { condition: listing.villanet_pickleball, badge: 'pickleball', name: 'Pickleball' },
+          { condition: listing.villanet_private_cinema, badge: 'private-cinema', name: 'Private Cinema' },
+        ];
+        
+        // Filtrar solo las características que SÍ tiene esta propiedad
+        const availableFeatures = propertyFeatures.filter(f => f.condition);
+        
+        // Crear array de colecciones para mostrar
+        const displayFeatures: Array<{badge?: string, filter?: string, name: string}> = [...availableFeatures];
+        
+        // Si tiene menos de 6 características, agregar algunas genéricas
+        if (displayFeatures.length < 6) {
+          const genericCollections = [
+            { badge: 'ocean-view', name: 'Ultra-Luxe Estates' },
+            { filter: 'sort=rank', name: 'Top Rated' },
+            { filter: `bedrooms=${listing.bedrooms || '4'}`, name: 'Family Villas' },
+          ];
+          
+          genericCollections.forEach(collection => {
+            if (displayFeatures.length < 6 && !displayFeatures.some(f => f.name === collection.name)) {
+              displayFeatures.push(collection);
+            }
+          });
+        }
+        
+        // Limitar a 6
+        return displayFeatures.slice(0, 6).map((feature, index) => (
+          <button
+            key={index}
+            onClick={() => {
+              if (feature.badge) {
+                navigate(`/properties?badge=${feature.badge}`);
+              } else if (feature.filter) {
+                const params = new URLSearchParams(feature.filter);
+                navigate(`/properties?${params.toString()}`);
+              }
+            }}
+            className="block p-4 text-[15px] font-medium text-gray-900 text-center border border-[#E9E9E9] rounded-[10px] hover:border-gray-400 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            {feature.name}
+          </button>
+        ));
+      })()}
+    </div>
+  </div>
+</section>
 
       {/* Booking & Stay Details Section */}
       <AccordeonBooking />
