@@ -7,7 +7,8 @@ import AuthModal from '../components/AuthModal';
 import VillaNetRankModal from '../components/VillaNetRankModal';
 import SEO, { generateLocalBusinessSchema } from '../components/SEO';
 import { UnifiedHeader } from "../components/Header";
-import PropertiesHeader, { type CrudBadge } from '../components/SearchBar';
+//import PropertiesHeader, { type CrudBadge } from '../components/SearchBar';
+import PropertiesHeaderCompact, { type CrudBadge } from '../components/SecondSearchBar';
 
 type Listing = {
   id: string;
@@ -720,7 +721,7 @@ export default function Properties() {
         />
 
         {/* 🔹 CAMBIO: Pasar total en lugar de items.length y añadir props de destination */}
-        <PropertiesHeader
+        <PropertiesHeaderCompact
           itemsCount={total}
           location={debouncedQuery.trim() || selectedDestination || 'All Locations'}
           query={query}
