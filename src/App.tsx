@@ -17,6 +17,7 @@ import { PropertyManagerSignup } from './pages/PropertyManagerSignup';
 import { TrustFramework } from './pages/TrustFramework';
 import { TermsOfService } from './pages/TermsOfService';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { CartProvider } from './context/CartContext';
 
 // ✅ Componente interno que usa el hook useAuth
 function AppRoutes() {
@@ -107,9 +108,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider> 
+      <CartProvider>
       <BrowserRouter>
         <AppRoutes /> 
       </BrowserRouter>
+      </CartProvider>
     </AuthProvider>
   );
 }

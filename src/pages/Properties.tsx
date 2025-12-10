@@ -1,14 +1,16 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bed, MapPin, DollarSign, Star, ShieldCheck, Sparkles, ChefHat, ChevronLeft, ChevronRight, Bath } from 'lucide-react';
+import { Search, Bed, MapPin, DollarSign, Star, ShieldCheck, Sparkles, ChefHat, ChevronLeft, ChevronRight, Bath/*, ShoppingBag */ } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api, publicApi } from '../api/api'; 
 import AuthModal from '../components/AuthModal';
 import VillaNetRankModal from '../components/VillaNetRankModal';
 import SEO, { generateLocalBusinessSchema } from '../components/SEO';
 import { UnifiedHeader } from "../components/Header";
-//import PropertiesHeader, { type CrudBadge } from '../components/SearchBar';
 import PropertiesHeaderCompact, { type CrudBadge } from '../components/SecondSearchBar';
+import { useCart } from '../context/CartContext';
+import CartSidebar from '../components/CartSidebar';
+import CartModal from '../components/CartModal';
 
 type Listing = {
   id: string;
@@ -153,6 +155,16 @@ export default function Properties() {
   const [badges, setBadges] = useState<CrudBadge[]>([]);
   const hasAvailabilityFilter = checkIn || checkOut;
 
+  // Usar el contexto del carrito
+  const { 
+    isInCart, 
+    toggleItem, 
+    openCart, 
+    cartCount,
+    isCartModalOpen,
+    //openCartModal,
+    closeCartModal
+  } = useCart();
 
   // Calcular currentLocationLabel dinámicamente
   const currentLocationLabel = debouncedQuery.trim() || selectedDestination || 'Top Villa Destinations';
@@ -277,7 +289,6 @@ export default function Properties() {
   useEffect(() => {
     const fetchBadges = async () => {
       try {
-        //setLoadingBadges(true);
         const data = await api<{ badges: CrudBadge[] }>('/badges');
         // Transformar los badges para incluir is_quick basado en algún criterio
         const transformedBadges = data.badges.map((badge, index) => ({
@@ -294,8 +305,6 @@ export default function Properties() {
           { id: 'ocean-view', name: 'Ocean View', slug: 'ocean-view', icon: 'eye', is_quick: true },
           { id: 'heated-pool', name: 'Heated Pool', slug: 'heated-pool', icon: 'waves', is_quick: true }
         ]);
-      } finally {
-        //setLoadingBadges(false);
       }
     };
 
@@ -337,7 +346,7 @@ export default function Properties() {
     setPaginationMode('infinite');
   }, [
     debouncedQuery,
-    selectedDestination, // 🔥 Añadido: reset cuando cambia el destino
+    selectedDestination, 
     bedrooms,
     bathrooms,
     minPrice,
@@ -361,7 +370,7 @@ export default function Properties() {
       try {
         const qs = new URLSearchParams();
         if (debouncedQuery.trim().length >= 3) qs.set('q', debouncedQuery.trim());
-        if (selectedDestination) qs.set('destination', selectedDestination); // 🔥 NUEVO: Añadir destination
+        if (selectedDestination) qs.set('destination', selectedDestination);
         if (bedrooms.length) qs.set('bedrooms', bedrooms.join(','));
         if (bathrooms.length) qs.set('bathrooms', bathrooms.join(','));
         if (minPrice) qs.set('minPrice', String(Number(minPrice) || ''));
@@ -380,7 +389,7 @@ export default function Properties() {
           qs.set('offset', String(offset));
         }
 
-        // 🔥 CAMBIO: Usar publicApi cuando el usuario no está autenticado
+        // Usar publicApi cuando el usuario no está autenticado
         const endpoint = user ? '/listings' : '/public/listings';
         const apiToUse = user ? api : publicApi;
         
@@ -402,20 +411,20 @@ export default function Properties() {
               heroImage: (typeof first === 'string' && first) || item.heroImage || PLACEHOLDER,
               // Rank: usar el que viene de VillaNet; si no, fallback
               rank: item.rank,
-        
-              // 🔹 Property manager: primero VillaNet, luego cualquier otro, luego default
+
+              // Property manager: primero VillaNet, luego cualquier otro, luego default
               propertyManager:
                 item.villaNetPropertyManagerName ||
                 item.propertyManager ||
                 'Blue Sky Luxury Villas',
-        
+
               trustAccount: item.trustAccount ?? true,
               dailyCleaning: item.dailyCleaning ?? true,
               
-              // 🔥 Usar los nuevos campos VillaNet para chefIncluded
+              // Usar los nuevos campos VillaNet para chefIncluded
               chefIncluded: item.villanetChefIncluded ?? item.chefIncluded ?? true,
               
-              // 🔥 Mapear los demás campos booleanos de VillaNet
+              // Mapear los demás campos booleanos de VillaNet
               villanetChefIncluded: item.villanetChefIncluded ?? false,
               villanetHeatedPool: item.villanetHeatedPool ?? false,
               villanetOceanView: item.villanetOceanView ?? false,
@@ -434,7 +443,7 @@ export default function Properties() {
               villanetGolfVilla: item.villanetGolfVilla ?? false,
               villanetResortVilla: item.villanetResortVilla ?? false,
               villanetResortCollectionName: item.villanetResortCollectionName ?? null,
-        
+
               category: item.category || ['Ultra Luxe', 'Beachfront']
             };
           });
@@ -503,7 +512,7 @@ export default function Properties() {
     return () => controller.abort();
   }, [
     debouncedQuery,
-    selectedDestination, // 🔥 Añadido: dependencia del destino
+    selectedDestination, 
     bedrooms,
     bathrooms,
     minPrice,
@@ -571,10 +580,10 @@ export default function Properties() {
     return rank.toString(); 
   };
 
-  // 🔥 NUEVO: Función para limpiar todos los filtros incluyendo destination
+  // Función para limpiar todos los filtros incluyendo destination
   const clearAllFilters = useCallback(() => {
     setQuery('');
-    setSelectedDestination(''); // 🔥 Limpiar destination también
+    setSelectedDestination('');
     setBedrooms([]);
     setBathrooms([]);
     setMinPrice('');
@@ -661,7 +670,7 @@ export default function Properties() {
     (checkIn ? 1 : 0) + 
     (checkOut ? 1 : 0) +
     selectedBadges.length +
-    (selectedDestination ? 1 : 0) + // 🔥 Añadir destination a la cuenta
+    (selectedDestination ? 1 : 0) +
     (query ? 1 : 0);
 
   // Loading state
@@ -678,7 +687,7 @@ export default function Properties() {
 
   return (
     <>
-      {/* SEO dinámico que ya no fuerza Punta Mita */}
+      {/* SEO dinámico */}
       <SEO
         title={
           debouncedQuery.trim() || selectedDestination
@@ -720,12 +729,11 @@ export default function Properties() {
           onAuthClick={openAuthModal} 
         />
 
-        {/* 🔹 CAMBIO: Pasar total en lugar de items.length y añadir props de destination */}
+        {/* Properties Header */}
         <PropertiesHeaderCompact
           itemsCount={total}
           location={debouncedQuery.trim() || selectedDestination || 'All Locations'}
           query={query}
-          setQuery={setQuery}
           sortBy={sortBy}
           setSortBy={handleSortChange}
           badges={badges}
@@ -738,10 +746,11 @@ export default function Properties() {
           bedrooms={bedrooms}
           setBedrooms={setBedrooms}
           onClearAllFilters={clearAllFilters}
-          // 🔥 NUEVO: Props para el selector de destino
           destinations={DESTINATIONS}
           selectedDestination={selectedDestination}
           onSelectDestination={setSelectedDestination}
+          cartCount={cartCount}
+          onCartClick={openCart}
         />
 
         {/* Main Content */}
@@ -754,7 +763,7 @@ export default function Properties() {
                   const images = item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
                   const currentIndex = imageIndices[item.id] || 0;
                   
-                  // 🔹 NUEVO: Normalizar ubicación mostrada
+                  // Normalizar ubicación mostrada
                   const displayLocation =
                     item.villaNetDestinationTag ||
                     item.villaNetCity ||
@@ -854,7 +863,7 @@ export default function Properties() {
                           <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
                             {item.name}
                           </h3>
-                          {/* 🔹 CAMBIO: Usar displayLocation normalizada */}
+                          {/* Usar displayLocation normalizada */}
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                             <MapPin className="w-3.5 h-3.5" />
                             <span>{displayLocation}</span>
@@ -921,6 +930,18 @@ export default function Properties() {
                           >
                             View Villa
                           </button>
+
+                          <button
+                            onClick={() => toggleItem(item)}
+                            className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
+                              isInCart(item.id)
+                                ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
+                                : "bg-background text-foreground border-border hover:bg-accent"
+                            }`}
+                          >
+                            {isInCart(item.id) ? "Remove from cart" : "Add to cart"}
+                          </button>
+
                           <button
                             onClick={() => openMessageModalFor(item)}
                             className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
@@ -1001,7 +1022,7 @@ export default function Properties() {
               </div>
             )}
 
-            {/* 🔹 CAMBIO: End message que muestra "X of Y villas" */}
+            {/* End message que muestra "X of Y villas" */}
             {!loading && items.length > 0 && !hasMore && paginationMode === 'infinite' && (
               <div className="flex justify-center mt-8">
                 <div className="text-sm text-muted-foreground">
@@ -1012,10 +1033,17 @@ export default function Properties() {
           </div>
         </main>
 
+        {/* Cart Sidebar */}
+        <CartSidebar />
+
+        {/* Cart Modal */}
+        <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} />
+
+
         {/* Villa Rank Info Button */}
         <button 
           onClick={openRankModal}
-          className="fixed bottom-6 right-6 z-40 px-4 py-2.5 bg-white border border-[#E5E5E5] rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-gray-700 hover:text-gray-900 animate-fade-in md:bottom-6 md:right-6 max-md:bottom-20 max-md:right-4 max-md:px-3 max-md:py-2"
+          className={`fixed bottom-6 z-40 px-4 py-2.5 bg-white border border-[#E5E5E5] rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-gray-700 hover:text-gray-900 animate-fade-in ${cartCount > 0 ? 'right-20' : 'right-20'}`}
           aria-label="Learn about Villa Net Rank"
         >
           <Info className="h-4 w-4" />

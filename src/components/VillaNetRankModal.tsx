@@ -4,7 +4,7 @@ import { X, CircleCheckBig, Star, ChevronRight } from "lucide-react";
 interface VillaNetRankModalProps {
   isOpen: boolean;
   onClose: () => void;
-  rank?: number; // ⬅️ AGREGADO: prop opcional para mostrar el rank específico
+  rank?: number; 
 }
 
 export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({

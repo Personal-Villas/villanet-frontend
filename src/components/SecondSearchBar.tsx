@@ -18,6 +18,7 @@ import {
   Car,
   SlidersHorizontal,
 } from "lucide-react";
+import CartButton from "./CartButton"; // Importamos el componente separado
 
 /**
  * Badge real del CRUD.
@@ -38,7 +39,7 @@ type PropertiesHeaderCompactProps = {
   setSortBy: (sort: string) => void;
 
   query: string;
-  setQuery: (value: string) => void;
+  //setQuery: (value: string) => void; // Comentado como en el original
 
   destinations: string[];
   selectedDestination: string;
@@ -60,6 +61,8 @@ type PropertiesHeaderCompactProps = {
   setGuests?: (value: number) => void;
 
   onClearAllFilters?: () => void;
+  cartCount?: number;
+  onCartClick?: () => void;
 };
 
 // Mapea slugs/icon strings de tu CRUD a íconos lucide
@@ -194,12 +197,23 @@ const groupDestinationsByRegion = (destinations: string[]): {caribbean: string[]
   return { caribbean, mexico };
 };
 
+// Inicializa el número temporal de bedrooms
+const deriveInitialBedroomsCount = (bedrooms: string[]): number => {
+  if (!bedrooms || bedrooms.length === 0) return 0;
+  if (bedrooms.includes("5+")) return 5;
+  const numeric = bedrooms
+    .map((v) => parseInt(v, 10))
+    .filter((n) => !Number.isNaN(n));
+  if (numeric.length === 0) return 0;
+  return numeric[0];
+};
+
 export default function PropertiesHeaderCompact({
   itemsCount,
   location,
   sortBy,
   setSortBy,
-  //query,
+  query,
   //setQuery,
   destinations,
   selectedDestination,
@@ -216,6 +230,8 @@ export default function PropertiesHeaderCompact({
   guests = 8,
   setGuests,
   onClearAllFilters,
+  cartCount,
+  onCartClick,
 }: PropertiesHeaderCompactProps) {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -305,25 +321,29 @@ export default function PropertiesHeaderCompact({
     );
   };
 
+  const hasActiveFilters =
+    query?.trim().length > 0 ||
+    !!selectedDestination ||
+    !!checkIn ||
+    !!checkOut ||
+    bedrooms.length > 0 ||
+    selectedBadges.length > 0 ||
+    sortBy !== "rank";
+
   const activeFiltersCount = 
+    (query?.trim().length > 0 ? 1 : 0) +
     (selectedDestination ? 1 : 0) +
     (checkIn || checkOut ? 1 : 0) +
     (bedrooms.length > 0 ? 1 : 0) +
     selectedBadges.length +
     (sortBy !== "rank" ? 1 : 0);
 
-  console.log('🔍 Destinations:', { 
-    all: destinations, 
-    caribbean, 
-    mexico 
-  });
-
   return (
     <>
       {/* DESKTOP VERSION */}
       <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
         <div className="container mx-auto px-6 py-4 space-y-4">
-          {/* Primera fila: Título + Info + Sort */}
+          {/* Primera fila: Título + Info + Sort + Cart */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm flex-wrap">
               <h1 className="text-xl font-semibold text-foreground">
@@ -342,6 +362,7 @@ export default function PropertiesHeaderCompact({
             </div>
 
             <div className="flex items-center gap-2">
+
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
@@ -352,6 +373,13 @@ export default function PropertiesHeaderCompact({
                 <option value="price-high">Price (High → Low)</option>
                 <option value="bedrooms">Bedrooms (Most → Least)</option>
               </select>
+
+                <CartButton
+                count={cartCount}
+                onClick={onCartClick}
+                variant="default"
+                showLabel={true}
+              />
             </div>
           </div>
 
@@ -361,6 +389,14 @@ export default function PropertiesHeaderCompact({
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Include location(s) for your search
               </p>
+              {hasActiveFilters && onClearAllFilters && (
+                <button
+                  onClick={onClearAllFilters}
+                  className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
 
             {/* Caribbean */}
@@ -414,18 +450,28 @@ export default function PropertiesHeaderCompact({
             <h1 className="text-base font-semibold text-foreground">
               {itemsCount} Villas
             </h1>
-            <button
-              onClick={() => setShowMobileFilters(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm border border-input rounded-lg hover:bg-muted transition-colors"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>Filters</span>
-              {activeFiltersCount > 0 && (
-                <span className="bg-[hsl(0,0%,6.7%)] text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+
+              <button
+                onClick={() => setShowMobileFilters(true)}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm border border-input rounded-lg hover:bg-muted transition-colors"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>Filters</span>
+                {activeFiltersCount > 0 && (
+                  <span className="bg-[hsl(0,0%,6.7%)] text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+              <CartButton
+                count={cartCount}
+                onClick={onCartClick}
+                variant="icon-only"
+                showLabel={false}
+                className="border border-input rounded-lg"
+              />
+            </div>
           </div>
 
           {/* Info compacta */}
@@ -544,8 +590,7 @@ export default function PropertiesHeaderCompact({
                   <button
                     type="button"
                     onClick={() => {
-                      const current = bedrooms.length === 0 ? 0 : 
-                        bedrooms.includes("5+") ? 5 : parseInt(bedrooms[0] || "0");
+                      const current = deriveInitialBedroomsCount(bedrooms);
                       const newVal = Math.max(0, current - 1);
                       if (newVal === 0) setBedrooms([]);
                       else if (newVal >= 5) setBedrooms(["5+"]);
@@ -561,8 +606,7 @@ export default function PropertiesHeaderCompact({
                   <button
                     type="button"
                     onClick={() => {
-                      const current = bedrooms.length === 0 ? 0 : 
-                        bedrooms.includes("5+") ? 5 : parseInt(bedrooms[0] || "0");
+                      const current = deriveInitialBedroomsCount(bedrooms);
                       const newVal = Math.min(6, current + 1);
                       if (newVal >= 5) setBedrooms(["5+"]);
                       else setBedrooms([String(newVal)]);
@@ -613,7 +657,7 @@ export default function PropertiesHeaderCompact({
 
           {/* Footer fijo con botones */}
           <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 flex gap-3">
-            {(selectedDestination || checkIn || checkOut || bedrooms.length > 0 || selectedBadges.length > 0) && onClearAllFilters && (
+            {hasActiveFilters && onClearAllFilters && (
               <button
                 onClick={() => {
                   onClearAllFilters?.();

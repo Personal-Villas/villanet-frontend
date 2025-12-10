@@ -21,6 +21,7 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
+import CartButton from "./CartButton"; // Importamos el componente separado
 
 /**
  * Badge real del CRUD.
@@ -63,6 +64,8 @@ type PropertiesHeaderProps = {
   setGuests?: (value: number) => void;
 
   onClearAllFilters?: () => void;
+  cartCount?: number;
+  onCartClick?: () => void;
 };
 
 // Mapea slugs/icon strings de tu CRUD a íconos lucide (basado en el HTML)
@@ -165,6 +168,8 @@ export default function PropertiesHeader({
   guests = 8,
   setGuests,
   onClearAllFilters,
+  cartCount,
+  onCartClick,
 }: PropertiesHeaderProps) {
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -177,13 +182,6 @@ export default function PropertiesHeader({
 
   const datesLabel = formatDates(checkIn, checkOut);
 
-  /*const bedroomsLabel =
-    bedrooms.length === 0
-      ? "Bedrooms"
-      : bedrooms.includes("5+")
-      ? "5+ BR"
-      : `${bedrooms.join(", ")} BR`;
-*/
   const hasActiveFilters =
     query.trim().length > 0 ||
     !!selectedDestination ||
@@ -288,7 +286,7 @@ export default function PropertiesHeader({
 
   return (
     <>
-      {/* DESKTOP VERSION - sin cambios */}
+      {/* DESKTOP VERSION */}
       <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
         <div className="container mx-auto px-6 py-4 space-y-4">
           {/* Primera fila: Título + Info + Sort */}
@@ -310,6 +308,14 @@ export default function PropertiesHeader({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Usamos el CartButton separado */}
+              <CartButton
+                count={cartCount}
+                onClick={onCartClick}
+                variant="default"
+                showLabel={true}
+              />
+              
               <select
                 value={sortBy}
                 onChange={(e) => {
