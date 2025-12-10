@@ -11,7 +11,7 @@ import {
   Shield,
   Check,
   Users,
-  Calendar,
+  //Calendar,
   Sparkles,
   ChefHat,
   Waves,
@@ -188,6 +188,7 @@ export default function PropertyDetail() {
   const [checkOut, setCheckOut] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [showAllAmenities, setShowAllAmenities] = useState(false);
 
   // Usar el contexto del carrito
   const { 
@@ -909,60 +910,182 @@ export default function PropertyDetail() {
         </div>
       </section>
 
-      {/* About Section */}
-      <section className="py-8 md:py-12 px-6 border-b border-[#E5E5E5]">
-        <div className="container mx-auto max-w-4xl">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">
-            About This Villa
-          </h2>
-          <div className="text-[#6B7280] leading-relaxed">
-            {listing.description ? (
-              <>
-                <div 
-                  className={`transition-all duration-300 ${
-                    isDescriptionExpanded ? '' : 'line-clamp-4 md:line-clamp-3'
-                  }`}
-                >
-                  {isDescriptionExpanded 
-                    ? listing.description
-                    : (() => {
-                        // Mostrar más que solo la primera línea
-                        const lines = listing.description.split('\n');
-                        // Unir las primeras 3 líneas o mostrar todo si son menos de 3
-                        if (lines.length <= 3) {
-                          setIsDescriptionExpanded(true); // Auto-expandir si es corto
-                          return listing.description;
-                        }
-                        return lines.slice(0, 3).join('\n');
-                      })()
-                  }
-                </div>
+{/* About Section */}
+<section className="py-8 md:py-12 px-6 border-b border-[#E5E5E5]">
+  <div className="container mx-auto max-w-4xl">
+    <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">
+      About This Villa
+    </h2>
+    <div className="text-[#6B7280]">
+      {listing.description ? (
+        <>
+          <div 
+            className={`transition-all duration-300 overflow-hidden ${
+              isDescriptionExpanded ? '' : 'max-h-[200px] relative'
+            }`}
+          >
+            {(() => {
+              const text = listing.description.trim();
+              
+              // Dividir por líneas y procesar
+              const lines = text.split('\n');
+              const elements: Array<{
+                type: 'heading' | 'list' | 'paragraph';
+                content?: string;
+                items?: string[];
+                key: string;
+              }> = [];
+              let currentList: string[] = [];
+              
+              lines.forEach((line, idx) => {
+                const trimmedLine = line.trim();
                 
-                {/* Solo mostrar "Read more" si el texto es largo */}
-                {(() => {
-                  const lineCount = listing.description.split('\n').length;
-                  const wordCount = listing.description.split(' ').length;
-                  
-                  // Mostrar botón si hay más de 3 líneas o 50 palabras
-                  if (lineCount > 3 || wordCount > 50) {
-                    return (
-                      <button 
-                        onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                        className="text-blue-600 hover:underline text-sm font-medium mt-2 inline-block py-3"
-                      >
-                        {isDescriptionExpanded ? 'Read less' : 'Read more'}
-                      </button>
-                    );
+                // Saltar líneas vacías
+                if (!trimmedLine) return;
+                
+                // Detectar encabezados (líneas en mayúsculas completas)
+                if (/^[A-Z\s&/]{5,}$/.test(trimmedLine) && trimmedLine.length < 50) {
+                  // Guardar lista anterior si existe
+                  if (currentList.length > 0) {
+                    elements.push({
+                      type: 'list',
+                      items: [...currentList],
+                      key: `list-${elements.length}`
+                    });
+                    currentList = [];
                   }
-                  return null;
-                })()}
-              </>
-            ) : (
-              <p>No description available.</p>
+                  
+                  elements.push({
+                    type: 'heading',
+                    content: trimmedLine,
+                    key: `heading-${idx}`
+                  });
+                  return;
+                }
+                
+                // Detectar items de lista (comienzan con texto seguido de ":")
+                if (trimmedLine.match(/^[A-Za-z0-9\s]+:/)) {
+                  currentList.push(trimmedLine);
+                  return;
+                }
+                
+                // Si había una lista y viene texto normal, cerrar la lista
+                if (currentList.length > 0) {
+                  elements.push({
+                    type: 'list',
+                    items: [...currentList],
+                    key: `list-${elements.length}`
+                  });
+                  currentList = [];
+                }
+                
+                // Texto normal
+                elements.push({
+                  type: 'paragraph',
+                  content: trimmedLine,
+                  key: `p-${idx}`
+                });
+              });
+              
+              // Agregar última lista si existe
+              if (currentList.length > 0) {
+                elements.push({
+                  type: 'list',
+                  items: currentList,
+                  key: `list-final`
+                });
+              }
+              
+              return (
+                <div className="space-y-6">
+                  {elements.map((element) => {
+                    switch (element.type) {
+                      case 'heading':
+                        return (
+                          <h3 
+                            key={element.key}
+                            className="text-base font-bold text-gray-900 uppercase tracking-wide mt-8 first:mt-0 mb-3"
+                          >
+                            {element.content}
+                          </h3>
+                        );
+                      
+                      case 'list':
+                        return (
+                          <ul key={element.key} className="space-y-2 ml-4">
+                            {element.items?.map((item, i) => (
+                              <li 
+                                key={i}
+                                className="text-[15px] leading-relaxed flex"
+                              >
+                                <span className="mr-2 text-blue-600 flex-shrink-0">•</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      
+                      case 'paragraph':
+                        // Detectar si es una línea especial (como PROMO!, contacto, etc)
+                        const isSpecial = element.content?.includes('PROMO!') || 
+                                         element.content?.includes('Contact us') ||
+                                         element.content?.includes('**');
+                        
+                        return (
+                          <p 
+                            key={element.key}
+                            className={`text-[15px] leading-relaxed ${
+                              isSpecial ? 'font-semibold text-gray-900' : ''
+                            }`}
+                          >
+                            {element.content?.replace(/\*\*/g, '')}
+                          </p>
+                        );
+                      
+                      default:
+                        return null;
+                    }
+                  })}
+                </div>
+              );
+            })()}
+            
+            {/* Gradiente fade cuando está colapsado */}
+            {!isDescriptionExpanded && (
+              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none" />
             )}
           </div>
-        </div>
-      </section>
+          
+          {/* Botón "Read more" */}
+          {listing.description.length > 600 && (
+            <button 
+              onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+              className="text-blue-600 hover:text-blue-700 hover:underline text-sm font-semibold mt-4 inline-flex items-center gap-1 transition-colors"
+            >
+              {isDescriptionExpanded ? (
+                <>
+                  Show less
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                </>
+              ) : (
+                <>
+                  Read more
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </>
+              )}
+            </button>
+          )}
+        </>
+      ) : (
+        <p className="text-center py-8 text-gray-500">No description available.</p>
+      )}
+    </div>
+  </div>
+</section>
 
       {/* Pricing Section */}
       <section className="py-8 md:py-12 px-6 bg-accent/20">
@@ -982,10 +1105,6 @@ export default function PropertyDetail() {
               className="inline-flex items-center justify-center h-14 px-8 rounded-xl bg-gray-900 text-white font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all hover:bg-gray-800 hover:scale-[1.02] active:scale-[0.98]"
             >
               INQUIRE
-            </button>
-            <button className="inline-flex items-center justify-center h-14 px-8 rounded-xl border-2 border-gray-900 text-gray-900 font-semibold uppercase tracking-wider transition-all hover:bg-gray-100 hover:shadow-md active:scale-[0.98] group">
-              <Calendar className="w-5 h-5 mr-2 transition-transform group-hover:rotate-3" />
-              CALENDAR
             </button>
           </div>
         </div>
@@ -1089,17 +1208,28 @@ export default function PropertyDetail() {
         </div>
       </section>
 
-      {/* Amenities Section - DYNAMIC */}
-      <section className="py-12 px-6 border-b border-[#E5E5E5]">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center mb-10">
-            <h3 className="text-2xl font-bold mb-3 text-gray-900">
-              Property Amenities
-            </h3>
-            <p className="text-sm text-gray-600">Included with Your Stay</p>
-          </div>
+{/* Amenities Section - DYNAMIC */}
+<section className="py-12 px-6 border-b border-[#E5E5E5]">
+  <div className="container mx-auto max-w-5xl">
+    <div className="text-center mb-10">
+      <h3 className="text-2xl font-bold mb-3 text-gray-900">
+        Property Amenities
+      </h3>
+      <p className="text-sm text-gray-600">Included with Your Stay</p>
+    </div>
+    
+    {(() => {
+      const amenitiesWithIcons = getAmenitiesWithIcons(listing.amenities || []);
+      const initialAmenitiesCount = 12;
+      const displayAmenities = showAllAmenities 
+        ? amenitiesWithIcons 
+        : amenitiesWithIcons.slice(0, initialAmenitiesCount);
+      const hasMoreAmenities = amenitiesWithIcons.length > initialAmenitiesCount;
+      
+      return (
+        <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {getAmenitiesWithIcons(listing.amenities || []).map((amenity, index) => (
+            {displayAmenities.map((amenity, index) => (
               <div
                 key={index}
                 className="flex flex-col items-center text-center gap-3 p-4 rounded-lg border border-gray-100 hover:border-gray-300 hover:shadow-sm transition-all"
@@ -1113,13 +1243,28 @@ export default function PropertyDetail() {
               </div>
             ))}
           </div>
-          {(!listing.amenities || listing.amenities.length === 0) && (
+          
+          {hasMoreAmenities && (
+            <div className="text-center mt-8">
+              <button
+                onClick={() => setShowAllAmenities(!showAllAmenities)}
+                className="px-6 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {showAllAmenities ? 'View Less' : 'View More'}
+              </button>
+            </div>
+          )}
+          
+          {amenitiesWithIcons.length === 0 && (
             <p className="text-center text-gray-500 text-sm mt-8">
               Amenity details available upon inquiry
             </p>
           )}
-        </div>
-      </section>
+        </>
+      );
+    })()}
+  </div>
+</section>
 
       {/* Concierge Services */}
       <section className="py-12 px-6 bg-white border-b border-[#E5E5E5]">
@@ -1443,11 +1588,6 @@ export default function PropertyDetail() {
                 className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-2 flex-1 h-14 px-8 !rounded-xl bg-gray-900 text-white font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:bg-gray-800 hover:scale-[1.02] active:scale-[0.98] border border-gray-800"
               >
                 INQUIRE
-              </button>
-
-              <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-background hover:text-accent-foreground py-2 group flex-1 h-14 px-8 !rounded-xl border-2 border-gray-900 text-gray-900 font-semibold uppercase tracking-wider transition-all duration-300 ease-out hover:bg-gray-100 hover:shadow-md active:scale-[0.98] backdrop-blur-sm">
-                <Calendar className="w-5 h-5 mr-2 transition-transform group-hover:rotate-3" />
-                CALENDAR
               </button>
             </div>
             

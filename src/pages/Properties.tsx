@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bed, MapPin, DollarSign, Star, ShieldCheck, Sparkles, ChefHat, ChevronLeft, ChevronRight, Bath/*, ShoppingBag */ } from 'lucide-react';
+import { Search, Bed, MapPin, DollarSign, Star,/*, Sparkles, ChefHat*/ ChevronLeft, ChevronRight, Bath, ShieldCheck/*, ShoppingBag */ } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api, publicApi } from '../api/api'; 
 import AuthModal from '../components/AuthModal';
@@ -577,7 +577,12 @@ export default function Properties() {
   const formatMoney = (n: number | null | undefined) => {
     if (n == null) return '—';
     const amount = Number(n);
-    return isNaN(amount) ? '—' : `$${(amount / 100).toLocaleString()}`;
+    if (isNaN(amount)) return '—';
+  
+    // sin dividir por 100: la BD ya está en USD
+    return `$${amount.toLocaleString(undefined, {
+      maximumFractionDigits: 0, // o 2 si querés decimales
+    })}`;
   };
 
   // Función helper segura para ranks
@@ -873,56 +878,37 @@ export default function Properties() {
                         </a>
                         
                         {/* Basic Info */}
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
-                          <div className="flex items-center gap-1">
-                            <Bed className="w-4 h-4" />
-                            <span>{item.bedrooms ?? '—'} BR</span>
-                          </div>
-                          <span>•</span>
-                          <div className="flex items-center gap-1">
-                            <Bath className="w-4 h-4" />
-                            <span>{item.bathrooms ?? '—'} BA</span>
-                          </div>
-                          <span>•</span>
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="w-4 h-4" />
-                            <span>From {formatMoney(item.priceUSD)}/nt</span>
-                          </div>
-                        </div>
+                        <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
+  <div className="flex items-center gap-1 whitespace-nowrap">
+    <Bed className="w-4 h-4" />
+    <span>{item.bedrooms ?? '—'} BR</span>
+  </div>
+
+  <span className="hidden md:inline">•</span>
+
+  <div className="flex items-center gap-1 whitespace-nowrap">
+    <Bath className="w-4 h-4" />
+    <span>{item.bathrooms ?? '—'} BA</span>
+  </div>
+
+  <span className="hidden md:inline">•</span>
+
+  <div className="flex items-center gap-1 whitespace-nowrap">
+    <DollarSign className="w-4 h-4" />
+    <span>From {formatMoney(item.priceUSD)}/nt</span>
+  </div>
+</div>
 
                         {/* Trust Metrics */}
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4 text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <Star className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0" />
-                            <span className="text-muted-foreground truncate">
-                              Rank: <span className="font-semibold text-foreground">
-                                {formatRank(item.rank)}
-                              </span>
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center gap-1.5">
-                            <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                            <span className="text-muted-foreground truncate">{item.propertyManager}</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-1.5">
-                            <DollarSign className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                            <span className="text-muted-foreground">Trust Acct</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
-                            <span className="text-muted-foreground">Daily Clean</span>
-                          </div>
-                          
-                          {item.chefIncluded && (
-                            <div className="flex items-center gap-1.5 col-span-2">
-                              <ChefHat className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" />
-                              <span className="text-muted-foreground">Chef Included</span>
-                            </div>
-                          )}
-                        </div>
+                        <div className="mb-4 text-xs space-y-2">
+  <div className="flex items-center gap-1.5">
+    <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+    <span className="text-muted-foreground truncate">
+      {item.propertyManager}
+    </span>
+  </div>
+</div>
+
 
                         {/* Action Buttons */}
                         <div className="flex gap-2">

@@ -1,0 +1,7 @@
+<!-- villanet-favicon.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="32" fill="#000000"></circle>
+  <text x="50%" y="50%" fill="#ffffff" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="38" font-weight="600" text-anchor="middle" dominant-baseline="central">
+    V
+  </text>
+</svg>
