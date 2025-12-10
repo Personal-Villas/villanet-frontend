@@ -30,7 +30,7 @@ type Listing = {
   trustAccount?: boolean;
   dailyCleaning?: boolean;
   chefIncluded?: boolean;
-  category?: string[];
+
   villanetChefIncluded?: boolean;
   villanetHeatedPool?: boolean;
   villanetOceanView?: boolean;
@@ -154,6 +154,8 @@ export default function Properties() {
   const observerTarget = useRef<HTMLDivElement>(null);
   const [badges, setBadges] = useState<CrudBadge[]>([]);
   const hasAvailabilityFilter = checkIn || checkOut;
+  const [guests, setGuests] = useState(0);
+
 
   // Usar el contexto del carrito
   const { 
@@ -300,8 +302,8 @@ export default function Properties() {
         console.error('Error fetching badges:', error);
         // Fallback a badges básicos si la API falla
         setBadges([
-          { id: 'chef', name: 'Chef Included', slug: 'chef', icon: 'chef-hat', is_quick: true },
-          { id: 'beachfront', name: 'True Beach Front', slug: 'beachfront', icon: 'waves', is_quick: true },
+          { id: 'chef-included', name: 'Chef Included', slug: 'chef-included', icon: 'chef-hat', is_quick: true },
+          { id: 'true-beach-front', name: 'True Beach Front', slug: 'true-beach-front', icon: 'waves', is_quick: true },
           { id: 'ocean-view', name: 'Ocean View', slug: 'ocean-view', icon: 'eye', is_quick: true },
           { id: 'heated-pool', name: 'Heated Pool', slug: 'heated-pool', icon: 'waves', is_quick: true }
         ]);
@@ -354,7 +356,8 @@ export default function Properties() {
     checkIn,
     checkOut,
     selectedBadges,
-    sortBy
+    sortBy,
+    guests,
   ]);
 
   // Fetch listings
@@ -379,6 +382,9 @@ export default function Properties() {
         if (checkOut) qs.set('checkOut', checkOut);
         if (selectedBadges.length) qs.set('badges', selectedBadges.join(',')); 
         if (sortBy) qs.set('sort', sortBy);
+        if (guests && guests > 0) {
+          qs.set('guests', String(guests));
+        }
         qs.set('limit', String(ITEMS_PER_PAGE));
         
         if (availabilitySession && availabilityCursor !== null) {
@@ -444,7 +450,6 @@ export default function Properties() {
               villanetResortVilla: item.villanetResortVilla ?? false,
               villanetResortCollectionName: item.villanetResortCollectionName ?? null,
 
-              category: item.category || ['Ultra Luxe', 'Beachfront']
             };
           });
 
@@ -526,7 +531,8 @@ export default function Properties() {
     authLoading,
     retryCount,
     availabilitySession,
-    availabilityCursor
+    availabilityCursor,
+    guests,
   ]);
 
   // Intersection Observer for infinite scroll
@@ -597,6 +603,7 @@ export default function Properties() {
     setAvailabilitySession(null);
     setAvailabilityCursor(null);
     setPaginationMode('infinite');
+    setGuests(0);
   }, []);
 
   // Pagination Controls Component
@@ -751,6 +758,8 @@ export default function Properties() {
           onSelectDestination={setSelectedDestination}
           cartCount={cartCount}
           onCartClick={openCart}
+          guests={guests}        
+          setGuests={setGuests}  
         />
 
         {/* Main Content */}
@@ -775,17 +784,21 @@ export default function Properties() {
                       key={`${item.id}-${idx}`}
                       className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
                     >
-                      {/* Image Carousel */}
-                      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+{/* Image Carousel */}
+<div className="relative aspect-[4/3] overflow-hidden bg-muted">
                         <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
-                          <div className="overflow-hidden">
-                            <div className="flex -ml-4 h-full" style={{ transform: `translate3d(${-currentIndex * 100}%, 0px, 0px)` }}>
+                          <div className="relative w-full h-full overflow-hidden">
+                            <div 
+                              className="flex h-full transition-transform duration-300 ease-out" 
+                              style={{ transform: `translateX(${-currentIndex * 100}%)` }}
+                            >
                               {images.map((image, imgIdx) => (
                                 <div
                                   key={imgIdx}
                                   role="group"
                                   aria-roledescription="slide"
-                                  className="min-w-0 shrink-0 grow-0 basis-full pl-4 h-full"
+                                  className="w-full h-full flex-shrink-0"
+                                  style={{ minWidth: '100%' }}
                                 >
                                   <img
                                     src={image}
@@ -798,23 +811,23 @@ export default function Properties() {
                             </div>
                           </div>
                           
-                          {/* Navigation Arrows */}
-                          <button
-                            disabled={currentIndex === 0}
-                            onClick={(e) => handlePrevImage(e, item.id, images.length)}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-0 group-hover:opacity-100 sm:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                            aria-label="Previous image"
-                          >
-                            <ChevronLeft className="w-4 h-4 text-foreground" />
-                          </button>
-                          
-                          <button
-                            onClick={(e) => handleNextImage(e, item.id, images.length)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-0 group-hover:opacity-100 sm:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                            aria-label="Next image"
-                          >
-                            <ChevronRight className="w-4 h-4 text-foreground" />
-                          </button>
+{/* Navigation Arrows */}
+<button
+  disabled={currentIndex === 0}
+  onClick={(e) => handlePrevImage(e, item.id, images.length)}
+  className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+  aria-label="Previous image"
+>
+  <ChevronLeft className="w-4 h-4 text-foreground" />
+</button>
+
+<button
+  onClick={(e) => handleNextImage(e, item.id, images.length)}
+  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+  aria-label="Next image"
+>
+  <ChevronRight className="w-4 h-4 text-foreground" />
+</button>
                           
                           {/* Image Counter */}
                           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
@@ -836,18 +849,7 @@ export default function Properties() {
                             </span>
                           </div>
                         </div>
-                        
-                        {/* Category Badges */}
-                        <div className="absolute bottom-3 left-3 flex flex-wrap gap-1.5 z-10">
-                          {item.category?.slice(0, 2).map((category, catIdx) => (
-                            <span
-                              key={catIdx}
-                              className="px-2 py-1 text-xs font-medium bg-background/95 backdrop-blur-sm border border-border rounded text-foreground"
-                            >
-                              {category}
-                            </span>
-                          ))}
-                        </div>
+                      
                       </div>
 
                       {/* Property Info */}
