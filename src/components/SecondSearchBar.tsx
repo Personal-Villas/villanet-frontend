@@ -340,21 +340,32 @@ export default function PropertiesHeaderCompact({
   }, [showMobileFilters, guests]);
 
   // Cerrar date picker y guest selector al hacer clic fuera
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
-        setShowDatePicker(false);
-      }
-      if (guestSelectorRef.current && !guestSelectorRef.current.contains(event.target as Node)) {
-        setShowGuestSelector(false);
-      }
-    };
+// Cerrar date picker y guest selector al hacer clic fuera (solo desktop)
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    // Solo aplicamos click-outside cuando estamos en desktop (>= 768px)
+    if (!window.matchMedia("(min-width: 768px)").matches) return;
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+    if (
+      datePickerRef.current &&
+      !datePickerRef.current.contains(event.target as Node)
+    ) {
+      setShowDatePicker(false);
+    }
+    if (
+      guestSelectorRef.current &&
+      !guestSelectorRef.current.contains(event.target as Node)
+    ) {
+      setShowGuestSelector(false);
+    }
+  };
+
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+
 
   const { quickBadges, restBadges, visibleBadges, hiddenBadgesCount } = useMemo(() => {
     if (!badges || badges.length === 0) {
