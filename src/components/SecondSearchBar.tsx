@@ -118,6 +118,14 @@ const formatDates = (checkIn: string, checkOut: string): string => {
   return `${formatDate(checkIn)} – ${formatDate(checkOut)}`;
 };
 
+// Helper para formatear fecha a YYYY-MM-DD en hora local (CORREGIDO)
+const toISODateLocal = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 // Lista de destinos por región
 const CARIBBEAN_DESTINATIONS = [
   "St. Barts",
@@ -224,7 +232,7 @@ export default function PropertiesHeaderCompact({
   setCheckOut,
   bedrooms,
   setBedrooms,
-  guests = 8,
+  guests = 0,
   setGuests,
   onClearAllFilters,
   cartCount,
@@ -235,28 +243,34 @@ export default function PropertiesHeaderCompact({
   const [showAllBadges, setShowAllBadges] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGuestSelector, setShowGuestSelector] = useState(false);
+  const [showBedroomsSelector, setShowBedroomsSelector] = useState(false); // NUEVO ESTADO
+  const [uiError, setUiError] = useState<string | null>(null); // NUEVO: Estado para errores de UI
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
   const guestSelectorRef = useRef<HTMLDivElement>(null);
+  const bedroomsSelectorRef = useRef<HTMLDivElement>(null); // NUEVO REF
 
   // Estado local para el modal mobile
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
 
   const guestsLabel = guests && guests > 0 ? `${guests} Guests` : 'Guests';
-
-
   const datesLabel = formatDates(checkIn, checkOut);
+  
+  // NUEVO: Label para bedrooms
+  const bedroomsLabel = 
+    bedrooms.length === 0 ? "Bedrooms" :
+    bedrooms.includes("5+") ? "5+ Bedrooms" :
+    `${bedrooms[0]} Bedrooms`;
 
   const { caribbean, mexico } = useMemo(
     () => groupDestinationsByRegion(destinations),
     [destinations]
   );
 
-  // Helper para formatear fecha a YYYY-MM-DD
-  const formatISO = (date: Date) => date.toISOString().split("T")[0];
-
-  // Handler para manejar la selección de rangos
+  // FIX CORREGIDO: Handler para selección de fechas usando hora local
   const handleRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
+    setUiError(null); // Limpiar error al seleccionar nuevas fechas
+    
     if (!range) {
       setCheckIn("");
       setCheckOut("");
@@ -265,30 +279,56 @@ export default function PropertiesHeaderCompact({
 
     const { from, to } = range;
 
-    // Primera selección: solo from
+    // CASO 1: Solo se seleccionó una fecha (check-in)
     if (from && !to) {
-      setCheckIn(formatISO(from));
+      setCheckIn(toISODateLocal(from));
       setCheckOut("");
       return;
     }
 
+    // CASO 2: Se seleccionaron ambas fechas
     if (from && to) {
-      let fromDate = from;
-      let toDate = to;
-
-      // Si el usuario eligió el mismo día para check-in y check-out,
-      // forzamos una noche (checkOut = from + 1 día)
-      if (toDate <= fromDate) {
-        toDate = new Date(fromDate);
-        toDate.setDate(toDate.getDate() + 1);
+      // CASO 2A: Mismo día (usuario hace click en el mismo día)
+      if (to.getTime() === from.getTime()) {
+        // Tratar como "solo check-in", falta checkout
+        setCheckIn(toISODateLocal(from));
+        setCheckOut("");
+        return;
       }
 
-      setCheckIn(formatISO(fromDate));
-      setCheckOut(formatISO(toDate));
+      // CASO 2B: Fechas invertidas (to < from)
+      if (to < from) {
+        // Intercambiar las fechas
+        setCheckIn(toISODateLocal(to));
+        setCheckOut(toISODateLocal(from));
+        return;
+      }
+
+      // CASO 2C: Rango normal
+      setCheckIn(toISODateLocal(from));
+      setCheckOut(toISODateLocal(to));
     }
   };
 
-  
+  // NUEVO: Validar rango cuando cambia check-in y limpiar check-out si es inválido
+  useEffect(() => {
+    if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
+      setCheckOut("");
+      setUiError("Check-out must be after check-in");
+    } else {
+      setUiError(null);
+    }
+  }, [checkIn, checkOut, setCheckOut]);
+
+  // NUEVO: Función para validar antes de ejecutar búsqueda
+  const validateBeforeSearch = (): boolean => {
+    if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
+      setUiError("Check-out must be after check-in");
+      return false;
+    }
+    setUiError(null);
+    return true;
+  };
 
   // Detectar scroll para comprimir barra en desktop - con throttling y buffer
   useEffect(() => {
@@ -340,32 +380,36 @@ export default function PropertiesHeaderCompact({
   }, [showMobileFilters, guests]);
 
   // Cerrar date picker y guest selector al hacer clic fuera
-// Cerrar date picker y guest selector al hacer clic fuera (solo desktop)
-useEffect(() => {
-  const handleClickOutside = (event: MouseEvent) => {
-    // Solo aplicamos click-outside cuando estamos en desktop (>= 768px)
-    if (!window.matchMedia("(min-width: 768px)").matches) return;
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Solo aplicamos click-outside cuando estamos en desktop (>= 768px)
+      if (!window.matchMedia("(min-width: 768px)").matches) return;
 
-    if (
-      datePickerRef.current &&
-      !datePickerRef.current.contains(event.target as Node)
-    ) {
-      setShowDatePicker(false);
-    }
-    if (
-      guestSelectorRef.current &&
-      !guestSelectorRef.current.contains(event.target as Node)
-    ) {
-      setShowGuestSelector(false);
-    }
-  };
+      if (
+        datePickerRef.current &&
+        !datePickerRef.current.contains(event.target as Node)
+      ) {
+        setShowDatePicker(false);
+      }
+      if (
+        guestSelectorRef.current &&
+        !guestSelectorRef.current.contains(event.target as Node)
+      ) {
+        setShowGuestSelector(false);
+      }
+      if (
+        bedroomsSelectorRef.current &&
+        !bedroomsSelectorRef.current.contains(event.target as Node)
+      ) {
+        setShowBedroomsSelector(false);
+      }
+    };
 
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  };
-}, []);
-
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const { quickBadges, restBadges, visibleBadges, hiddenBadgesCount } = useMemo(() => {
     if (!badges || badges.length === 0) {
@@ -483,10 +527,16 @@ useEffect(() => {
   const DatePickerDesktop = () => (
     <div
       ref={datePickerRef}
-      className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-4 w-[600px]"
+      className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-4 w-auto"
     >
+      {/* Mostrar mensaje de error si existe */}
+      {uiError && (
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{uiError}</p>
+        </div>
+      )}
+      
       <DayPicker
-        required
         mode="range"
         selected={{
           from: checkIn ? new Date(checkIn) : undefined,
@@ -522,8 +572,13 @@ useEffect(() => {
       />
       <div className="flex justify-end pt-3 border-t border-border mt-4">
         <button
-          onClick={() => setShowDatePicker(false)}
-          className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+          onClick={() => {
+            if (validateBeforeSearch()) {
+              setShowDatePicker(false);
+            }
+          }}
+          className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!!uiError}
         >
           Apply Dates
         </button>
@@ -546,9 +601,9 @@ useEffect(() => {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setGuests && setGuests(Math.max(1, currentGuests - 1))}
+              onClick={() => setGuests && setGuests(Math.max(0, currentGuests - 1))}
               className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={currentGuests <= 1}
+              disabled={currentGuests <= 0}
             >
               –
             </button>
@@ -562,11 +617,64 @@ useEffect(() => {
             </button>
           </div>
         </div>
-        {/* ... */}
+        <p className="text-xs text-muted-foreground mt-3 text-center">
+          {currentGuests === 0 
+            ? "No guest limit" 
+            : currentGuests === 1 
+              ? "1 guest" 
+              : `${currentGuests} guests`
+          }
+        </p>
       </div>
     );
   };
-  
+
+  // NUEVO: Bedrooms Selector para desktop
+  const BedroomsSelectorDesktop = () => {
+    const current = deriveInitialBedroomsCount(bedrooms);
+    return (
+      <div
+        ref={bedroomsSelectorRef}
+        className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-5 w-auto"
+      >
+        <h3 className="font-medium text-sm mb-4">Bedrooms required</h3>
+
+        <div className="flex items-center justify-between p-3 border border-input rounded-lg">
+          <span className="text-sm mr-2">Bedrooms</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const newVal = Math.max(0, current - 1);
+                if (newVal === 0) setBedrooms([]);
+                else if (newVal >= 5) setBedrooms(["5+"]);
+                else setBedrooms([String(newVal)]);
+              }}
+              className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              –
+            </button>
+
+            <span className="w-12 text-center font-semibold">
+              {current === 0 ? "Any" : current >= 5 ? "5+" : current}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => {
+                const newVal = Math.min(6, current + 1);
+                if (newVal >= 5) setBedrooms(["5+"]);
+                else setBedrooms([String(newVal)]);
+              }}
+              className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -592,6 +700,7 @@ useEffect(() => {
                   onClick={() => {
                     setShowDatePicker(!showDatePicker);
                     setShowGuestSelector(false);
+                    setShowBedroomsSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -610,6 +719,7 @@ useEffect(() => {
                   onClick={() => {
                     setShowGuestSelector(!showGuestSelector);
                     setShowDatePicker(false);
+                    setShowBedroomsSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -617,6 +727,26 @@ useEffect(() => {
                   <span>{guestsLabel}</span>
                 </button>
                 {showGuestSelector && <GuestSelectorDesktop />}
+              </div>
+
+              <span className="text-muted-foreground">•</span>
+
+              {/* NUEVO: BEDROOMS CLICKABLES → abre dropdown con selector */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBedroomsSelector(!showBedroomsSelector);
+                    setShowGuestSelector(false);
+                    setShowDatePicker(false);
+                  }}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Hotel className="w-4 h-4" />
+                  <span>{bedroomsLabel}</span>
+                </button>
+
+                {showBedroomsSelector && <BedroomsSelectorDesktop />}
               </div>
             </div>
 
@@ -781,7 +911,6 @@ useEffect(() => {
                     </div>
                     <div className="p-4">
                       <DayPicker
-                        required
                         mode="range"
                         selected={{
                           from: checkIn ? new Date(checkIn) : undefined,
@@ -794,8 +923,13 @@ useEffect(() => {
                     </div>
                     <div className="bg-muted/30 border-t border-border p-4">
                       <button
-                        onClick={() => setShowDatePicker(false)}
-                        className="w-full px-4 py-2.5 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+                        onClick={() => {
+                          if (validateBeforeSearch()) {
+                            setShowDatePicker(false);
+                          }
+                        }}
+                        className="w-full px-4 py-2.5 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!!uiError}
                       >
                         Apply Dates
                       </button>
@@ -839,9 +973,9 @@ useEffect(() => {
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => setGuests && setGuests(Math.max(1, guests - 1))}
+                            onClick={() => setGuests && setGuests(Math.max(0, guests - 1))}
                             className="w-9 h-9 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-lg font-medium"
-                            disabled={guests <= 1}
+                            disabled={guests <= 0}
                           >
                             –
                           </button>
@@ -855,6 +989,14 @@ useEffect(() => {
                           </button>
                         </div>
                       </div>
+                      <p className="text-xs text-muted-foreground mt-3 text-center">
+                        {guests === 0 
+                          ? "No guest limit" 
+                          : guests === 1 
+                            ? "1 guest" 
+                            : `${guests} guests`
+                        }
+                      </p>
                     </div>
                     <div className="bg-muted/30 border-t border-border p-4">
                       <button
@@ -911,6 +1053,13 @@ useEffect(() => {
           </div>
 
           <div className="p-4 space-y-6 pb-24 max-w-2xl mx-auto">
+            {/* Mostrar error si existe */}
+            {uiError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{uiError}</p>
+              </div>
+            )}
+
             {/* Sort */}
             <div>
               <label className="block text-sm font-medium mb-2">Sort by</label>
@@ -1026,9 +1175,9 @@ useEffect(() => {
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => setLocalGuestsForModal(Math.max(1, localGuestsForModal - 1))}
+                      onClick={() => setLocalGuestsForModal(Math.max(0, localGuestsForModal - 1))}
                       className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={localGuestsForModal <= 1}
+                      disabled={localGuestsForModal <= 0}
                     >
                       –
                     </button>
@@ -1062,6 +1211,7 @@ useEffect(() => {
                   onClick={() => {
                     onClearAllFilters?.();
                     setShowMobileFilters(false);
+                    setUiError(null);
                   }}
                   className="flex-1 px-4 py-3 text-sm border border-input rounded-lg hover:bg-muted transition-colors font-medium"
                 >
@@ -1070,13 +1220,19 @@ useEffect(() => {
               )}
               <button
                 onClick={() => {
+                  // Validar antes de cerrar el modal
+                  if (!validateBeforeSearch()) {
+                    return; // No cerrar si hay error
+                  }
+                  
                   // Aplicar los cambios de guests al salir del modal
                   if (setGuests) {
                     setGuests(localGuestsForModal);
                   }
                   setShowMobileFilters(false);
                 }}
-                className="flex-1 px-4 py-3 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+                className="flex-1 px-4 py-3 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!!uiError}
               >
                 Show {itemsCount} Villas
               </button>

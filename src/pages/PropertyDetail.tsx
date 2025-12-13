@@ -54,7 +54,6 @@ type Listing = {
   location_text: string | null;
   city: string | null;
   country: string | null;
-
   // Campos VillaNet del backend (snake_case)
   villanet_destination_tag?: string | null;
   villanet_city?: string | null;
@@ -79,7 +78,7 @@ type Listing = {
   villanet_property_manager_name?: string | null;
   villanet_partner_reservation_email?: string | null;
   villanet_property_email?: string | null;
-  sleeps?: number | null;
+  max_guests?: number | null;
   villanet_standardized_housekeeping?: boolean | null;
   villanet_years_in_business?: number | null;
   villanet_chef_included?: boolean | null;
@@ -829,8 +828,9 @@ export default function PropertyDetail() {
             <div className="py-4">
               <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-gray-900" />
               <p className="text-2xl font-bold">
-                {listing.sleeps || (listing.bedrooms ? listing.bedrooms * 2 : '—')}
-              </p>
+  {listing.max_guests ??
+    (listing.bedrooms ? listing.bedrooms * 2 : '—')}
+</p>
               <p className="text-xs sm:text-sm text-[#6B7280]">Sleeps</p>
             </div>
 
