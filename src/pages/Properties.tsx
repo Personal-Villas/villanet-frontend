@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bed, MapPin, DollarSign, Star, ChevronLeft, ChevronRight, Bath, ShieldCheck } from 'lucide-react';
+import { Search, Bed, MapPin, DollarSign, Star, ChevronLeft, ChevronRight, Bath, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api, publicApi } from '../api/api'; 
 import AuthModal from '../components/AuthModal';
@@ -60,10 +60,10 @@ type ListingsResponse = {
   hasMore: boolean;
   availabilityApplied?: boolean;
   availabilitySession?: string;
-  availabilityCursor?: number;
+  currentPage?: number;
+  totalPages?: number;
 };
 
-// Hook de debounce
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -82,10 +82,8 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const ITEMS_PER_PAGE = 12;
 const PLACEHOLDER = '/assets/hero-villa-Cl4d2Edi.jpg';
-
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdrJh0sAAAAAPy3DKaQXrWS_YLJeEtRCN4E4wNj';
 
-// Lista de destinos predefinidos
 const DESTINATIONS = [
   "Cayman Islands",
   "Puerto Vallarta, Mexico",
@@ -104,7 +102,6 @@ const DESTINATIONS = [
   "Barbados"
 ];
 
-// Info icon component
 const Info = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="10"></circle>
@@ -116,27 +113,43 @@ const Info = ({ className }: { className?: string }) => (
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [selectedDestination, setSelectedDestination] = useState('');
   
-  // Filters
-  const [query, setQuery] = useState('');
-  const [bedrooms, setBedrooms] = useState<string[]>([]);
-  const [bathrooms, setBathrooms] = useState<string[]>([]);
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
-  const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState('rank');
+  // Estados para filtros
+  const [filters, setFilters] = useState({
+    query: '',
+    selectedDestination: '',
+    bedrooms: [] as string[],
+    bathrooms: [] as string[],
+    minPrice: '',
+    maxPrice: '',
+    checkIn: '',
+    checkOut: '',
+    selectedBadges: [] as string[],
+    guests: 0,
+    sortBy: 'rank' as 'rank' | 'price_low' | 'price_high' | 'bedrooms',
+  });
 
-  // Pagination state
+  const [appliedFilters, setAppliedFilters] = useState(filters);
+
+  // Estados de paginación
   const [items, setItems] = useState<Listing[]>([]);
-  const [offset, setOffset] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  // Estado para availability session
+  const [availabilitySession, setAvailabilitySession] = useState<string | null>(null);
+  
+  // 🔥 FIX: useRef para rastrear session de forma estable (no dispara re-renders)
+  const availabilitySessionRef = useRef<string | null>(null);
+  
+  // Sincronizar ref con state
+  useEffect(() => {
+    availabilitySessionRef.current = availabilitySession;
+  }, [availabilitySession]);
 
   // Message modal
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -147,18 +160,12 @@ export default function Properties() {
   const [messageSuccess, setMessageSuccess] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showRankModal, setShowRankModal] = useState(false);
-  const [availabilitySession, setAvailabilitySession] = useState<string | null>(null);
-  const [availabilityCursor, setAvailabilityCursor] = useState<number | null>(null);
-  const [paginationMode, setPaginationMode] = useState<'infinite' | 'pagination'>('infinite');
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
-  const debouncedQuery = useDebounce(query, 600);
-  const observerTarget = useRef<HTMLDivElement>(null);
+  const debouncedQuery = useDebounce(filters.query, 600);
   const [badges, setBadges] = useState<CrudBadge[]>([]);
-  const hasAvailabilityFilter = checkIn || checkOut;
-  const [guests, setGuests] = useState(0);
+  
+  //const hasAvailabilityFilter = Boolean(appliedFilters.checkIn && appliedFilters.checkOut);
 
-
-  // Usar el contexto del carrito
   const { 
     isInCart, 
     toggleItem, 
@@ -168,10 +175,8 @@ export default function Properties() {
     closeCartModal
   } = useCart();
 
-  // Calcular currentLocationLabel dinámicamente
-  const currentLocationLabel = debouncedQuery.trim() || selectedDestination || 'Top Villa Destinations';
+  const currentLocationLabel = debouncedQuery.trim() || appliedFilters.selectedDestination || 'Top Villa Destinations';
 
-  // Modal handlers
   const openAuthModal = useCallback(() => {
     setShowAuthModal(true);
   }, []);
@@ -180,7 +185,6 @@ export default function Properties() {
     setShowAuthModal(false);
   }, []);
 
-  // Handlers para el modal de Villa Net Rank
   const openRankModal = useCallback(() => {
     setShowRankModal(true);
   }, []);
@@ -189,7 +193,6 @@ export default function Properties() {
     setShowRankModal(false);
   }, []);
 
-  // Handlers para el modal de mensajes - SIN necesidad de login
   const openMessageModalFor = useCallback((listing: Listing) => {
     setMessageListing(listing);
     setMessageText('');
@@ -259,21 +262,78 @@ export default function Properties() {
     console.log('✅ Auth success, user received:', user);
     closeAuthModal();
     
-    // Disparar evento para actualizar el contexto
     window.dispatchEvent(new Event('authStateChange'));
     
-    // Forzar re-render
     setRetryCount(prev => prev + 1);
-    setOffset(0);
+    setCurrentPage(1);
     setItems([]);
-    setHasMore(true);
     
     console.log('🔄 Auth state updated, Properties should re-render');
   }, [closeAuthModal]);
 
-  // Handler para cambio de sort que resetea antes de cambiar
-  const handleSortChange = useCallback((newSort: string) => {
-    setSortBy(newSort);
+  const handleApplyFilters = useCallback(() => {
+    setAppliedFilters(filters);
+  }, [filters]);
+
+  const handleClearAllFilters = useCallback(() => {
+    const resetFilters = {
+      query: '',
+      selectedDestination: '',
+      bedrooms: [] as string[],
+      bathrooms: [] as string[],
+      minPrice: '',
+      maxPrice: '',
+      checkIn: '',
+      checkOut: '',
+      selectedBadges: [] as string[],
+      guests: 0,
+      sortBy: 'rank' as const,
+    };
+    setFilters(resetFilters);
+    setAppliedFilters(resetFilters);
+    setCurrentPage(1);
+    setError(null);
+    setAvailabilitySession(null);
+  }, []);
+
+  const handleBadgeToggle = useCallback((badgeId: string) => {
+    setFilters(prev => ({
+      ...prev,
+      selectedBadges: prev.selectedBadges.includes(badgeId)
+        ? prev.selectedBadges.filter(id => id !== badgeId)
+        : [...prev.selectedBadges, badgeId]
+    }));
+    
+    setAppliedFilters(prev => ({
+      ...prev,
+      selectedBadges: prev.selectedBadges.includes(badgeId)
+        ? prev.selectedBadges.filter(id => id !== badgeId)
+        : [...prev.selectedBadges, badgeId]
+    }));
+  }, []);
+
+  const handleDestinationChange = useCallback((destination: string) => {
+    setFilters(prev => ({
+      ...prev,
+      selectedDestination: destination === prev.selectedDestination ? '' : destination
+    }));
+    
+    setAppliedFilters(prev => ({
+      ...prev,
+      selectedDestination: destination === prev.selectedDestination ? '' : destination
+    }));
+  }, []);
+
+  const handleSortChange = useCallback((sort: string) => {
+    setFilters(prev => ({
+      ...prev,
+      sortBy: sort as 'rank' | 'price_low' | 'price_high' | 'bedrooms'
+    }));
+    
+    setAppliedFilters(prev => ({
+      ...prev,
+      sortBy: sort as 'rank' | 'price_low' | 'price_high' | 'bedrooms'
+    }));
   }, []);
 
   useEffect(() => {
@@ -281,18 +341,18 @@ export default function Properties() {
     const badgeParam = params.get('badge');
     
     if (badgeParam) {
-      setSelectedBadges([badgeParam]);
-      // Limpiar el parámetro de la URL después de aplicarlo
+      setFilters(prev => ({
+        ...prev,
+        selectedBadges: [badgeParam]
+      }));
       window.history.replaceState({}, '', '/properties');
     }
   }, []);
   
-  // Fetch badges from API
   useEffect(() => {
     const fetchBadges = async () => {
       try {
         const data = await api<{ badges: CrudBadge[] }>('/badges');
-        // Transformar los badges para incluir is_quick basado en algún criterio
         const transformedBadges = data.badges.map((badge, index) => ({
           ...badge,
           is_quick: index < 4
@@ -300,7 +360,6 @@ export default function Properties() {
         setBadges(transformedBadges);
       } catch (error) {
         console.error('Error fetching badges:', error);
-        // Fallback a badges básicos si la API falla
         setBadges([
           { id: 'chef-included', name: 'Chef Included', slug: 'chef-included', icon: 'chef-hat', is_quick: true },
           { id: 'true-beach-front', name: 'True Beach Front', slug: 'true-beach-front', icon: 'waves', is_quick: true },
@@ -313,7 +372,6 @@ export default function Properties() {
     fetchBadges();
   }, []);
 
-  // Cargar script de Google reCAPTCHA v3
   useEffect(() => {
     if (!RECAPTCHA_SITE_KEY) return;
 
@@ -328,74 +386,68 @@ export default function Properties() {
     document.body.appendChild(script);
   }, []);
 
-  // Switch to pagination mode when availability filters are applied and many results
+  // ✅ Resetear a página 1 cuando cambian los filtros
   useEffect(() => {
-    if (hasAvailabilityFilter && items.length > 0 && items.length >= 48) {
-      setPaginationMode('pagination');
-    } else if (!hasAvailabilityFilter) {
-      setPaginationMode('infinite');
-    }
-  }, [items.length, hasAvailabilityFilter]);
-
-  useEffect(() => {
-    // Resetea solo cuando cambia un filtro real
-    setOffset(0);
-    setItems([]);
-    setHasMore(true);
+    console.log('🔄 Filters changed, resetting to page 1');
+    setCurrentPage(1);
     setError(null);
     setAvailabilitySession(null);
-    setAvailabilityCursor(null);
-    setPaginationMode('infinite');
   }, [
-    debouncedQuery,
-    selectedDestination, 
-    bedrooms,
-    bathrooms,
-    minPrice,
-    maxPrice,
-    checkIn,
-    checkOut,
-    selectedBadges,
-    sortBy,
-    guests,
+    appliedFilters.query,
+    appliedFilters.selectedDestination, 
+    appliedFilters.bedrooms,
+    appliedFilters.bathrooms,
+    appliedFilters.minPrice,
+    appliedFilters.maxPrice,
+    appliedFilters.checkIn,
+    appliedFilters.checkOut,
+    appliedFilters.selectedBadges,
+    appliedFilters.sortBy,
+    appliedFilters.guests,
   ]);
 
-  // Fetch listings
+  // ✅ Fetch principal - se ejecuta cuando cambian filtros O página
   useEffect(() => {
     if (authLoading) return;
 
     const controller = new AbortController();
+    
+    // 🔥 FIX: Usar ref en vez del state directamente
+    const sessionToUse = availabilitySessionRef.current;
 
     (async () => {
+      console.log(`🚀 Fetching page ${currentPage}...`);
       setLoading(true);
       setError(null);
       
       try {
         const qs = new URLSearchParams();
-        if (debouncedQuery.trim().length >= 3) qs.set('q', debouncedQuery.trim());
-        if (selectedDestination) qs.set('destination', selectedDestination);
-        if (bedrooms.length) qs.set('bedrooms', bedrooms.join(','));
-        if (bathrooms.length) qs.set('bathrooms', bathrooms.join(','));
-        if (minPrice) qs.set('minPrice', String(Number(minPrice) || ''));
-        if (maxPrice) qs.set('maxPrice', String(Number(maxPrice) || ''));
-        if (checkIn) qs.set('checkIn', checkIn);
-        if (checkOut) qs.set('checkOut', checkOut);
-        if (selectedBadges.length) qs.set('badges', selectedBadges.join(',')); 
-        if (sortBy) qs.set('sort', sortBy);
-        if (guests && guests > 0) {
-          qs.set('guests', String(guests));
-        }
-        qs.set('limit', String(ITEMS_PER_PAGE));
         
-        if (availabilitySession && availabilityCursor !== null) {
-          qs.set('availabilitySession', availabilitySession);
-          qs.set('availabilityCursor', String(availabilityCursor));
-          qs.set('offset', '0');
-        } else {
-          qs.set('offset', String(offset));
+        if (appliedFilters.query.trim().length >= 3) qs.set('q', appliedFilters.query.trim());
+        if (appliedFilters.selectedDestination) qs.set('destination', appliedFilters.selectedDestination);
+        if (appliedFilters.bedrooms.length) qs.set('bedrooms', appliedFilters.bedrooms.join(','));
+        if (appliedFilters.bathrooms.length) qs.set('bathrooms', appliedFilters.bathrooms.join(','));
+        if (appliedFilters.minPrice) qs.set('minPrice', String(Number(appliedFilters.minPrice) || ''));
+        if (appliedFilters.maxPrice) qs.set('maxPrice', String(Number(appliedFilters.maxPrice) || ''));
+        if (appliedFilters.selectedBadges.length) qs.set('badges', appliedFilters.selectedBadges.join(',')); 
+        if (appliedFilters.sortBy) qs.set('sort', appliedFilters.sortBy);
+        if (appliedFilters.guests && appliedFilters.guests > 0) {
+          qs.set('guests', String(appliedFilters.guests));
+        }
+        
+        qs.set('limit', String(ITEMS_PER_PAGE));
+        qs.set('page', String(currentPage));
+        
+        // ✅ Availability: incluir session solo si existe Y estamos en página > 1
+        if (appliedFilters.checkIn && appliedFilters.checkOut) {
+          qs.set('checkIn', appliedFilters.checkIn);
+          qs.set('checkOut', appliedFilters.checkOut);
+          
+          if (sessionToUse && currentPage > 1) {
+            qs.set('availabilitySession', sessionToUse);
+          }
         }
 
-        // Usar publicApi cuando el usuario no está autenticado
         const endpoint = user ? '/listings' : '/public/listings';
         const apiToUse = user ? api : publicApi;
         
@@ -405,8 +457,6 @@ export default function Properties() {
 
         if (!controller.signal.aborted) {
           const normalized: Listing[] = (data.results || []).map((item: any) => {
-            console.log('Rank data:', item.rank, typeof item.rank);
-            
             const images = Array.isArray(item.images_json) ? item.images_json : [];
             const first = images[0];
             
@@ -415,22 +465,11 @@ export default function Properties() {
               id: item.id || `temp-${Math.random().toString(36).slice(2)}`,
               images_json: images,
               heroImage: (typeof first === 'string' && first) || item.heroImage || PLACEHOLDER,
-              // Rank: usar el que viene de VillaNet; si no, fallback
               rank: item.rank,
-
-              // Property manager: primero VillaNet, luego cualquier otro, luego default
-              propertyManager:
-                item.villaNetPropertyManagerName ||
-                item.propertyManager ||
-                'Blue Sky Luxury Villas',
-
+              propertyManager: item.villaNetPropertyManagerName || item.propertyManager || 'Blue Sky Luxury Villas',
               trustAccount: item.trustAccount ?? true,
               dailyCleaning: item.dailyCleaning ?? true,
-              
-              // Usar los nuevos campos VillaNet para chefIncluded
               chefIncluded: item.villanetChefIncluded ?? item.chefIncluded ?? true,
-              
-              // Mapear los demás campos booleanos de VillaNet
               villanetChefIncluded: item.villanetChefIncluded ?? false,
               villanetHeatedPool: item.villanetHeatedPool ?? false,
               villanetOceanView: item.villanetOceanView ?? false,
@@ -449,32 +488,21 @@ export default function Properties() {
               villanetGolfVilla: item.villanetGolfVilla ?? false,
               villanetResortVilla: item.villanetResortVilla ?? false,
               villanetResortCollectionName: item.villanetResortCollectionName ?? null,
-
             };
           });
 
-          if (availabilitySession && availabilityCursor !== null) {
-            setItems(prev => [...prev, ...normalized]);
-          } else {
-            setItems(prev => offset === 0 ? normalized : [...prev, ...normalized]);
-          }
-
+          setItems(normalized);
           setTotal(data.total);
-          setHasMore(data.hasMore);
+          setTotalPages(data.totalPages || Math.ceil(data.total / ITEMS_PER_PAGE));
           
-          if (data.availabilitySession) {
+          // ✅ Guardar session solo si es página 1 Y tiene availability Y no teníamos session antes
+          if (data.availabilitySession && currentPage === 1 && !sessionToUse) {
             setAvailabilitySession(data.availabilitySession);
-          }
-          if (data.availabilityCursor !== undefined) {
-            setAvailabilityCursor(data.availabilityCursor);
-          }
-          
-          if (!data.hasMore && data.availabilitySession) {
-            setAvailabilitySession(null);
-            setAvailabilityCursor(null);
           }
           
           setRetryCount(0);
+          
+          console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items, ${data.totalPages} total pages`);
         }
       } catch (err: any) {
         if (!controller.signal.aborted) {
@@ -482,26 +510,29 @@ export default function Properties() {
             console.log('Expected 401 for public endpoint - ignoring');
             setItems([]);
             setTotal(0);
-            setHasMore(false);
+            setTotalPages(1);
           } else {
             setError(
               err.message?.includes('429') || err.message?.includes('503')
                 ? 'Too many requests. Waiting 60 seconds...'
                 : err.message?.includes('401')
                 ? 'Session expired. Please log in.'
+                : err.message?.includes('expired')
+                ? 'Search session expired. Please refresh your search.'
                 : 'Server error. Please try again.'
             );
             
             if (err.message?.includes('429') || err.message?.includes('503')) {
-              setHasMore(false);
-              setAvailabilitySession(null);
-              setAvailabilityCursor(null);
-              
               setTimeout(() => {
                 setError(null);
-                setHasMore(true);
                 setRetryCount(prev => prev + 1);
               }, 60000);
+            }
+            
+            if (err.message?.includes('expired')) {
+              // Resetear availability session
+              setAvailabilitySession(null);
+              setCurrentPage(1);
             }
             
             if (!err.message?.includes('429') && !err.message?.includes('503') && !err.message?.includes('401')) {
@@ -516,47 +547,14 @@ export default function Properties() {
 
     return () => controller.abort();
   }, [
-    debouncedQuery,
-    selectedDestination, 
-    bedrooms,
-    bathrooms,
-    minPrice,
-    maxPrice,
-    checkIn,
-    checkOut,
-    selectedBadges,
-    sortBy,
-    offset,
-    user,
     authLoading,
+    user,
+    appliedFilters,
+    currentPage,
     retryCount,
-    availabilitySession,
-    availabilityCursor,
-    guests,
+    // ❌ NO incluir availabilitySession aquí - causa loop infinito
   ]);
 
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
-    if (!observerTarget.current || loading || !hasMore || paginationMode !== 'infinite') return;
-
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
-          if (availabilitySession && availabilityCursor !== null) {
-            setAvailabilityCursor(prev => (prev || 0) + ITEMS_PER_PAGE);
-          } else {
-            setOffset(prev => prev + ITEMS_PER_PAGE);
-          }
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(observerTarget.current);
-    return () => observer.disconnect();
-  }, [loading, hasMore, availabilitySession, availabilityCursor, paginationMode]);
-
-  // Image navigation handlers
   const handlePrevImage = useCallback((e: React.MouseEvent, listingId: string, totalImages: number) => {
     e.stopPropagation();
     setImageIndices(prev => ({
@@ -573,72 +571,47 @@ export default function Properties() {
     }));
   }, []);
 
-  // Función helper segura para formatMoney
   const formatMoney = (n: number | null | undefined) => {
     if (n == null) return '—';
     const amount = Number(n);
     if (isNaN(amount)) return '—';
   
-    // sin dividir por 100: la BD ya está en USD
-    return `$${amount.toLocaleString(undefined, {
-      maximumFractionDigits: 0, // o 2 si querés decimales
+    return `${amount.toLocaleString(undefined, {
+      maximumFractionDigits: 0,
     })}`;
   };
 
-  // Función helper segura para ranks
   const formatRank = (rank: number | string | null | undefined) => {
     if (rank == null) return "—";
     return rank.toString(); 
   };
 
-  // Función para limpiar todos los filtros incluyendo destination
-  const clearAllFilters = useCallback(() => {
-    setQuery('');
-    setSelectedDestination('');
-    setBedrooms([]);
-    setBathrooms([]);
-    setMinPrice('');
-    setMaxPrice('');
-    setCheckIn('');
-    setCheckOut('');
-    setSelectedBadges([]);
-    setSortBy('rank');
-    setOffset(0);
-    setError(null);
-    setAvailabilitySession(null);
-    setAvailabilityCursor(null);
-    setPaginationMode('infinite');
-    setGuests(0);
-  }, []);
-
-  // Pagination Controls Component
+  // ✅ Componente de paginación mejorado
   const PaginationControls = () => {
-    if (paginationMode !== 'pagination' || !hasAvailabilityFilter) return null;
-    
-    const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
-    const currentPage = Math.floor(offset / ITEMS_PER_PAGE) + 1;
+    if (totalPages <= 1) return null;
     
     const handlePrevious = () => {
-      const newOffset = Math.max(0, offset - ITEMS_PER_PAGE);
-      setOffset(newOffset);
-      setItems([]);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     };
     
     const handleNext = () => {
-      const newOffset = offset + ITEMS_PER_PAGE;
-      setOffset(newOffset);
-      setItems([]);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (currentPage < totalPages) {
+        setCurrentPage(currentPage + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     };
     
     return (
       <div className="flex justify-center items-center gap-4 py-8">
         <button
           onClick={handlePrevious}
-          disabled={offset === 0}
-          className="px-6 py-3 border border-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors font-medium text-neutral-700"
+          disabled={currentPage === 1}
+          className="px-6 py-3 border border-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors font-medium text-neutral-700 flex items-center gap-2"
         >
+          <ChevronLeft className="w-4 h-4" />
           Previous
         </button>
         
@@ -648,10 +621,11 @@ export default function Properties() {
         
         <button
           onClick={handleNext}
-          disabled={!hasMore}
-          className="px-6 py-3 border border-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors font-medium text-neutral-700"
+          disabled={currentPage >= totalPages}
+          className="px-6 py-3 border border-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors font-medium text-neutral-700 flex items-center gap-2"
         >
           Next
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
     );
@@ -665,27 +639,20 @@ export default function Properties() {
     navigate(`/property/${property.id}`);
   }, [navigate, user, openAuthModal]);
 
-  const handleBadgeToggle = useCallback((badgeId: string) => {
-    setSelectedBadges(prev => 
-      prev.includes(badgeId)
-        ? prev.filter(id => id !== badgeId)
-        : [...prev, badgeId]
+  const activeFiltersCount = useMemo(() => {
+    return (
+      appliedFilters.bedrooms.length + 
+      appliedFilters.bathrooms.length + 
+      (appliedFilters.minPrice ? 1 : 0) + 
+      (appliedFilters.maxPrice ? 1 : 0) + 
+      (appliedFilters.checkIn ? 1 : 0) + 
+      (appliedFilters.checkOut ? 1 : 0) +
+      appliedFilters.selectedBadges.length +
+      (appliedFilters.selectedDestination ? 1 : 0) +
+      (appliedFilters.query ? 1 : 0)
     );
-  }, []);
+  }, [appliedFilters]);
 
-  // Calcular filtros activos
-  const activeFiltersCount = 
-    bedrooms.length + 
-    bathrooms.length + 
-    (minPrice ? 1 : 0) + 
-    (maxPrice ? 1 : 0) + 
-    (checkIn ? 1 : 0) + 
-    (checkOut ? 1 : 0) +
-    selectedBadges.length +
-    (selectedDestination ? 1 : 0) +
-    (query ? 1 : 0);
-
-  // Loading state
   if (authLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -699,22 +666,21 @@ export default function Properties() {
 
   return (
     <>
-      {/* SEO dinámico */}
       <SEO
         title={
-          debouncedQuery.trim() || selectedDestination
-            ? `${items.length} Luxury Villas in ${currentLocationLabel}`
-            : `${items.length} Luxury Villas for Travel Advisors`
+          debouncedQuery.trim() || appliedFilters.selectedDestination
+            ? `${total} Luxury Villas in ${currentLocationLabel}`
+            : `${total} Luxury Villas for Travel Advisors`
         }
         description={
-          debouncedQuery.trim() || selectedDestination
-            ? `Discover ${items.length} luxury villas in ${currentLocationLabel}. Private villas with premium amenities.`
+          debouncedQuery.trim() || appliedFilters.selectedDestination
+            ? `Discover ${total} luxury villas in ${currentLocationLabel}. Private villas with premium amenities.`
             : `Discover vetted luxury villas with trusted property managers. Filter by dates, destination, and more.`
         }
         canonical="/properties"
         image="/og-villas.jpg"
         h1={
-          debouncedQuery.trim() || selectedDestination
+          debouncedQuery.trim() || appliedFilters.selectedDestination
             ? `Luxury Villas in ${currentLocationLabel}`
             : 'Explore Luxury Villas'
         }
@@ -730,239 +696,246 @@ export default function Properties() {
             postalCode: "",
             country: "US"
           },
-          priceRange: "$$$$"
+          priceRange: "$$"
         })}
       />
       
       <div className="min-h-screen bg-background">
-        {/* Header */}
         <UnifiedHeader 
           mode="simple"
           onAuthClick={openAuthModal} 
         />
 
-        {/* Properties Header */}
         <PropertiesHeaderCompact
           itemsCount={total}
-          location={debouncedQuery.trim() || selectedDestination || 'All Locations'}
-          query={query}
-          sortBy={sortBy}
+          location={debouncedQuery.trim() || appliedFilters.selectedDestination || 'All Locations'}
+          query={filters.query}
+          setQuery={(query) => setFilters(prev => ({ ...prev, query }))}
+          sortBy={filters.sortBy}
           setSortBy={handleSortChange}
           badges={badges}
-          selectedBadges={selectedBadges}
+          selectedBadges={filters.selectedBadges}
           onBadgeToggle={handleBadgeToggle}
-          checkIn={checkIn}
-          setCheckIn={setCheckIn}
-          checkOut={checkOut}
-          setCheckOut={setCheckOut}
-          bedrooms={bedrooms}
-          setBedrooms={setBedrooms}
-          onClearAllFilters={clearAllFilters}
+          checkIn={filters.checkIn}
+          setCheckIn={(checkIn) => setFilters(prev => ({ ...prev, checkIn }))}
+          checkOut={filters.checkOut}
+          setCheckOut={(checkOut) => setFilters(prev => ({ ...prev, checkOut }))}
+          bedrooms={filters.bedrooms}
+          setBedrooms={(bedrooms) => setFilters(prev => ({ ...prev, bedrooms }))}
+          onClearAllFilters={handleClearAllFilters}
           destinations={DESTINATIONS}
-          selectedDestination={selectedDestination}
-          onSelectDestination={setSelectedDestination}
+          selectedDestination={filters.selectedDestination}
+          onSelectDestination={handleDestinationChange}
           cartCount={cartCount}
           onCartClick={openCart}
-          guests={guests}        
-          setGuests={setGuests}  
+          guests={filters.guests}        
+          setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
+          onApplyFilters={handleApplyFilters}
         />
 
-        {/* Main Content */}
         <main className="pt-16">
-          {/* Mostrar skeleton durante carga inicial */}
-          {loading && offset === 0 && !availabilitySession ? (
+          {loading ? (
             <div className="container mx-auto px-6 py-8">
               <ListingGridSkeleton count={12} />
             </div>
+          ) : error ? (
+            <div className="container mx-auto px-6 py-20">
+              <div className="max-w-md mx-auto text-center">
+                <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <X className="w-10 h-10 text-red-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-neutral-900 mb-3">
+                  {error.includes('expired') ? 'Search expired' : 'Something went wrong'}
+                </h3>
+                <p className="text-neutral-500 mb-6">{error}</p>
+                <button 
+                  onClick={() => {
+                    setError(null);
+                    setCurrentPage(1);
+                    setAvailabilitySession(null);
+                    setRetryCount(prev => prev + 1);
+                  }}
+                  className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="container mx-auto px-6 py-8">
-              {/* Properties Grid - mostrar solo si hay items */}
-              {items.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {items.map((item, idx) => {
-                    const images = item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
-                    const currentIndex = imageIndices[item.id] || 0;
-                    
-                    // Normalizar ubicación mostrada
-                    const displayLocation =
-                      item.villaNetDestinationTag ||
-                      item.villaNetCity ||
-                      item.location ||
-                      'Location not specified';
-                    
-                    return (
-                      <div
-                        key={`${item.id}-${idx}`}
-                        className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
-                      >
-                        {/* Image Carousel */}
-                        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                          <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
-                            <div className="relative w-full h-full overflow-hidden">
-                              <div 
-                                className="flex h-full transition-transform duration-300 ease-out" 
-                                style={{ transform: `translateX(${-currentIndex * 100}%)` }}
+              {items.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {items.map((item, idx) => {
+                      const images = item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
+                      const currentIndex = imageIndices[item.id] || 0;
+                      
+                      const displayLocation =
+                        item.villaNetDestinationTag ||
+                        item.villaNetCity ||
+                        item.location ||
+                        'Location not specified';
+                      
+                      return (
+                        <div
+                          key={`${item.id}-${idx}`}
+                          className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
+                        >
+                          {/* Image Carousel */}
+                          <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                            <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
+                              <div className="relative w-full h-full overflow-hidden">
+                                <div 
+                                  className="flex h-full transition-transform duration-300 ease-out" 
+                                  style={{ transform: `translateX(${-currentIndex * 100}%)` }}
+                                >
+                                  {images.map((image, imgIdx) => (
+                                    <div
+                                      key={imgIdx}
+                                      role="group"
+                                      aria-roledescription="slide"
+                                      className="w-full h-full flex-shrink-0"
+                                      style={{ minWidth: '100%' }}
+                                    >
+                                      <img
+                                        src={image}
+                                        alt={`${item.name} - Image ${imgIdx + 1}`}
+                                        className="w-full h-full object-cover"
+                                        loading={imgIdx === 0 ? 'eager' : 'lazy'}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              {/* Navigation Arrows */}
+                              <button
+                                disabled={currentIndex === 0}
+                                onClick={(e) => handlePrevImage(e, item.id, images.length)}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                aria-label="Previous image"
                               >
-                                {images.map((image, imgIdx) => (
-                                  <div
-                                    key={imgIdx}
-                                    role="group"
-                                    aria-roledescription="slide"
-                                    className="w-full h-full flex-shrink-0"
-                                    style={{ minWidth: '100%' }}
-                                  >
-                                    <img
-                                      src={image}
-                                      alt={`${item.name} - Image ${imgIdx + 1}`}
-                                      className="w-full h-full object-cover"
-                                      loading={imgIdx === 0 ? 'eager' : 'lazy'}
-                                    />
-                                  </div>
-                                ))}
+                                <ChevronLeft className="w-4 h-4 text-foreground" />
+                              </button>
+
+                              <button
+                                onClick={(e) => handleNextImage(e, item.id, images.length)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                aria-label="Next image"
+                              >
+                                <ChevronRight className="w-4 h-4 text-foreground" />
+                              </button>
+                              
+                              {/* Image Counter */}
+                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
+                                {currentIndex + 1} / {images.length}
                               </div>
                             </div>
                             
-                            {/* Navigation Arrows */}
-                            <button
-                              disabled={currentIndex === 0}
-                              onClick={(e) => handlePrevImage(e, item.id, images.length)}
-                              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                              aria-label="Previous image"
-                            >
-                              <ChevronLeft className="w-4 h-4 text-foreground" />
-                            </button>
-
-                            <button
-                              onClick={(e) => handleNextImage(e, item.id, images.length)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                              aria-label="Next image"
-                            >
-                              <ChevronRight className="w-4 h-4 text-foreground" />
-                            </button>
-                            
-                            {/* Image Counter */}
-                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
-                              {currentIndex + 1} / {images.length}
+                            {/* Top Badges */}
+                            <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                                <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
+                                <span className="text-xs font-medium text-foreground">Verified 2025</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                                <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
+                                <span className="text-xs font-semibold text-foreground">
+                                  {formatRank(item.rank)}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                          
-                          {/* Top Badges */}
-                          <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                              <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
-                              <span className="text-xs font-medium text-foreground">Verified 2025</span>
-                            </div>
+
+                          {/* Property Info */}
+                          <div className="p-4">
+                            <a 
+                              className="block mb-2 group/link" 
+                              href={`/property/${item.id}`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                goToDetail(item);
+                              }}
+                            >
+                              <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
+                                {item.name}
+                              </h3>
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <MapPin className="w-3.5 h-3.5" />
+                                <span>{displayLocation}</span>
+                              </div>
+                            </a>
                             
-                            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                              <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                              <span className="text-xs font-semibold text-foreground">
-                                {formatRank(item.rank)}
-                              </span>
+                            {/* Basic Info */}
+                            <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
+                              <div className="flex items-center gap-1 whitespace-nowrap">
+                                <Bed className="w-4 h-4" />
+                                <span>{item.bedrooms ?? '—'} BR</span>
+                              </div>
+
+                              <span className="hidden md:inline">•</span>
+
+                              <div className="flex items-center gap-1 whitespace-nowrap">
+                                <Bath className="w-4 h-4" />
+                                <span>{item.bathrooms ?? '—'} BA</span>
+                              </div>
+
+                              <span className="hidden md:inline">•</span>
+
+                              <div className="flex items-center gap-1 whitespace-nowrap">
+                                <DollarSign className="w-4 h-4" />
+                                <span>From {formatMoney(item.priceUSD)}/nt</span>
+                              </div>
+                            </div>
+
+                            {/* Trust Metrics */}
+                            <div className="mb-4 text-xs space-y-2">
+                              <div className="flex items-center gap-1.5">
+                                <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                                <span className="text-muted-foreground truncate">
+                                  {item.propertyManager}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => goToDetail(item)}
+                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
+                              >
+                                View Villa
+                              </button>
+
+                              <button
+                                onClick={() => toggleItem(item)}
+                                className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
+                                  isInCart(item.id)
+                                    ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
+                                    : "bg-background text-foreground border-border hover:bg-accent"
+                                }`}
+                              >
+                                {isInCart(item.id) ? "Remove from cart" : "Add to cart"}
+                              </button>
+
+                              <button
+                                onClick={() => openMessageModalFor(item)}
+                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
+                              >
+                                Message
+                              </button>
                             </div>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        {/* Property Info */}
-                        <div className="p-4">
-                          <a 
-                            className="block mb-2 group/link" 
-                            href={`/property/${item.id}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              goToDetail(item);
-                            }}
-                          >
-                            <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
-                              {item.name}
-                            </h3>
-                            {/* Usar displayLocation normalizada */}
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <MapPin className="w-3.5 h-3.5" />
-                              <span>{displayLocation}</span>
-                            </div>
-                          </a>
-                          
-                          {/* Basic Info */}
-                          <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
-                            <div className="flex items-center gap-1 whitespace-nowrap">
-                              <Bed className="w-4 h-4" />
-                              <span>{item.bedrooms ?? '—'} BR</span>
-                            </div>
-
-                            <span className="hidden md:inline">•</span>
-
-                            <div className="flex items-center gap-1 whitespace-nowrap">
-                              <Bath className="w-4 h-4" />
-                              <span>{item.bathrooms ?? '—'} BA</span>
-                            </div>
-
-                            <span className="hidden md:inline">•</span>
-
-                            <div className="flex items-center gap-1 whitespace-nowrap">
-                              <DollarSign className="w-4 h-4" />
-                              <span>From {formatMoney(item.priceUSD)}/nt</span>
-                            </div>
-                          </div>
-
-                          {/* Trust Metrics */}
-                          <div className="mb-4 text-xs space-y-2">
-                            <div className="flex items-center gap-1.5">
-                              <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                              <span className="text-muted-foreground truncate">
-                                {item.propertyManager}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => goToDetail(item)}
-                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
-                            >
-                              View Villa
-                            </button>
-
-                            <button
-                              onClick={() => toggleItem(item)}
-                              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
-                                isInCart(item.id)
-                                  ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
-                                  : "bg-background text-foreground border-border hover:bg-accent"
-                              }`}
-                            >
-                              {isInCart(item.id) ? "Remove from cart" : "Add to cart"}
-                            </button>
-
-                            <button
-                              onClick={() => openMessageModalFor(item)}
-                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
-                            >
-                              Message
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Pagination Controls */}
-              <PaginationControls />
-
-              {/* Loading indicator for infinite scroll */}
-              {loading && (offset > 0 || availabilitySession) && paginationMode === 'infinite' && (
-                <div className="mt-8">
-                  <ListingGridSkeleton count={4} />
-                </div>
-              )}
-
-              {/* Infinite scroll trigger */}
-              {paginationMode === 'infinite' && <div ref={observerTarget} className="h-10" />}
-
-              {/* No results */}
-              {!loading && items.length === 0 && !error && (
+                  {/* Pagination Controls */}
+                  <PaginationControls />
+                </>
+              ) : (
                 <div className="text-center py-20">
                   <div className="max-w-md mx-auto">
                     <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -989,7 +962,7 @@ export default function Properties() {
                     )}
                     {activeFiltersCount > 0 && user && (
                       <button 
-                        onClick={clearAllFilters} 
+                        onClick={handleClearAllFilters} 
                         className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
                       >
                         Clear all filters
@@ -998,27 +971,13 @@ export default function Properties() {
                   </div>
                 </div>
               )}
-
-              {/* End message que muestra "X of Y villas" */}
-              {!loading && items.length > 0 && !hasMore && paginationMode === 'infinite' && (
-                <div className="flex justify-center mt-8">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {items.length} of {total} villas
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </main>
 
-        {/* Cart Sidebar */}
         <CartSidebar />
-
-        {/* Cart Modal */}
         <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} />
 
-
-        {/* Villa Rank Info Button */}
         <button 
           onClick={openRankModal}
           className={`fixed bottom-6 z-40 px-4 py-2.5 bg-white border border-[#E5E5E5] rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-gray-700 hover:text-gray-900 animate-fade-in ${cartCount > 0 ? 'right-20' : 'right-20'}`}
@@ -1029,7 +988,6 @@ export default function Properties() {
           <span className="text-sm font-medium md:hidden">Villa Rank?</span>
         </button>
 
-        {/* Auth Modal */}
         {showAuthModal && (
           <AuthModal 
             onClose={closeAuthModal}
@@ -1037,7 +995,6 @@ export default function Properties() {
           />
         )}
 
-        {/* Modal de Villa Net Rank */}
         {showRankModal && (
           <VillaNetRankModal 
             isOpen={showRankModal}
@@ -1045,7 +1002,6 @@ export default function Properties() {
           />
         )}
 
-        {/* Message Modal */}
         {showMessageModal && messageListing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-neutral-200 p-6 relative">

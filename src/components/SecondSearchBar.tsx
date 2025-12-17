@@ -42,9 +42,9 @@ type PropertiesHeaderCompactProps = {
   location: string;
   sortBy: string;
   setSortBy: (sort: string) => void;
-
+  onApplyFilters?: () => void; // NUEVA PROP PARA APPLY
   query: string;
-  //setQuery: (value: string) => void; // Comentado como en el original
+  setQuery?: (value: string) => void; // Agregado para completitud
 
   destinations: string[];
   selectedDestination: string;
@@ -218,6 +218,7 @@ export default function PropertiesHeaderCompact({
   location,
   sortBy,
   setSortBy,
+  onApplyFilters,
   query,
   //setQuery,
   destinations,
@@ -243,12 +244,12 @@ export default function PropertiesHeaderCompact({
   const [showAllBadges, setShowAllBadges] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGuestSelector, setShowGuestSelector] = useState(false);
-  const [showBedroomsSelector, setShowBedroomsSelector] = useState(false); // NUEVO ESTADO
-  const [uiError, setUiError] = useState<string | null>(null); // NUEVO: Estado para errores de UI
+  const [showBedroomsSelector, setShowBedroomsSelector] = useState(false);
+  const [uiError, setUiError] = useState<string | null>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
   const guestSelectorRef = useRef<HTMLDivElement>(null);
-  const bedroomsSelectorRef = useRef<HTMLDivElement>(null); // NUEVO REF
+  const bedroomsSelectorRef = useRef<HTMLDivElement>(null);
 
   // Estado local para el modal mobile
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
@@ -256,7 +257,7 @@ export default function PropertiesHeaderCompact({
   const guestsLabel = guests && guests > 0 ? `${guests} Guests` : 'Guests';
   const datesLabel = formatDates(checkIn, checkOut);
   
-  // NUEVO: Label para bedrooms
+  // Label para bedrooms
   const bedroomsLabel = 
     bedrooms.length === 0 ? "Bedrooms" :
     bedrooms.includes("5+") ? "5+ Bedrooms" :
@@ -267,9 +268,9 @@ export default function PropertiesHeaderCompact({
     [destinations]
   );
 
-  // FIX CORREGIDO: Handler para selección de fechas usando hora local
+  // Handler para selección de fechas usando hora local
   const handleRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    setUiError(null); // Limpiar error al seleccionar nuevas fechas
+    setUiError(null);
     
     if (!range) {
       setCheckIn("");
@@ -310,7 +311,7 @@ export default function PropertiesHeaderCompact({
     }
   };
 
-  // NUEVO: Validar rango cuando cambia check-in y limpiar check-out si es inválido
+  // Validar rango cuando cambia check-in y limpiar check-out si es inválido
   useEffect(() => {
     if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
       setCheckOut("");
@@ -320,7 +321,7 @@ export default function PropertiesHeaderCompact({
     }
   }, [checkIn, checkOut, setCheckOut]);
 
-  // NUEVO: Función para validar antes de ejecutar búsqueda
+  // Función para validar antes de ejecutar búsqueda
   const validateBeforeSearch = (): boolean => {
     if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
       setUiError("Check-out must be after check-in");
@@ -328,6 +329,41 @@ export default function PropertiesHeaderCompact({
     }
     setUiError(null);
     return true;
+  };
+
+  // Función para aplicar filtros y cerrar date picker
+  const handleApplyDates = () => {
+    if (validateBeforeSearch()) {
+      setShowDatePicker(false);
+      onApplyFilters?.();
+    }
+  };
+
+  // Función para aplicar filtros y cerrar guest selector
+  const handleApplyGuests = () => {
+    setShowGuestSelector(false);
+    onApplyFilters?.();
+  };
+
+  // Función para aplicar filtros y cerrar bedrooms selector
+  const handleApplyBedrooms = () => {
+    setShowBedroomsSelector(false);
+    onApplyFilters?.();
+  };
+
+  // Función para aplicar todos los filtros en mobile
+  const handleApplyAllFilters = () => {
+    if (!validateBeforeSearch()) {
+      return;
+    }
+    
+    // Aplicar los cambios de guests al salir del modal
+    if (setGuests) {
+      setGuests(localGuestsForModal);
+    }
+    
+    setShowMobileFilters(false);
+    onApplyFilters?.();
   };
 
   // Detectar scroll para comprimir barra en desktop - con throttling y buffer
@@ -340,10 +376,8 @@ export default function PropertiesHeaderCompact({
 
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          // Aumentar el threshold a 100 y agregar buffer de 20px para evitar flickering
           const shouldCollapse = lastScrollY > 100;
           
-          // Solo actualizar si hay un cambio real
           if (shouldCollapse !== isCollapsed) {
             setIsCollapsed(shouldCollapse);
           }
@@ -353,7 +387,6 @@ export default function PropertiesHeaderCompact({
       }
     };
 
-    // Throttle manual para scroll
     const throttledScroll = () => {
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
@@ -382,7 +415,6 @@ export default function PropertiesHeaderCompact({
   // Cerrar date picker y guest selector al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Solo aplicamos click-outside cuando estamos en desktop (>= 768px)
       if (!window.matchMedia("(min-width: 768px)").matches) return;
 
       if (
@@ -430,7 +462,6 @@ export default function PropertiesHeaderCompact({
     const quick = sorted.filter((b) => b.is_quick);
     const rest = sorted.filter((b) => !b.is_quick);
 
-    // Para desktop: mostrar primeros 4-6 badges + botón "More"
     const desktopMaxVisible = 6;
     const allBadges = [...quick, ...rest];
     const visibleBadges = showAllBadges ? allBadges : allBadges.slice(0, desktopMaxVisible);
@@ -529,7 +560,6 @@ export default function PropertiesHeaderCompact({
       ref={datePickerRef}
       className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-4 w-auto"
     >
-      {/* Mostrar mensaje de error si existe */}
       {uiError && (
         <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-600">{uiError}</p>
@@ -572,11 +602,7 @@ export default function PropertiesHeaderCompact({
       />
       <div className="flex justify-end pt-3 border-t border-border mt-4">
         <button
-          onClick={() => {
-            if (validateBeforeSearch()) {
-              setShowDatePicker(false);
-            }
-          }}
+          onClick={handleApplyDates}
           className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!!uiError}
         >
@@ -625,11 +651,19 @@ export default function PropertiesHeaderCompact({
               : `${currentGuests} guests`
           }
         </p>
+        <div className="flex justify-end pt-3 border-t border-border mt-4">
+          <button
+            onClick={handleApplyGuests}
+            className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+          >
+            Apply Guests
+          </button>
+        </div>
       </div>
     );
   };
 
-  // NUEVO: Bedrooms Selector para desktop
+  // Bedrooms Selector para desktop
   const BedroomsSelectorDesktop = () => {
     const current = deriveInitialBedroomsCount(bedrooms);
     return (
@@ -671,6 +705,14 @@ export default function PropertiesHeaderCompact({
               +
             </button>
           </div>
+        </div>
+        <div className="flex justify-end pt-3 border-t border-border mt-4">
+          <button
+            onClick={handleApplyBedrooms}
+            className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+          >
+            Apply Bedrooms
+          </button>
         </div>
       </div>
     );
@@ -731,7 +773,7 @@ export default function PropertiesHeaderCompact({
 
               <span className="text-muted-foreground">•</span>
 
-              {/* NUEVO: BEDROOMS CLICKABLES → abre dropdown con selector */}
+              {/* BEDROOMS CLICKABLES → abre dropdown con selector */}
               <div className="relative">
                 <button
                   type="button"
@@ -753,7 +795,10 @@ export default function PropertiesHeaderCompact({
             <div className="flex items-center gap-2">
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  onApplyFilters?.(); // Aplicar inmediatamente cuando cambia sort
+                }}
                 className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="rank">Sort: Villa Rank (High → Low)</option>
@@ -782,7 +827,10 @@ export default function PropertiesHeaderCompact({
                   </p>
                   {hasActiveFilters && onClearAllFilters && (
                     <button
-                      onClick={onClearAllFilters}
+                      onClick={() => {
+                        onClearAllFilters?.();
+                        onApplyFilters?.(); // Aplicar después de limpiar
+                      }}
                       className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
                     >
                       Clear Filters
@@ -923,11 +971,7 @@ export default function PropertiesHeaderCompact({
                     </div>
                     <div className="bg-muted/30 border-t border-border p-4">
                       <button
-                        onClick={() => {
-                          if (validateBeforeSearch()) {
-                            setShowDatePicker(false);
-                          }
-                        }}
+                        onClick={handleApplyDates}
                         className="w-full px-4 py-2.5 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={!!uiError}
                       >
@@ -1000,7 +1044,7 @@ export default function PropertiesHeaderCompact({
                     </div>
                     <div className="bg-muted/30 border-t border-border p-4">
                       <button
-                        onClick={() => setShowGuestSelector(false)}
+                        onClick={handleApplyGuests}
                         className="w-full px-4 py-2.5 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
                       >
                         Apply Guests
@@ -1025,7 +1069,10 @@ export default function PropertiesHeaderCompact({
                 return (
                   <button
                     key={badge.id}
-                    onClick={() => onBadgeToggle(badge.id)}
+                    onClick={() => {
+                      onBadgeToggle(badge.id);
+                      onApplyFilters?.(); // Aplicar inmediatamente al toggle badge
+                    }}
                     className="flex-shrink-0 inline-flex items-center rounded-full bg-[hsl(0,0%,6.7%)] text-white px-2.5 py-1 text-xs gap-1.5 font-medium"
                   >
                     <Icon className="h-3 w-3" />
@@ -1212,6 +1259,7 @@ export default function PropertiesHeaderCompact({
                     onClearAllFilters?.();
                     setShowMobileFilters(false);
                     setUiError(null);
+                    onApplyFilters?.();
                   }}
                   className="flex-1 px-4 py-3 text-sm border border-input rounded-lg hover:bg-muted transition-colors font-medium"
                 >
@@ -1219,18 +1267,7 @@ export default function PropertiesHeaderCompact({
                 </button>
               )}
               <button
-                onClick={() => {
-                  // Validar antes de cerrar el modal
-                  if (!validateBeforeSearch()) {
-                    return; // No cerrar si hay error
-                  }
-                  
-                  // Aplicar los cambios de guests al salir del modal
-                  if (setGuests) {
-                    setGuests(localGuestsForModal);
-                  }
-                  setShowMobileFilters(false);
-                }}
+                onClick={handleApplyAllFilters}
                 className="flex-1 px-4 py-3 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!!uiError}
               >
