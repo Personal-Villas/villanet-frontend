@@ -18,6 +18,11 @@ import { TrustFramework } from './pages/TrustFramework';
 import { TermsOfService } from './pages/TermsOfService';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { CartProvider } from './context/CartContext';
+import EarlyAccess from './pages/EarlyAccess';
+import { ToastProvider } from '@radix-ui/react-toast';
+
+
+
 
 // ✅ Componente interno que usa el hook useAuth
 function AppRoutes() {
@@ -53,7 +58,7 @@ function AppRoutes() {
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />
       <Route path="/pending" element={<Pending auth={auth} />} />
-
+      <Route path="/early-access" element={<EarlyAccess />} />
       {/* ✅ Properties - PÚBLICO (cualquiera puede ver el listado) */}
       <Route path="/properties" element={<Properties />} />
 
@@ -107,6 +112,7 @@ function AppRoutes() {
 
 export default function App() {
   return (
+    <ToastProvider>
     <AuthProvider> 
       <CartProvider>
       <BrowserRouter>
@@ -114,5 +120,6 @@ export default function App() {
       </BrowserRouter>
       </CartProvider>
     </AuthProvider>
+    </ToastProvider>
   );
 }
