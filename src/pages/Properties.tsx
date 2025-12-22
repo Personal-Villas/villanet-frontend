@@ -62,6 +62,15 @@ type ListingsResponse = {
   availabilitySession?: string;
   currentPage?: number;
   totalPages?: number;
+  // Nuevos campos para paginación con availability
+  cursor?: number;
+  nextCursor?: number;
+  requested?: number;
+  returned?: number;
+  partial?: boolean;
+  exhausted?: boolean;
+  totalScanned?: number;
+  totalAvailable?: number;
 };
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -103,7 +112,7 @@ const DESTINATIONS = [
 ];
 
 const Info = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <svg xmlns="http://www.w3.org/2000/src" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="10"></circle>
     <path d="M12 16v-4"></path>
     <path d="M12 8h.01"></path>
@@ -164,7 +173,7 @@ export default function Properties() {
   const debouncedQuery = useDebounce(filters.query, 600);
   const [badges, setBadges] = useState<CrudBadge[]>([]);
   
-  //const hasAvailabilityFilter = Boolean(appliedFilters.checkIn && appliedFilters.checkOut);
+  const hasAvailabilityFilter = Boolean(appliedFilters.checkIn && appliedFilters.checkOut);
 
   const { 
     isInCart, 
@@ -273,6 +282,8 @@ export default function Properties() {
 
   const handleApplyFilters = useCallback(() => {
     setAppliedFilters(filters);
+    // Resetear paginación cuando se aplican nuevos filtros
+    setCurrentPage(1);
   }, [filters]);
 
   const handleClearAllFilters = useCallback(() => {
@@ -342,6 +353,10 @@ export default function Properties() {
     
     if (badgeParam) {
       setFilters(prev => ({
+        ...prev,
+        selectedBadges: [badgeParam]
+      }));
+      setAppliedFilters(prev => ({
         ...prev,
         selectedBadges: [badgeParam]
       }));
@@ -417,6 +432,9 @@ export default function Properties() {
 
     (async () => {
       console.log(`🚀 Fetching page ${currentPage}...`);
+      console.log(`📅 Availability filter: ${hasAvailabilityFilter}`);
+      console.log(`🔑 Session to use: ${sessionToUse}`);
+      
       setLoading(true);
       setError(null);
       
@@ -436,20 +454,28 @@ export default function Properties() {
         }
         
         qs.set('limit', String(ITEMS_PER_PAGE));
-        qs.set('page', String(currentPage));
         
-        // ✅ Availability: incluir session solo si existe Y estamos en página > 1
-        if (appliedFilters.checkIn && appliedFilters.checkOut) {
-          qs.set('checkIn', appliedFilters.checkIn);
-          qs.set('checkOut', appliedFilters.checkOut);
+        // ✅ CORRECCIÓN CRÍTICA: Usar cursor solo en modo availability
+        if (hasAvailabilityFilter) {
+          // En modo availability, calcular el cursor basado en la página actual
+          const cursor = (currentPage - 1) * ITEMS_PER_PAGE;
+          qs.set('cursor', String(cursor));
           
-          if (sessionToUse && currentPage > 1) {
+          if (appliedFilters.checkIn) qs.set('checkIn', appliedFilters.checkIn);
+          if (appliedFilters.checkOut) qs.set('checkOut', appliedFilters.checkOut);
+          
+          if (sessionToUse) {
             qs.set('availabilitySession', sessionToUse);
           }
+        } else {
+          // Modo normal: usar page param
+          qs.set('page', String(currentPage));
         }
 
         const endpoint = user ? '/listings' : '/public/listings';
         const apiToUse = user ? api : publicApi;
+        
+        console.log(`📡 Fetching from: ${endpoint}?${qs.toString()}`);
         
         const data = await apiToUse<ListingsResponse>(`${endpoint}?${qs.toString()}`, { 
           signal: controller.signal 
@@ -492,17 +518,35 @@ export default function Properties() {
           });
 
           setItems(normalized);
-          setTotal(data.total);
-          setTotalPages(data.totalPages || Math.ceil(data.total / ITEMS_PER_PAGE));
           
-          // ✅ Guardar session solo si es página 1 Y tiene availability Y no teníamos session antes
-          if (data.availabilitySession && currentPage === 1 && !sessionToUse) {
-            setAvailabilitySession(data.availabilitySession);
+          // ✅ CORRECCIÓN: Manejar diferente paginación según el modo
+          if (hasAvailabilityFilter && data.availabilityApplied) {
+            // Modo availability: usar lógica basada en cursor
+            if (data.totalAvailable !== undefined) {
+              setTotal(data.totalAvailable);
+              const calculatedPages = Math.ceil(data.totalAvailable / ITEMS_PER_PAGE);
+              setTotalPages(calculatedPages || 1);
+            } else {
+              // Estimación basada en returned y exhausted
+              const hasMoreData = !data.exhausted || (data.returned === ITEMS_PER_PAGE);
+              setTotalPages(currentPage + (hasMoreData ? 1 : 0));
+              setTotal(data.returned || normalized.length);
+            }
+            
+            // Guardar session
+            if (data.availabilitySession && !sessionToUse) {
+              setAvailabilitySession(data.availabilitySession);
+            }
+          } else {
+            // Modo normal
+            setTotal(data.total || 0);
+            setTotalPages(data.totalPages || Math.ceil((data.total || 0) / ITEMS_PER_PAGE));
           }
           
           setRetryCount(0);
           
-          console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items, ${data.totalPages} total pages`);
+          console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items, ${totalPages} total pages`);
+          console.log(`📊 Availability mode: ${hasAvailabilityFilter}, session: ${data.availabilitySession?.slice(0, 12)}...`);
         }
       } catch (err: any) {
         if (!controller.signal.aborted) {
@@ -512,30 +556,31 @@ export default function Properties() {
             setTotal(0);
             setTotalPages(1);
           } else {
+            const errorMsg = err.message || 'Unknown error';
             setError(
-              err.message?.includes('429') || err.message?.includes('503')
+              errorMsg.includes('429') || errorMsg.includes('503')
                 ? 'Too many requests. Waiting 60 seconds...'
-                : err.message?.includes('401')
+                : errorMsg.includes('401')
                 ? 'Session expired. Please log in.'
-                : err.message?.includes('expired')
+                : errorMsg.includes('expired') || errorMsg.includes('filters changed')
                 ? 'Search session expired. Please refresh your search.'
                 : 'Server error. Please try again.'
             );
             
-            if (err.message?.includes('429') || err.message?.includes('503')) {
+            if (errorMsg.includes('429') || errorMsg.includes('503')) {
               setTimeout(() => {
                 setError(null);
                 setRetryCount(prev => prev + 1);
               }, 60000);
             }
             
-            if (err.message?.includes('expired')) {
+            if (errorMsg.includes('expired') || errorMsg.includes('filters changed')) {
               // Resetear availability session
               setAvailabilitySession(null);
               setCurrentPage(1);
             }
             
-            if (!err.message?.includes('429') && !err.message?.includes('503') && !err.message?.includes('401')) {
+            if (!errorMsg.includes('429') && !errorMsg.includes('503') && !errorMsg.includes('401')) {
               setRetryCount(prev => prev + 1);
             }
           }
@@ -552,7 +597,7 @@ export default function Properties() {
     appliedFilters,
     currentPage,
     retryCount,
-    // ❌ NO incluir availabilitySession aquí - causa loop infinito
+    hasAvailabilityFilter, // Agregado para detectar cambios en availability
   ]);
 
   const handlePrevImage = useCallback((e: React.MouseEvent, listingId: string, totalImages: number) => {
@@ -604,6 +649,11 @@ export default function Properties() {
       }
     };
     
+    // Si estamos en modo availability y no sabemos el total de páginas exacto
+    const showNextButton = hasAvailabilityFilter 
+      ? items.length === ITEMS_PER_PAGE || currentPage < totalPages
+      : currentPage < totalPages;
+    
     return (
       <div className="flex justify-center items-center gap-4 py-8">
         <button
@@ -616,12 +666,13 @@ export default function Properties() {
         </button>
         
         <span className="text-sm text-neutral-600">
-          Page {currentPage} of {totalPages}
+          Page {currentPage} {hasAvailabilityFilter && totalPages > 100 ? '' : `of ${totalPages}`}
+          {hasAvailabilityFilter && totalPages > 100 && ' (availability mode)'}
         </span>
         
         <button
           onClick={handleNext}
-          disabled={currentPage >= totalPages}
+          disabled={!showNextButton}
           className="px-6 py-3 border border-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors font-medium text-neutral-700 flex items-center gap-2"
         >
           Next
@@ -733,247 +784,262 @@ export default function Properties() {
           onApplyFilters={handleApplyFilters}
         />
 
-        <main className="pt-16">
-          {loading ? (
-            <div className="container mx-auto px-6 py-8">
-              <ListingGridSkeleton count={12} />
+<main className="pt-16">
+  <div className="container mx-auto px-6 py-8 min-h-[60vh]">
+    {error ? (
+      <div className="py-20">
+        <div className="max-w-md mx-auto text-center">
+          <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <X className="w-10 h-10 text-red-600" />
+          </div>
+
+          <h3 className="text-2xl font-bold text-neutral-900 mb-3">
+            {error.includes('expired') ? 'Search expired' : 'Something went wrong'}
+          </h3>
+
+          <p className="text-neutral-500 mb-6">{error}</p>
+
+          <button
+            onClick={() => {
+              setError(null);
+              setCurrentPage(1);
+              setAvailabilitySession(null);
+              setRetryCount((prev) => prev + 1);
+            }}
+            className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    ) : items.length === 0 && loading ? (
+      // ✅ Solo mostramos skeleton en el primer load (cuando aún no hay items)
+      <ListingGridSkeleton count={12} />
+    ) : items.length > 0 ? (
+      <>
+        {/* ✅ Overlay loader: NO cambia el layout, evita el “salto” */}
+        {loading && (
+          <div className="sticky top-16 z-10 mb-4">
+            <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center gap-2 shadow-sm">
+              <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
+              Loading results…
             </div>
-          ) : error ? (
-            <div className="container mx-auto px-6 py-20">
-              <div className="max-w-md mx-auto text-center">
-                <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  <X className="w-10 h-10 text-red-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-neutral-900 mb-3">
-                  {error.includes('expired') ? 'Search expired' : 'Something went wrong'}
-                </h3>
-                <p className="text-neutral-500 mb-6">{error}</p>
-                <button 
-                  onClick={() => {
-                    setError(null);
-                    setCurrentPage(1);
-                    setAvailabilitySession(null);
-                    setRetryCount(prev => prev + 1);
-                  }}
-                  className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+          </div>
+        )}
+
+        {/* Opcional: atenuar mientras carga */}
+        <div className={loading ? 'opacity-60 pointer-events-none' : ''}>
+        <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+        {items.map((item, idx) => {
+              const images =
+                item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
+              const currentIndex = imageIndices[item.id] || 0;
+
+              const displayLocation =
+                item.villaNetDestinationTag ||
+                item.villaNetCity ||
+                item.location ||
+                'Location not specified';
+
+              return (
+                <div
+                  key={`${item.id}-${idx}`}
+                  className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
                 >
-                  Try Again
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="container mx-auto px-6 py-8">
-              {items.length > 0 ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {items.map((item, idx) => {
-                      const images = item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
-                      const currentIndex = imageIndices[item.id] || 0;
-                      
-                      const displayLocation =
-                        item.villaNetDestinationTag ||
-                        item.villaNetCity ||
-                        item.location ||
-                        'Location not specified';
-                      
-                      return (
+                  {/* Image Carousel */}
+                  <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                    <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
+                      <div className="relative w-full h-full overflow-hidden">
                         <div
-                          key={`${item.id}-${idx}`}
-                          className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
+                          className="flex h-full transition-transform duration-300 ease-out"
+                          style={{ transform: `translateX(${-currentIndex * 100}%)` }}
                         >
-                          {/* Image Carousel */}
-                          <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                            <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
-                              <div className="relative w-full h-full overflow-hidden">
-                                <div 
-                                  className="flex h-full transition-transform duration-300 ease-out" 
-                                  style={{ transform: `translateX(${-currentIndex * 100}%)` }}
-                                >
-                                  {images.map((image, imgIdx) => (
-                                    <div
-                                      key={imgIdx}
-                                      role="group"
-                                      aria-roledescription="slide"
-                                      className="w-full h-full flex-shrink-0"
-                                      style={{ minWidth: '100%' }}
-                                    >
-                                      <img
-                                        src={image}
-                                        alt={`${item.name} - Image ${imgIdx + 1}`}
-                                        className="w-full h-full object-cover"
-                                        loading={imgIdx === 0 ? 'eager' : 'lazy'}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              
-                              {/* Navigation Arrows */}
-                              <button
-                                disabled={currentIndex === 0}
-                                onClick={(e) => handlePrevImage(e, item.id, images.length)}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                aria-label="Previous image"
-                              >
-                                <ChevronLeft className="w-4 h-4 text-foreground" />
-                              </button>
-
-                              <button
-                                onClick={(e) => handleNextImage(e, item.id, images.length)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                aria-label="Next image"
-                              >
-                                <ChevronRight className="w-4 h-4 text-foreground" />
-                              </button>
-                              
-                              {/* Image Counter */}
-                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
-                                {currentIndex + 1} / {images.length}
-                              </div>
-                            </div>
-                            
-                            {/* Top Badges */}
-                            <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
-                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                                <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
-                                <span className="text-xs font-medium text-foreground">Verified 2025</span>
-                              </div>
-                              
-                              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                                <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                                <span className="text-xs font-semibold text-foreground">
-                                  {formatRank(item.rank)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Property Info */}
-                          <div className="p-4">
-                            <a 
-                              className="block mb-2 group/link" 
-                              href={`/property/${item.id}`}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                goToDetail(item);
-                              }}
+                          {images.map((image, imgIdx) => (
+                            <div
+                              key={imgIdx}
+                              role="group"
+                              aria-roledescription="slide"
+                              className="w-full h-full flex-shrink-0"
+                              style={{ minWidth: '100%' }}
                             >
-                              <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
-                                {item.name}
-                              </h3>
-                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                <MapPin className="w-3.5 h-3.5" />
-                                <span>{displayLocation}</span>
-                              </div>
-                            </a>
-                            
-                            {/* Basic Info */}
-                            <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
-                              <div className="flex items-center gap-1 whitespace-nowrap">
-                                <Bed className="w-4 h-4" />
-                                <span>{item.bedrooms ?? '—'} BR</span>
-                              </div>
-
-                              <span className="hidden md:inline">•</span>
-
-                              <div className="flex items-center gap-1 whitespace-nowrap">
-                                <Bath className="w-4 h-4" />
-                                <span>{item.bathrooms ?? '—'} BA</span>
-                              </div>
-
-                              <span className="hidden md:inline">•</span>
-
-                              <div className="flex items-center gap-1 whitespace-nowrap">
-                                <DollarSign className="w-4 h-4" />
-                                <span>From {formatMoney(item.priceUSD)}/nt</span>
-                              </div>
+                              <img
+                                src={image}
+                                alt={`${item.name} - Image ${imgIdx + 1}`}
+                                className="w-full h-full object-cover"
+                                loading={imgIdx === 0 ? 'eager' : 'lazy'}
+                              />
                             </div>
-
-                            {/* Trust Metrics */}
-                            <div className="mb-4 text-xs space-y-2">
-                              <div className="flex items-center gap-1.5">
-                                <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                                <span className="text-muted-foreground truncate">
-                                  {item.propertyManager}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => goToDetail(item)}
-                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
-                              >
-                                View Villa
-                              </button>
-
-                              <button
-                                onClick={() => toggleItem(item)}
-                                className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
-                                  isInCart(item.id)
-                                    ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
-                                    : "bg-background text-foreground border-border hover:bg-accent"
-                                }`}
-                              >
-                                {isInCart(item.id) ? "Remove from cart" : "Add to cart"}
-                              </button>
-
-                              <button
-                                onClick={() => openMessageModalFor(item)}
-                                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
-                              >
-                                Message
-                              </button>
-                            </div>
-                          </div>
+                          ))}
                         </div>
-                      );
-                    })}
+                      </div>
+
+                      {/* Navigation Arrows */}
+                      <button
+                        disabled={currentIndex === 0}
+                        onClick={(e) => handlePrevImage(e, item.id, images.length)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        aria-label="Previous image"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-foreground" />
+                      </button>
+
+                      <button
+                        onClick={(e) => handleNextImage(e, item.id, images.length)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        aria-label="Next image"
+                      >
+                        <ChevronRight className="w-4 h-4 text-foreground" />
+                      </button>
+
+                      {/* Image Counter */}
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
+                        {currentIndex + 1} / {images.length}
+                      </div>
+                    </div>
+
+                    {/* Top Badges */}
+                    <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                        <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
+                        <span className="text-xs font-medium text-foreground">Verified 2025</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                        <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
+                        <span className="text-xs font-semibold text-foreground">
+                          {formatRank(item.rank)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Pagination Controls */}
-                  <PaginationControls />
-                </>
-              ) : (
-                <div className="text-center py-20">
-                  <div className="max-w-md mx-auto">
-                    <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                      <Search className="w-10 h-10 text-neutral-400" />
+                  {/* Property Info */}
+                  <div className="p-4">
+                    <a
+                      className="block mb-2 group/link"
+                      href={`/property/${item.id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        goToDetail(item);
+                      }}
+                    >
+                      <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
+                        {item.name}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>{displayLocation}</span>
+                      </div>
+                    </a>
+
+                    {/* Basic Info */}
+                    <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
+                      <div className="flex items-center gap-1 whitespace-nowrap">
+                        <Bed className="w-4 h-4" />
+                        <span>{item.bedrooms ?? '—'} BR</span>
+                      </div>
+
+                      <span className="hidden md:inline">•</span>
+
+                      <div className="flex items-center gap-1 whitespace-nowrap">
+                        <Bath className="w-4 h-4" />
+                        <span>{item.bathrooms ?? '—'} BA</span>
+                      </div>
+
+                      <span className="hidden md:inline">•</span>
+
+                      <div className="flex items-center gap-1 whitespace-nowrap">
+                        <DollarSign className="w-4 h-4" />
+                        <span>From {formatMoney(item.priceUSD)}/nt</span>
+                      </div>
                     </div>
-                    <h3 className="text-2xl font-bold text-neutral-900 mb-3">
-                      {user ? 'No properties found' : 'Explore Amazing Properties'}
-                    </h3>
-                    <p className="text-neutral-500 mb-6">
-                      {!user 
-                        ? 'Sign in to view all property details and book your stay'
-                        : debouncedQuery || activeFiltersCount > 0 
-                          ? "Try adjusting your search criteria or filters" 
-                          : "No properties available at the moment"
-                      }
-                    </p>
-                    {!user && (
-                      <button 
-                        onClick={openAuthModal} 
-                        className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+
+                    {/* Trust Metrics */}
+                    <div className="mb-4 text-xs space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                        <span className="text-muted-foreground truncate">{item.propertyManager}</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => goToDetail(item)}
+                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
                       >
-                        Sign In to View Properties
+                        View Villa
                       </button>
-                    )}
-                    {activeFiltersCount > 0 && user && (
-                      <button 
-                        onClick={handleClearAllFilters} 
-                        className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+
+                      <button
+                        onClick={() => toggleItem(item)}
+                        className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
+                          isInCart(item.id)
+                            ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                            : 'bg-background text-foreground border-border hover:bg-accent'
+                        }`}
                       >
-                        Clear all filters
+                        {isInCart(item.id) ? 'Remove from cart' : 'Add to cart'}
                       </button>
-                    )}
+
+                      <button
+                        onClick={() => openMessageModalFor(item)}
+                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
+                      >
+                        Message
+                      </button>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
+          </div>
+
+          <PaginationControls />
+        </div>
+      </>
+    ) : (
+      // Empty state (igual al tuyo)
+      <div className="text-center py-20">
+        <div className="max-w-md mx-auto">
+          <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Search className="w-10 h-10 text-neutral-400" />
+          </div>
+          <h3 className="text-2xl font-bold text-neutral-900 mb-3">
+            {user ? 'No properties found' : 'Explore Amazing Properties'}
+          </h3>
+          <p className="text-neutral-500 mb-6">
+            {!user
+              ? 'Sign in to view all property details and book your stay'
+              : debouncedQuery || activeFiltersCount > 0
+                ? 'Try adjusting your search criteria or filters'
+                : 'No properties available at the moment'}
+          </p>
+
+          {!user && (
+            <button
+              onClick={openAuthModal}
+              className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+            >
+              Sign In to View Properties
+            </button>
           )}
-        </main>
+
+          {activeFiltersCount > 0 && user && (
+            <button
+              onClick={handleClearAllFilters}
+              className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+</main>
+
 
         <CartSidebar />
         <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} />

@@ -720,184 +720,175 @@ export default function PropertiesHeaderCompact({
 
   return (
     <>
-      {/* DESKTOP VERSION */}
-      <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border transition-all duration-300 ease-in-out">
-        <div
-          className={`container mx-auto px-6 space-y-4 transition-all ${
-            isCollapsed ? "py-2" : "py-4"
-          }`}
+ {/* DESKTOP */}
+ <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
+  {/* Barra compacta (SIEMPRE visible, sin saltos) */}
+  <div className="h-[72px]">
+    <div className="container mx-auto px-6 h-full flex items-center justify-between">
+      {/* IZQ: titulo + fechas + guests + bedrooms */}
+      <div className="flex items-center gap-2 text-sm flex-wrap">
+        <h1 className="text-xl font-semibold text-foreground">
+          {itemsCount} Villas in {location}
+        </h1>
+        <span className="text-muted-foreground">•</span>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setShowDatePicker(!showDatePicker);
+              setShowGuestSelector(false);
+              setShowBedroomsSelector(false);
+            }}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Calendar className="w-4 h-4" />
+            <span>{datesLabel}</span>
+          </button>
+          {showDatePicker && <DatePickerDesktop />}
+        </div>
+
+        <span className="text-muted-foreground">•</span>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setShowGuestSelector(!showGuestSelector);
+              setShowDatePicker(false);
+              setShowBedroomsSelector(false);
+            }}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Users className="w-4 h-4" />
+            <span>{guestsLabel}</span>
+          </button>
+          {showGuestSelector && <GuestSelectorDesktop />}
+        </div>
+
+        <span className="text-muted-foreground">•</span>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setShowBedroomsSelector(!showBedroomsSelector);
+              setShowGuestSelector(false);
+              setShowDatePicker(false);
+            }}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Hotel className="w-4 h-4" />
+            <span>{bedroomsLabel}</span>
+          </button>
+          {showBedroomsSelector && <BedroomsSelectorDesktop />}
+        </div>
+      </div>
+
+      {/* DER: sort + cart */}
+      <div className="flex items-center gap-2">
+        <select
+          value={sortBy}
+          onChange={(e) => {
+            setSortBy(e.target.value);
+            onApplyFilters?.();
+          }}
+          className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          {/* Primera fila: Título + Info + Sort + Cart */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm flex-wrap">
-              <h1 className="text-xl font-semibold text-foreground">
-                {itemsCount} Villas in {location}
-              </h1>
-              <span className="text-muted-foreground">•</span>
+          <option value="rank">Sort: Villa Rank (High → Low)</option>
+          <option value="price_low">Price (Low → High)</option>
+          <option value="price_high">Price (High → Low)</option>
+          <option value="bedrooms">Bedrooms (Most → Least)</option>
+        </select>
 
-              {/* FECHAS CLICKABLES → abre dropdown con calendario */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDatePicker(!showDatePicker);
-                    setShowGuestSelector(false);
-                    setShowBedroomsSelector(false);
-                  }}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span>{datesLabel}</span>
-                </button>
-                {showDatePicker && <DatePickerDesktop />}
-              </div>
+        <CartButton
+          count={cartCount}
+          onClick={onCartClick}
+          variant="default"
+          showLabel={true}
+        />
+      </div>
+    </div>
+  </div>
 
-              <span className="text-muted-foreground">•</span>
+  {/* Panel grande (NO ocupa layout, aparece debajo como overlay) */}
+  <div
+    className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm ${
+      isCollapsed ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
+    } transition-opacity duration-200`}
+  >
+    <div className="container mx-auto px-6 py-4 space-y-4">
+      {/* Include location(s) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Include location(s) for your search
+          </p>
 
-              {/* GUESTS CLICKABLES → abre dropdown con selector */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowGuestSelector(!showGuestSelector);
-                    setShowDatePicker(false);
-                    setShowBedroomsSelector(false);
-                  }}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Users className="w-4 h-4" />
-                  <span>{guestsLabel}</span>
-                </button>
-                {showGuestSelector && <GuestSelectorDesktop />}
-              </div>
+          {hasActiveFilters && onClearAllFilters && (
+            <button
+              onClick={() => {
+                onClearAllFilters?.();
+                onApplyFilters?.();
+              }}
+              className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
 
-              <span className="text-muted-foreground">•</span>
-
-              {/* BEDROOMS CLICKABLES → abre dropdown con selector */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowBedroomsSelector(!showBedroomsSelector);
-                    setShowGuestSelector(false);
-                    setShowDatePicker(false);
-                  }}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Hotel className="w-4 h-4" />
-                  <span>{bedroomsLabel}</span>
-                </button>
-
-                {showBedroomsSelector && <BedroomsSelectorDesktop />}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                  onApplyFilters?.(); // Aplicar inmediatamente cuando cambia sort
-                }}
-                className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="rank">Sort: Villa Rank (High → Low)</option>
-                <option value="price_low">Price (Low → High)</option>
-                <option value="price_high">Price (High → Low)</option>
-                <option value="bedrooms">Bedrooms (Most → Least)</option>
-              </select>
-
-              <CartButton
-                count={cartCount}
-                onClick={onCartClick}
-                variant="default"
-                showLabel={true}
-              />
+        {caribbean.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground font-medium">Caribbean</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {caribbean.map(renderDestinationButton)}
             </div>
           </div>
+        )}
 
-          {/* Bloque grande de filtros solo cuando NO está colapsado */}
-          {!isCollapsed && (
-            <>
-              {/* Segunda fila: Include location(s) for your search */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Include location(s) for your search
-                  </p>
-                  {hasActiveFilters && onClearAllFilters && (
-                    <button
-                      onClick={() => {
-                        onClearAllFilters?.();
-                        onApplyFilters?.(); // Aplicar después de limpiar
-                      }}
-                      className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
-                    >
-                      Clear Filters
-                    </button>
-                  )}
-                </div>
+        {mexico.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground font-medium">Mexico</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              {mexico.map(renderDestinationButton)}
+            </div>
+          </div>
+        )}
+      </div>
 
-                {/* Caribbean */}
-                {caribbean.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-muted-foreground font-medium">
-                      Caribbean
-                    </p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {caribbean.map(renderDestinationButton)}
-                    </div>
-                  </div>
-                )}
+      {/* Popular filters */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Popular filters
+        </p>
 
-                {/* Mexico */}
-                {mexico.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-muted-foreground font-medium">
-                      Mexico
-                    </p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {mexico.map(renderDestinationButton)}
-                    </div>
-                  </div>
-                )}
-              </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {visibleBadges.map(renderBadge)}
 
-              {/* Tercera fila: Popular filters */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Popular filters
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  {visibleBadges.map(renderBadge)}
-                  
-                  {hiddenBadgesCount > 0 && (
-                    <button
-                      onClick={() => setShowAllBadges(!showAllBadges)}
-                      className="inline-flex items-center rounded-full font-medium transition-all duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-3 py-1 text-xs gap-1 border-2 border-[hsl(0,0%,82%)] hover:border-[hsl(0,0%,64%)] bg-background text-foreground"
-                    >
-                      {showAllBadges ? (
-                        <>
-                          <ChevronUp className="h-3 w-3" />
-                          <span>Show Less</span>
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="h-3 w-3" />
-                          <span>More ({hiddenBadgesCount})</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </>
+          {hiddenBadgesCount > 0 && (
+            <button
+              onClick={() => setShowAllBadges(!showAllBadges)}
+              className="inline-flex items-center rounded-full font-medium transition-all duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-3 py-1 text-xs gap-1 border-2 border-[hsl(0,0%,82%)] hover:border-[hsl(0,0%,64%)] bg-background text-foreground"
+            >
+              {showAllBadges ? (
+                <>
+                  <ChevronUp className="h-3 w-3" />
+                  <span>Show Less</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-3 w-3" />
+                  <span>More ({hiddenBadgesCount})</span>
+                </>
+              )}
+            </button>
           )}
         </div>
       </div>
+    </div>
+  </div>
+</div>
 
       {/* MOBILE VERSION */}
       <div className="md:hidden sticky top-16 z-40 bg-background border-b border-border">
