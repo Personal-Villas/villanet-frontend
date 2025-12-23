@@ -135,7 +135,6 @@ const CARIBBEAN_DESTINATIONS = [
   "Barbados",
   "Jamaica",
   "British Virgin Islands",
-  "US Virgin Islands",
   "Casa de Campo",
   "Punta Cana",
 ];

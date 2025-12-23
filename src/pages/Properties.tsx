@@ -149,10 +149,17 @@ export default function Properties() {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
+  // 🔥 NUEVO: Estado para cursor de availability
+  const [availabilityCursor, setAvailabilityCursor] = useState(0);
+  
   // Estado para availability session
   const [availabilitySession, setAvailabilitySession] = useState<string | null>(null);
   
-  // 🔥 FIX: useRef para rastrear session de forma estable (no dispara re-renders)
+  // 🔥 NUEVO: Estado para auto-fetch incremental
+  const [autoFillTick, setAutoFillTick] = useState(0);
+  const [page1Filled, setPage1Filled] = useState(false);
+  const [autoFillDone, setAutoFillDone] = useState(false);
+  // Ref para rastrear session de forma estable (no dispara re-renders)
   const availabilitySessionRef = useRef<string | null>(null);
   
   // Sincronizar ref con state
@@ -282,8 +289,14 @@ export default function Properties() {
 
   const handleApplyFilters = useCallback(() => {
     setAppliedFilters(filters);
-    // Resetear paginación cuando se aplican nuevos filtros
     setCurrentPage(1);
+    setAvailabilityCursor(0);
+    setItems([]);
+    setAvailabilitySession(null);
+  
+    // ✅ reset autofill
+    setPage1Filled(false);
+    setAutoFillDone(false);
   }, [filters]);
 
   const handleClearAllFilters = useCallback(() => {
@@ -304,7 +317,12 @@ export default function Properties() {
     setAppliedFilters(resetFilters);
     setCurrentPage(1);
     setError(null);
+    // 🔥 IMPORTANTE: Resetear todo cuando se limpian filtros
+    setAvailabilityCursor(0);
+    setItems([]);
     setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
   }, []);
 
   const handleBadgeToggle = useCallback((badgeId: string) => {
@@ -406,7 +424,12 @@ export default function Properties() {
     console.log('🔄 Filters changed, resetting to page 1');
     setCurrentPage(1);
     setError(null);
+    // 🔥 IMPORTANTE: Resetear cursor cuando cambian filtros
+    setAvailabilityCursor(0);
+    setItems([]);
     setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
   }, [
     appliedFilters.query,
     appliedFilters.selectedDestination, 
@@ -421,19 +444,61 @@ export default function Properties() {
     appliedFilters.guests,
   ]);
 
+// 🔥 Autofill: solo para completar la page 1 hasta 12 y cortar
+useEffect(() => {
+  if (!hasAvailabilityFilter) return;
+  if (loading) return;
+
+  // ✅ SOLO page 1
+  if (currentPage !== 1) return;
+
+  // ✅ si ya se completó, nunca más
+  if (page1Filled || autoFillDone) return;
+
+  // ✅ si ya tenemos 12, cortar y marcar
+  if (items.length >= ITEMS_PER_PAGE) {
+    setPage1Filled(true);
+    setAutoFillDone(true);
+    return;
+  }
+
+  // ✅ esperar a tener session del primer fetch
+  if (!availabilitySessionRef.current) return;
+
+  // ✅ si hubo error, no insistir
+  if (error) return;
+
+  const t = setTimeout(() => {
+    setAutoFillTick(x => x + 1);
+  }, 350);
+
+  return () => clearTimeout(t);
+}, [
+  hasAvailabilityFilter,
+  loading,
+  items.length,
+  error,
+  currentPage,
+  page1Filled,
+  autoFillDone,
+]);
+
+
+
   // ✅ Fetch principal - se ejecuta cuando cambian filtros O página
   useEffect(() => {
     if (authLoading) return;
 
     const controller = new AbortController();
     
-    // 🔥 FIX: Usar ref en vez del state directamente
+    // 🔥 Usar ref en vez del state directamente
     const sessionToUse = availabilitySessionRef.current;
 
     (async () => {
       console.log(`🚀 Fetching page ${currentPage}...`);
       console.log(`📅 Availability filter: ${hasAvailabilityFilter}`);
       console.log(`🔑 Session to use: ${sessionToUse}`);
+      console.log(`🎯 Cursor actual: ${availabilityCursor}`);
       
       setLoading(true);
       setError(null);
@@ -455,11 +520,19 @@ export default function Properties() {
         
         qs.set('limit', String(ITEMS_PER_PAGE));
         
-        // ✅ CORRECCIÓN CRÍTICA: Usar cursor solo en modo availability
+        // 🔥 CORRECCIÓN IMPORTANTE: Usar cursor real en modo availability
         if (hasAvailabilityFilter) {
-          // En modo availability, calcular el cursor basado en la página actual
-          const cursor = (currentPage - 1) * ITEMS_PER_PAGE;
-          qs.set('cursor', String(cursor));
+          // Usar el cursor real (no calcular basado en página)
+          const pageCursor = (currentPage - 1) * ITEMS_PER_PAGE;
+
+          // ✅ si estamos rellenando página 1 con autofill, usamos availabilityCursor real
+          const cursorToUse =
+            hasAvailabilityFilter && currentPage === 1 && availabilityCursor > 0
+              ? availabilityCursor
+              : pageCursor;
+          
+          qs.set('cursor', String(cursorToUse));
+          
           
           if (appliedFilters.checkIn) qs.set('checkIn', appliedFilters.checkIn);
           if (appliedFilters.checkOut) qs.set('checkOut', appliedFilters.checkOut);
@@ -517,7 +590,35 @@ export default function Properties() {
             };
           });
 
-          setItems(normalized);
+          const pageCursor = (currentPage - 1) * ITEMS_PER_PAGE;
+
+          const cursorToUse =
+            hasAvailabilityFilter && currentPage === 1 && availabilityCursor > 0
+              ? availabilityCursor
+              : pageCursor;
+          
+          // estamos trayendo "chunks extra" solo para completar page 1
+          const isAutoFillChunk =
+            hasAvailabilityFilter &&
+            currentPage === 1 &&
+            cursorToUse > 0;
+          
+          setItems(prev => {
+            if (!isAutoFillChunk) return normalized;
+          
+            // ✅ append pero CAP a 12
+            const merged = [...prev, ...normalized];
+            const capped = merged.slice(0, ITEMS_PER_PAGE);
+          
+            // ✅ cuando llegó a 12, marcamos y frenamos autofill
+            if (capped.length >= ITEMS_PER_PAGE) {
+              setPage1Filled(true);
+              setAutoFillDone(true);
+            }
+          
+            return capped;
+          });
+        
           
           // ✅ CORRECCIÓN: Manejar diferente paginación según el modo
           if (hasAvailabilityFilter && data.availabilityApplied) {
@@ -533,10 +634,23 @@ export default function Properties() {
               setTotal(data.returned || normalized.length);
             }
             
+            // 🔥 ACTUALIZAR CURSOR SI HAY MÁS DATOS
+            if (typeof data.nextCursor === 'number') {
+              if (hasAvailabilityFilter && currentPage === 1 && !autoFillDone && items.length < ITEMS_PER_PAGE) {
+                setAvailabilityCursor(data.nextCursor);
+              }
+            }
+            
             // Guardar session
             if (data.availabilitySession && !sessionToUse) {
               setAvailabilitySession(data.availabilitySession);
             }
+
+            if (hasAvailabilityFilter && currentPage === 1) {
+              const nothingElse = (data.returned === 0) || data.exhausted === true;
+              if (nothingElse) setAutoFillDone(true);
+            }
+
           } else {
             // Modo normal
             setTotal(data.total || 0);
@@ -545,8 +659,9 @@ export default function Properties() {
           
           setRetryCount(0);
           
-          console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items, ${totalPages} total pages`);
+          console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items, total items: ${items.length + normalized.length}`);
           console.log(`📊 Availability mode: ${hasAvailabilityFilter}, session: ${data.availabilitySession?.slice(0, 12)}...`);
+          console.log(`📝 Partial: ${data.partial}, HasMore: ${data.hasMore}, NextCursor: ${data.nextCursor}`);
         }
       } catch (err: any) {
         if (!controller.signal.aborted) {
@@ -578,6 +693,9 @@ export default function Properties() {
               // Resetear availability session
               setAvailabilitySession(null);
               setCurrentPage(1);
+              setAvailabilityCursor(0);
+              setPage1Filled(false);
+              setAutoFillDone(false);
             }
             
             if (!errorMsg.includes('429') && !errorMsg.includes('503') && !errorMsg.includes('401')) {
@@ -597,7 +715,9 @@ export default function Properties() {
     appliedFilters,
     currentPage,
     retryCount,
-    hasAvailabilityFilter, // Agregado para detectar cambios en availability
+    hasAvailabilityFilter,
+    availabilityCursor,
+    autoFillTick, 
   ]);
 
   const handlePrevImage = useCallback((e: React.MouseEvent, listingId: string, totalImages: number) => {
@@ -715,6 +835,10 @@ export default function Properties() {
     );
   }
 
+const isInitialLoading = loading && items.length === 0;
+const isFilling = loading && items.length > 0;
+
+
   return (
     <>
       <SEO
@@ -784,6 +908,7 @@ export default function Properties() {
           onApplyFilters={handleApplyFilters}
         />
 
+
 <main className="pt-16">
   <div className="container mx-auto px-6 py-8 min-h-[60vh]">
     {error ? (
@@ -804,7 +929,11 @@ export default function Properties() {
               setError(null);
               setCurrentPage(1);
               setAvailabilitySession(null);
+              setAvailabilityCursor(0);
               setRetryCount((prev) => prev + 1);
+              setPage1Filled(false);
+              setAutoFillDone(false);
+              setItems([]); 
             }}
             className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
           >
@@ -812,192 +941,187 @@ export default function Properties() {
           </button>
         </div>
       </div>
-    ) : items.length === 0 && loading ? (
-      // ✅ Solo mostramos skeleton en el primer load (cuando aún no hay items)
+    ) : isInitialLoading ? (
       <ListingGridSkeleton count={12} />
     ) : items.length > 0 ? (
       <>
-        {/* ✅ Overlay loader: NO cambia el layout, evita el “salto” */}
-        {loading && (
+        {/* ✅ Overlay loader SOLO cuando ya hay items (no bloquea ni opaca el grid) */}
+        {isFilling && (
           <div className="sticky top-16 z-10 mb-4">
             <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center gap-2 shadow-sm">
               <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
-              Loading results…
+              Loading more…
             </div>
           </div>
         )}
 
-        {/* Opcional: atenuar mientras carga */}
-        <div className={loading ? 'opacity-60 pointer-events-none' : ''}>
         <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {items.map((item, idx) => {
+            const images =
+              item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
+            const currentIndex = imageIndices[item.id] || 0;
 
-        {items.map((item, idx) => {
-              const images =
-                item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
-              const currentIndex = imageIndices[item.id] || 0;
+            const displayLocation =
+              item.villaNetDestinationTag ||
+              item.villaNetCity ||
+              item.location ||
+              'Location not specified';
 
-              const displayLocation =
-                item.villaNetDestinationTag ||
-                item.villaNetCity ||
-                item.location ||
-                'Location not specified';
-
-              return (
-                <div
-                  key={`${item.id}-${idx}`}
-                  className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
-                >
-                  {/* Image Carousel */}
-                  <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                    <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
-                      <div className="relative w-full h-full overflow-hidden">
-                        <div
-                          className="flex h-full transition-transform duration-300 ease-out"
-                          style={{ transform: `translateX(${-currentIndex * 100}%)` }}
-                        >
-                          {images.map((image, imgIdx) => (
-                            <div
-                              key={imgIdx}
-                              role="group"
-                              aria-roledescription="slide"
-                              className="w-full h-full flex-shrink-0"
-                              style={{ minWidth: '100%' }}
-                            >
-                              <img
-                                src={image}
-                                alt={`${item.name} - Image ${imgIdx + 1}`}
-                                className="w-full h-full object-cover"
-                                loading={imgIdx === 0 ? 'eager' : 'lazy'}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Navigation Arrows */}
-                      <button
-                        disabled={currentIndex === 0}
-                        onClick={(e) => handlePrevImage(e, item.id, images.length)}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                        aria-label="Previous image"
+            return (
+              <div
+                key={`${item.id}-${idx}`}
+                className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
+              >
+                {/* Image Carousel */}
+                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                  <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
+                    <div className="relative w-full h-full overflow-hidden">
+                      <div
+                        className="flex h-full transition-transform duration-300 ease-out"
+                        style={{ transform: `translateX(${-currentIndex * 100}%)` }}
                       >
-                        <ChevronLeft className="w-4 h-4 text-foreground" />
-                      </button>
-
-                      <button
-                        onClick={(e) => handleNextImage(e, item.id, images.length)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                        aria-label="Next image"
-                      >
-                        <ChevronRight className="w-4 h-4 text-foreground" />
-                      </button>
-
-                      {/* Image Counter */}
-                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
-                        {currentIndex + 1} / {images.length}
+                        {images.map((image, imgIdx) => (
+                          <div
+                            key={imgIdx}
+                            role="group"
+                            aria-roledescription="slide"
+                            className="w-full h-full flex-shrink-0"
+                            style={{ minWidth: '100%' }}
+                          >
+                            <img
+                              src={image}
+                              alt={`${item.name} - Image ${imgIdx + 1}`}
+                              className="w-full h-full object-cover"
+                              loading={imgIdx === 0 ? 'eager' : 'lazy'}
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    {/* Top Badges */}
-                    <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                        <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
-                        <span className="text-xs font-medium text-foreground">Verified 2025</span>
-                      </div>
+                    {/* Navigation Arrows */}
+                    <button
+                      disabled={currentIndex === 0}
+                      onClick={(e) => handlePrevImage(e, item.id, images.length)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      aria-label="Previous image"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-foreground" />
+                    </button>
 
-                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                        <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                        <span className="text-xs font-semibold text-foreground">
-                          {formatRank(item.rank)}
-                        </span>
-                      </div>
+                    <button
+                      onClick={(e) => handleNextImage(e, item.id, images.length)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                      aria-label="Next image"
+                    >
+                      <ChevronRight className="w-4 h-4 text-foreground" />
+                    </button>
+
+                    {/* Image Counter */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
+                      {currentIndex + 1} / {images.length}
                     </div>
                   </div>
 
-                  {/* Property Info */}
-                  <div className="p-4">
-                    <a
-                      className="block mb-2 group/link"
-                      href={`/property/${item.id}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        goToDetail(item);
-                      }}
-                    >
-                      <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
-                        {item.name}
-                      </h3>
-                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>{displayLocation}</span>
-                      </div>
-                    </a>
-
-                    {/* Basic Info */}
-                    <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
-                      <div className="flex items-center gap-1 whitespace-nowrap">
-                        <Bed className="w-4 h-4" />
-                        <span>{item.bedrooms ?? '—'} BR</span>
-                      </div>
-
-                      <span className="hidden md:inline">•</span>
-
-                      <div className="flex items-center gap-1 whitespace-nowrap">
-                        <Bath className="w-4 h-4" />
-                        <span>{item.bathrooms ?? '—'} BA</span>
-                      </div>
-
-                      <span className="hidden md:inline">•</span>
-
-                      <div className="flex items-center gap-1 whitespace-nowrap">
-                        <DollarSign className="w-4 h-4" />
-                        <span>From {formatMoney(item.priceUSD)}/nt</span>
-                      </div>
+                  {/* Top Badges */}
+                  <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                      <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
+                      <span className="text-xs font-medium text-foreground">Verified 2025</span>
                     </div>
 
-                    {/* Trust Metrics */}
-                    <div className="mb-4 text-xs space-y-2">
-                      <div className="flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                        <span className="text-muted-foreground truncate">{item.propertyManager}</span>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => goToDetail(item)}
-                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
-                      >
-                        View Villa
-                      </button>
-
-                      <button
-                        onClick={() => toggleItem(item)}
-                        className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
-                          isInCart(item.id)
-                            ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                            : 'bg-background text-foreground border-border hover:bg-accent'
-                        }`}
-                      >
-                        {isInCart(item.id) ? 'Remove from cart' : 'Add to cart'}
-                      </button>
-
-                      <button
-                        onClick={() => openMessageModalFor(item)}
-                        className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
-                      >
-                        Message
-                      </button>
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                      <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
+                      <span className="text-xs font-semibold text-foreground">
+                        {formatRank(item.rank)}
+                      </span>
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
 
-          <PaginationControls />
+                {/* Property Info */}
+                <div className="p-4">
+                  <a
+                    className="block mb-2 group/link"
+                    href={`/property/${item.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      goToDetail(item);
+                    }}
+                  >
+                    <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
+                      {item.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>{displayLocation}</span>
+                    </div>
+                  </a>
+
+                  {/* Basic Info */}
+                  <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      <Bed className="w-4 h-4" />
+                      <span>{item.bedrooms ?? '—'} BR</span>
+                    </div>
+
+                    <span className="hidden md:inline">•</span>
+
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      <Bath className="w-4 h-4" />
+                      <span>{item.bathrooms ?? '—'} BA</span>
+                    </div>
+
+                    <span className="hidden md:inline">•</span>
+
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                      <DollarSign className="w-4 h-4" />
+                      <span>From {formatMoney(item.priceUSD)}/nt</span>
+                    </div>
+                  </div>
+
+                  {/* Trust Metrics */}
+                  <div className="mb-4 text-xs space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                      <span className="text-muted-foreground truncate">{item.propertyManager}</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => goToDetail(item)}
+                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
+                    >
+                      View Villa
+                    </button>
+
+                    <button
+                      onClick={() => toggleItem(item)}
+                      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
+                        isInCart(item.id)
+                          ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                          : 'bg-background text-foreground border-border hover:bg-accent'
+                      }`}
+                    >
+                      {isInCart(item.id) ? 'Remove from cart' : 'Add to cart'}
+                    </button>
+
+                    <button
+                      onClick={() => openMessageModalFor(item)}
+                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
+                    >
+                      Message
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        <PaginationControls />
       </>
     ) : (
       // Empty state (igual al tuyo)
@@ -1039,6 +1163,7 @@ export default function Properties() {
     )}
   </div>
 </main>
+
 
 
         <CartSidebar />
