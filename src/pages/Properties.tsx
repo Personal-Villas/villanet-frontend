@@ -12,6 +12,7 @@ import { useCart } from '../context/CartContext';
 import CartSidebar from '../components/CartSidebar';
 import CartModal from '../components/CartModal';
 import { ListingGridSkeleton } from '../ui/ListingGridSkeleton';
+import { ListingCardSkeleton } from '../ui/ListingCardSkeleton';
 
 type Listing = {
   id: string;
@@ -119,6 +120,30 @@ const Info = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// 🔥 UX progressive loading
+type UxPhase = 'idle' | 'loader' | 'skeleton' | 'results';
+const MIN_LOADER_MS = 520; // 400–600ms (elige 520ms estable)
+
+// Componente loader simple
+const SearchLoader = ({ progress }: { progress: number }) => (
+  <div className="fixed inset-0 z-40 bg-white/70 backdrop-blur-sm flex items-center justify-center px-6">
+    <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 text-center">
+      <div className="mx-auto mb-4 h-10 w-10 rounded-full border-2 border-neutral-900 border-b-transparent animate-spin" />
+      <p className="text-sm font-medium text-neutral-900">
+  We're finding your perfect villa…
+</p>
+
+      <div className="mt-5 w-full h-2 rounded-full bg-neutral-100 overflow-hidden">
+        <div
+          className="h-full bg-neutral-900 transition-all duration-300"
+          style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs text-neutral-500">{progress}%</p>
+    </div>
+  </div>
+);
+
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -162,6 +187,44 @@ export default function Properties() {
   // Ref para rastrear session de forma estable (no dispara re-renders)
   const availabilitySessionRef = useRef<string | null>(null);
   
+  // 🔥 UX progressive loading states
+  const [uxPhase, setUxPhase] = useState<UxPhase>('idle');
+  const [progress, setProgress] = useState(0);
+  const searchStartRef = useRef<number>(0);
+
+  // 🔥 "slots" para render fijo (12 cards siempre). null = skeleton
+  const [slots, setSlots] = useState<(Listing | null)[]>(
+    Array.from({ length: ITEMS_PER_PAGE }, () => null)
+  );
+
+  // helper: arranca loader intencional + progreso simulado
+  const uxCleanupRef = useRef<null | (() => void)>(null);
+
+  const startSearchUx = useCallback(() => {
+    uxCleanupRef.current?.(); // limpia timers previos
+  
+    searchStartRef.current = Date.now();
+    setUxPhase('loader');
+    setProgress(10);
+  
+    const t1 = window.setTimeout(() => setProgress(30), 220);
+    const t2 = window.setTimeout(() => setProgress(60), 520);
+    const t3 = window.setTimeout(() => setProgress(90), 1100);
+  
+    uxCleanupRef.current = () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      uxCleanupRef.current?.();
+    };
+  }, []);
+  
+
   // Sincronizar ref con state
   useEffect(() => {
     availabilitySessionRef.current = availabilitySession;
@@ -288,18 +351,23 @@ export default function Properties() {
   }, [closeAuthModal]);
 
   const handleApplyFilters = useCallback(() => {
+    startSearchUx();
+  
     setAppliedFilters(filters);
     setCurrentPage(1);
     setAvailabilityCursor(0);
     setItems([]);
     setAvailabilitySession(null);
   
-    // ✅ reset autofill
     setPage1Filled(false);
     setAutoFillDone(false);
-  }, [filters]);
-
+  
+    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+  }, [filters, startSearchUx]);
+  
   const handleClearAllFilters = useCallback(() => {
+    startSearchUx();
+  
     const resetFilters = {
       query: '',
       selectedDestination: '',
@@ -313,17 +381,20 @@ export default function Properties() {
       guests: 0,
       sortBy: 'rank' as const,
     };
+  
     setFilters(resetFilters);
     setAppliedFilters(resetFilters);
     setCurrentPage(1);
     setError(null);
-    // 🔥 IMPORTANTE: Resetear todo cuando se limpian filtros
+  
     setAvailabilityCursor(0);
     setItems([]);
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
-  }, []);
+  
+    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+  }, [startSearchUx]);
 
   const handleBadgeToggle = useCallback((badgeId: string) => {
     setFilters(prev => ({
@@ -421,18 +492,23 @@ export default function Properties() {
 
   // ✅ Resetear a página 1 cuando cambian los filtros
   useEffect(() => {
+    startSearchUx();
+  
     console.log('🔄 Filters changed, resetting to page 1');
     setCurrentPage(1);
     setError(null);
-    // 🔥 IMPORTANTE: Resetear cursor cuando cambian filtros
+  
     setAvailabilityCursor(0);
     setItems([]);
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
+  
+    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
   }, [
+    startSearchUx,
     appliedFilters.query,
-    appliedFilters.selectedDestination, 
+    appliedFilters.selectedDestination,
     appliedFilters.bedrooms,
     appliedFilters.bathrooms,
     appliedFilters.minPrice,
@@ -443,65 +519,124 @@ export default function Properties() {
     appliedFilters.sortBy,
     appliedFilters.guests,
   ]);
+  
+  
 
-// 🔥 Autofill: solo para completar la page 1 hasta 12 y cortar
-useEffect(() => {
-  if (!hasAvailabilityFilter) return;
-  if (loading) return;
+  // 🔥 Autofill: solo para completar la page 1 hasta 12 y cortar
+  useEffect(() => {
+    if (!hasAvailabilityFilter) return;
+    if (loading) return;
 
-  // ✅ SOLO page 1
-  if (currentPage !== 1) return;
+    // ✅ SOLO page 1
+    if (currentPage !== 1) return;
 
-  // ✅ si ya se completó, nunca más
-  if (page1Filled || autoFillDone) return;
+    // ✅ si ya se completó, nunca más
+    if (page1Filled || autoFillDone) return;
 
-  // ✅ si ya tenemos 12, cortar y marcar
-  if (items.length >= ITEMS_PER_PAGE) {
-    setPage1Filled(true);
-    setAutoFillDone(true);
-    return;
-  }
+    // ✅ si ya tenemos 12, cortar y marcar
+    if (items.length >= ITEMS_PER_PAGE) {
+      setPage1Filled(true);
+      setAutoFillDone(true);
+      return;
+    }
 
-  // ✅ esperar a tener session del primer fetch
-  if (!availabilitySessionRef.current) return;
+    // ✅ esperar a tener session del primer fetch
+    if (!availabilitySessionRef.current) return;
 
-  // ✅ si hubo error, no insistir
-  if (error) return;
+    // ✅ si hubo error, no insistir
+    if (error) return;
 
-  const t = setTimeout(() => {
-    setAutoFillTick(x => x + 1);
-  }, 350);
+    const t = setTimeout(() => {
+      setAutoFillTick(x => x + 1);
+    }, 350);
 
-  return () => clearTimeout(t);
-}, [
-  hasAvailabilityFilter,
-  loading,
-  items.length,
-  error,
-  currentPage,
-  page1Filled,
-  autoFillDone,
-]);
+    return () => clearTimeout(t);
+  }, [
+    hasAvailabilityFilter,
+    loading,
+    items.length,
+    error,
+    currentPage,
+    page1Filled,
+    autoFillDone,
+  ]);
 
+  // 🔥 Reemplazo progresivo: slots (skeleton) -> cards reales
+  useEffect(() => {
+    // solo primera página: acá está el "premium feel"
+    if (currentPage !== 1) return;
 
+    // si todavía no arrancó ninguna búsqueda, no hagas nada
+    if (uxPhase === 'idle') return;
+
+    // si no hay items aún, mantenemos skeleton (slots null)
+    if (!items.length) return;
+
+    // cuando llegan los primeros datos, mostramos resultados (pero revelando 1x1)
+    setUxPhase('results');
+
+    // completamos progreso al final visual
+    setProgress(100);
+
+    // Revelado progresivo SIN mover layout:
+    // - si un slot ya estaba lleno, no lo tocamos
+    // - si viene un item nuevo, lo llenamos con delay
+    setSlots(prev => {
+      const next = [...prev];
+      // aseguramos que exista largo fijo
+      if (next.length !== ITEMS_PER_PAGE) {
+        return Array.from({ length: ITEMS_PER_PAGE }, (_, i) => items[i] ?? null);
+      }
+      return next;
+    });
+
+    const timers: number[] = [];
+
+    for (let i = 0; i < Math.min(items.length, ITEMS_PER_PAGE); i++) {
+      timers.push(
+        window.setTimeout(() => {
+          setSlots(prev => {
+            if (prev[i] != null) return prev; // ya está
+            const next = [...prev];
+            next[i] = items[i];
+            return next;
+          });
+        }, i * 65) // 50–90ms queda muy "premium"
+      );
+    }
+
+    return () => timers.forEach(t => window.clearTimeout(t));
+  }, [items, currentPage, uxPhase]);
 
   // ✅ Fetch principal - se ejecuta cuando cambian filtros O página
   useEffect(() => {
     if (authLoading) return;
 
     const controller = new AbortController();
-    
+    let phaseTimer: number | null = null;
+
     // 🔥 Usar ref en vez del state directamente
     const sessionToUse = availabilitySessionRef.current;
 
     (async () => {
-      console.log(`🚀 Fetching page ${currentPage}...`);
-      console.log(`📅 Availability filter: ${hasAvailabilityFilter}`);
-      console.log(`🔑 Session to use: ${sessionToUse}`);
-      console.log(`🎯 Cursor actual: ${availabilityCursor}`);
       
       setLoading(true);
       setError(null);
+      
+      // ✅ FIX: si el fetch arranca “de entrada” (primer render) y nadie llamó startSearchUx()
+      if (searchStartRef.current === 0) {
+        searchStartRef.current = Date.now();
+        setUxPhase('loader');
+        setProgress(10);
+      }
+      
+      // 🔥 mientras está en loader, cuando se cumpla el mínimo, pasamos a skeleton
+      const elapsed = Date.now() - searchStartRef.current;
+      const wait = Math.max(0, MIN_LOADER_MS - elapsed);
+      
+      phaseTimer = window.setTimeout(() => {
+        setUxPhase(prev => (prev === 'loader' ? 'skeleton' : prev));
+      }, wait);
       
       try {
         const qs = new URLSearchParams();
@@ -708,7 +843,10 @@ useEffect(() => {
       }
     })();
 
-    return () => controller.abort();
+    return () => {
+      if (phaseTimer) window.clearTimeout(phaseTimer);
+      controller.abort();
+    };
   }, [
     authLoading,
     user,
@@ -824,6 +962,8 @@ useEffect(() => {
     );
   }, [appliedFilters]);
 
+  const isFilling = loading && items.length > 0;
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -834,10 +974,6 @@ useEffect(() => {
       </div>
     );
   }
-
-const isInitialLoading = loading && items.length === 0;
-const isFilling = loading && items.length > 0;
-
 
   return (
     <>
@@ -908,263 +1044,268 @@ const isFilling = loading && items.length > 0;
           onApplyFilters={handleApplyFilters}
         />
 
-
-<main className="pt-16">
-  <div className="container mx-auto px-6 py-8 min-h-[60vh]">
-    {error ? (
-      <div className="py-20">
-        <div className="max-w-md mx-auto text-center">
-          <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <X className="w-10 h-10 text-red-600" />
-          </div>
-
-          <h3 className="text-2xl font-bold text-neutral-900 mb-3">
-            {error.includes('expired') ? 'Search expired' : 'Something went wrong'}
-          </h3>
-
-          <p className="text-neutral-500 mb-6">{error}</p>
-
-          <button
-            onClick={() => {
-              setError(null);
-              setCurrentPage(1);
-              setAvailabilitySession(null);
-              setAvailabilityCursor(0);
-              setRetryCount((prev) => prev + 1);
-              setPage1Filled(false);
-              setAutoFillDone(false);
-              setItems([]); 
-            }}
-            className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    ) : isInitialLoading ? (
-      <ListingGridSkeleton count={12} />
-    ) : items.length > 0 ? (
-      <>
-        {/* ✅ Overlay loader SOLO cuando ya hay items (no bloquea ni opaca el grid) */}
-        {isFilling && (
-          <div className="sticky top-16 z-10 mb-4">
-            <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center gap-2 shadow-sm">
-              <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
-              Loading more…
-            </div>
-          </div>
-        )}
-
-        <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {items.map((item, idx) => {
-            const images =
-              item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
-            const currentIndex = imageIndices[item.id] || 0;
-
-            const displayLocation =
-              item.villaNetDestinationTag ||
-              item.villaNetCity ||
-              item.location ||
-              'Location not specified';
-
-            return (
-              <div
-                key={`${item.id}-${idx}`}
-                className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
-              >
-                {/* Image Carousel */}
-                <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                  <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
-                    <div className="relative w-full h-full overflow-hidden">
-                      <div
-                        className="flex h-full transition-transform duration-300 ease-out"
-                        style={{ transform: `translateX(${-currentIndex * 100}%)` }}
-                      >
-                        {images.map((image, imgIdx) => (
-                          <div
-                            key={imgIdx}
-                            role="group"
-                            aria-roledescription="slide"
-                            className="w-full h-full flex-shrink-0"
-                            style={{ minWidth: '100%' }}
-                          >
-                            <img
-                              src={image}
-                              alt={`${item.name} - Image ${imgIdx + 1}`}
-                              className="w-full h-full object-cover"
-                              loading={imgIdx === 0 ? 'eager' : 'lazy'}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Navigation Arrows */}
-                    <button
-                      disabled={currentIndex === 0}
-                      onClick={(e) => handlePrevImage(e, item.id, images.length)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                      aria-label="Previous image"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-foreground" />
-                    </button>
-
-                    <button
-                      onClick={(e) => handleNextImage(e, item.id, images.length)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                      aria-label="Next image"
-                    >
-                      <ChevronRight className="w-4 h-4 text-foreground" />
-                    </button>
-
-                    {/* Image Counter */}
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
-                      {currentIndex + 1} / {images.length}
-                    </div>
+        <main className="pt-16">
+          <div className="container mx-auto px-6 py-8 min-h-[60vh]">
+            {error ? (
+              <div className="py-20">
+                <div className="max-w-md mx-auto text-center">
+                  <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <X className="w-10 h-10 text-red-600" />
                   </div>
 
-                  {/* Top Badges */}
-                  <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                      <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
-                      <span className="text-xs font-medium text-foreground">Verified 2025</span>
-                    </div>
+                  <h3 className="text-2xl font-bold text-neutral-900 mb-3">
+                    {error.includes('expired') ? 'Search expired' : 'Something went wrong'}
+                  </h3>
 
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                      <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                      <span className="text-xs font-semibold text-foreground">
-                        {formatRank(item.rank)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                  <p className="text-neutral-500 mb-6">{error}</p>
 
-                {/* Property Info */}
-                <div className="p-4">
-                  <a
-                    className="block mb-2 group/link"
-                    href={`/property/${item.id}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      goToDetail(item);
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      setCurrentPage(1);
+                      setAvailabilitySession(null);
+                      setAvailabilityCursor(0);
+                      setRetryCount((prev) => prev + 1);
+                      setPage1Filled(false);
+                      setAutoFillDone(false);
+                      setItems([]); 
                     }}
+                    className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
                   >
-                    <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
-                      {item.name}
-                    </h3>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span>{displayLocation}</span>
-                    </div>
-                  </a>
-
-                  {/* Basic Info */}
-                  <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
-                    <div className="flex items-center gap-1 whitespace-nowrap">
-                      <Bed className="w-4 h-4" />
-                      <span>{item.bedrooms ?? '—'} BR</span>
-                    </div>
-
-                    <span className="hidden md:inline">•</span>
-
-                    <div className="flex items-center gap-1 whitespace-nowrap">
-                      <Bath className="w-4 h-4" />
-                      <span>{item.bathrooms ?? '—'} BA</span>
-                    </div>
-
-                    <span className="hidden md:inline">•</span>
-
-                    <div className="flex items-center gap-1 whitespace-nowrap">
-                      <DollarSign className="w-4 h-4" />
-                      <span>From {formatMoney(item.priceUSD)}/nt</span>
-                    </div>
-                  </div>
-
-                  {/* Trust Metrics */}
-                  <div className="mb-4 text-xs space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                      <span className="text-muted-foreground truncate">{item.propertyManager}</span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => goToDetail(item)}
-                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
-                    >
-                      View Villa
-                    </button>
-
-                    <button
-                      onClick={() => toggleItem(item)}
-                      className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
-                        isInCart(item.id)
-                          ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                          : 'bg-background text-foreground border-border hover:bg-accent'
-                      }`}
-                    >
-                      {isInCart(item.id) ? 'Remove from cart' : 'Add to cart'}
-                    </button>
-
-                    <button
-                      onClick={() => openMessageModalFor(item)}
-                      className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
-                    >
-                      Message
-                    </button>
-                  </div>
+                    Try Again
+                  </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            ) : uxPhase === 'loader' ? (
+              <SearchLoader progress={progress} />
+            ) : uxPhase === 'skeleton' ? (
+              <ListingGridSkeleton count={ITEMS_PER_PAGE} />
+            ) : items.length > 0 ? (
+              <>
+                {/* ✅ Overlay loader SOLO cuando ya hay items (no bloquea ni opaca el grid) */}
+                {isFilling && (
+                  <div className="sticky top-16 z-10 mb-4">
+                    <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center gap-2 shadow-sm">
+                      <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
+                      Seguimos cargando más villas…
+                    </div>
+                  </div>
+                )}
 
-        <PaginationControls />
-      </>
-    ) : (
-      // Empty state (igual al tuyo)
-      <div className="text-center py-20">
-        <div className="max-w-md mx-auto">
-          <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Search className="w-10 h-10 text-neutral-400" />
+                <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {slots.map((item, idx) => {
+                    if (!item) {
+                      // ✅ Skeleton por-slot (mantiene layout exacto)
+                      return <ListingCardSkeleton key={`sk-${idx}`} />;                    }
+
+                    // ✅ tu card real (lo mismo que ya tenés)
+                    // OJO: acá usá `item` en vez de `items.map`
+                    const images =
+                      item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
+                    const currentIndex = imageIndices[item.id] || 0;
+
+                    const displayLocation =
+                      item.villaNetDestinationTag ||
+                      item.villaNetCity ||
+                      item.location ||
+                      'Location not specified';
+
+                    return (
+                      <div
+                        key={`${item.id}-${idx}`}
+                        className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
+                      >
+                        {/* Image Carousel */}
+                        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                          <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
+                            <div className="relative w-full h-full overflow-hidden">
+                              <div
+                                className="flex h-full transition-transform duration-300 ease-out"
+                                style={{ transform: `translateX(${-currentIndex * 100}%)` }}
+                              >
+                                {images.map((image, imgIdx) => (
+                                  <div
+                                    key={imgIdx}
+                                    role="group"
+                                    aria-roledescription="slide"
+                                    className="w-full h-full flex-shrink-0"
+                                    style={{ minWidth: '100%' }}
+                                  >
+                                    <img
+                                      src={image}
+                                      alt={`${item.name} - Image ${imgIdx + 1}`}
+                                      className="w-full h-full object-cover"
+                                      loading={imgIdx === 0 ? 'eager' : 'lazy'}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Navigation Arrows */}
+                            <button
+                              disabled={currentIndex === 0}
+                              onClick={(e) => handlePrevImage(e, item.id, images.length)}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                              aria-label="Previous image"
+                            >
+                              <ChevronLeft className="w-4 h-4 text-foreground" />
+                            </button>
+
+                            <button
+                              onClick={(e) => handleNextImage(e, item.id, images.length)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                              aria-label="Next image"
+                            >
+                              <ChevronRight className="w-4 h-4 text-foreground" />
+                            </button>
+
+                            {/* Image Counter */}
+                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
+                              {currentIndex + 1} / {images.length}
+                            </div>
+                          </div>
+
+                          {/* Top Badges */}
+                          <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                              <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
+                              <span className="text-xs font-medium text-foreground">Verified 2025</span>
+                            </div>
+
+                            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                              <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
+                              <span className="text-xs font-semibold text-foreground">
+                                {formatRank(item.rank)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Property Info */}
+                        <div className="p-4">
+                          <a
+                            className="block mb-2 group/link"
+                            href={`/property/${item.id}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              goToDetail(item);
+                            }}
+                          >
+                            <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
+                              {item.name}
+                            </h3>
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <MapPin className="w-3.5 h-3.5" />
+                              <span>{displayLocation}</span>
+                            </div>
+                          </a>
+
+                          {/* Basic Info */}
+                          <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
+                            <div className="flex items-center gap-1 whitespace-nowrap">
+                              <Bed className="w-4 h-4" />
+                              <span>{item.bedrooms ?? '—'} BR</span>
+                            </div>
+
+                            <span className="hidden md:inline">•</span>
+
+                            <div className="flex items-center gap-1 whitespace-nowrap">
+                              <Bath className="w-4 h-4" />
+                              <span>{item.bathrooms ?? '—'} BA</span>
+                            </div>
+
+                            <span className="hidden md:inline">•</span>
+
+                            <div className="flex items-center gap-1 whitespace-nowrap">
+                              <DollarSign className="w-4 h-4" />
+                              <span>From {formatMoney(item.priceUSD)}/nt</span>
+                            </div>
+                          </div>
+
+                          {/* Trust Metrics */}
+                          <div className="mb-4 text-xs space-y-2">
+                            <div className="flex items-center gap-1.5">
+                              <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                              <span className="text-muted-foreground truncate">{item.propertyManager}</span>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => goToDetail(item)}
+                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
+                            >
+                              View Villa
+                            </button>
+
+                            <button
+                              onClick={() => toggleItem(item)}
+                              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
+                                isInCart(item.id)
+                                  ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                                  : 'bg-background text-foreground border-border hover:bg-accent'
+                              }`}
+                            >
+                              {isInCart(item.id) ? 'Remove from cart' : 'Add to cart'}
+                            </button>
+
+                            <button
+                              onClick={() => openMessageModalFor(item)}
+                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
+                            >
+                              Message
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <PaginationControls />
+              </>
+            ) : (
+              // Empty state (igual al tuyo)
+              <div className="text-center py-20">
+                <div className="max-w-md mx-auto">
+                  <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <Search className="w-10 h-10 text-neutral-400" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-neutral-900 mb-3">
+                    {user ? 'No properties found' : 'Explore Amazing Properties'}
+                  </h3>
+                  <p className="text-neutral-500 mb-6">
+                    {!user
+                      ? 'Sign in to view all property details and book your stay'
+                      : debouncedQuery || activeFiltersCount > 0
+                        ? 'Try adjusting your search criteria or filters'
+                        : 'No properties available at the moment'}
+                  </p>
+
+                  {!user && (
+                    <button
+                      onClick={openAuthModal}
+                      className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+                    >
+                      Sign In to View Properties
+                    </button>
+                  )}
+
+                  {activeFiltersCount > 0 && user && (
+                    <button
+                      onClick={handleClearAllFilters}
+                      className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <h3 className="text-2xl font-bold text-neutral-900 mb-3">
-            {user ? 'No properties found' : 'Explore Amazing Properties'}
-          </h3>
-          <p className="text-neutral-500 mb-6">
-            {!user
-              ? 'Sign in to view all property details and book your stay'
-              : debouncedQuery || activeFiltersCount > 0
-                ? 'Try adjusting your search criteria or filters'
-                : 'No properties available at the moment'}
-          </p>
-
-          {!user && (
-            <button
-              onClick={openAuthModal}
-              className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
-            >
-              Sign In to View Properties
-            </button>
-          )}
-
-          {activeFiltersCount > 0 && user && (
-            <button
-              onClick={handleClearAllFilters}
-              className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
-            >
-              Clear all filters
-            </button>
-          )}
-        </div>
-      </div>
-    )}
-  </div>
-</main>
-
-
+        </main>
 
         <CartSidebar />
         <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} />
