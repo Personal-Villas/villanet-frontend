@@ -122,7 +122,7 @@ const Info = ({ className }: { className?: string }) => (
 
 // 🔥 UX progressive loading
 type UxPhase = 'idle' | 'loader' | 'skeleton' | 'results';
-const MIN_LOADER_MS = 520; // 400–600ms (elige 520ms estable)
+const MIN_LOADER_MS = 3000; // 400–600ms (elige 520ms estable)
 
 // Componente loader simple
 const SearchLoader = ({ progress }: { progress: number }) => (
