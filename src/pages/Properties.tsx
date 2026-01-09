@@ -1231,32 +1231,34 @@ export default function Properties() {
                             </div>
                           </div>
 
-                          {/* Action Buttons */}
-                          <div className="flex gap-2">
+{/* Action Buttons */}
+<div className="flex flex-col gap-2">
                             <button
                               onClick={() => goToDetail(item)}
-                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 flex-1 bg-[#000000] text-white hover:bg-black/90"
+                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 w-full bg-[#000000] text-white hover:bg-black/90"
                             >
                               View Villa
                             </button>
 
-                            <button
-                              onClick={() => toggleItem(item)}
-                              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 border ${
-                                isInCart(item.id)
-                                  ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                                  : 'bg-background text-foreground border-border hover:bg-accent'
-                              }`}
-                            >
-                              {isInCart(item.id) ? 'Remove from quote' : 'Add to quote'}
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => toggleItem(item)}
+                                className={`inline-flex items-center justify-center gap-1 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-2 border flex-1 ${
+                                  isInCart(item.id)
+                                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-background text-foreground border-border hover:bg-accent'
+                                }`}
+                              >
+                                {isInCart(item.id) ? 'Remove' : 'Add to quote'}
+                              </button>
 
-                            <button
-                              onClick={() => openMessageModalFor(item)}
-                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-3 border-border hover:bg-accent"
-                            >
-                              Message
-                            </button>
+                              <button
+                                onClick={() => openMessageModalFor(item)}
+                                className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-2 border-border hover:bg-accent flex-1"
+                              >
+                                Message
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
