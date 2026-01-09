@@ -576,10 +576,10 @@ export default function PropertyDetail() {
         <button 
           onClick={openCart}
           className="fixed bottom-6 right-32 z-40 px-4 py-2.5 bg-white border border-[#E5E5E5] rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-gray-700 hover:text-gray-900 animate-fade-in"
-          aria-label="View cart"
+          aria-label="View quote"
         >
           <ShoppingCart className="h-4 w-4" />
-          <span className="text-sm font-medium">Cart ({cartCount})</span>
+          <span className="text-sm font-medium">Quote ({cartCount})</span>
         </button>
       )}
 
@@ -632,22 +632,16 @@ export default function PropertyDetail() {
             {isPropertyInCart ? (
               <>
                 <Minus className="w-4 h-4" />
-                <span>Remove from Cart</span>
+                <span>Remove from Quote</span>
               </>
             ) : (
               <>
                 <Plus className="w-4 h-4" />
-                <span>Add to Cart</span>
+                <span>Add to Quote</span>
               </>
             )}
           </button>
         </div>
-
-        {/* Gallery Button */}
-        <button className="absolute bottom-6 left-6 z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm font-medium border border-white/20 hover:bg-black/70 transition-all">
-          <Sparkles className="w-4 h-4" />
-          <span>View Full Gallery</span>
-        </button>
 
         {/* Image Navigation */}
         {images.length > 1 && (
@@ -780,12 +774,12 @@ export default function PropertyDetail() {
               {isPropertyInCart ? (
                 <>
                   <Minus className="w-4 h-4" />
-                  <span>Remove from Cart</span>
+                  <span>Remove from Quote</span>
                 </>
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  <span>Add to Collection</span>
+                  <span>Add to Quote</span>
                 </>
               )}
             </button>
@@ -795,7 +789,7 @@ export default function PropertyDetail() {
                 className="ml-3 inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-900 hover:bg-gray-50"
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>View Cart ({cartCount})</span>
+                <span>View Quote ({cartCount})</span>
               </button>
             )}
           </div>
