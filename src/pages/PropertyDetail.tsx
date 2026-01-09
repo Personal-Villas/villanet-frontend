@@ -888,12 +888,12 @@ export default function PropertyDetail() {
               {isPropertyInCart ? (
                 <>
                   <Minus className="w-4 h-4" />
-                  <span>Remove from Cart</span>
+                  <span>Remove from Quote</span>
                 </>
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  <span>Add to Collection</span>
+                  <span>Add to Quote</span>
                 </>
               )}
             </button>
@@ -903,7 +903,7 @@ export default function PropertyDetail() {
                 className="w-full mt-3 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-900 hover:bg-gray-50"
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>View Cart ({cartCount})</span>
+                <span>View Quote ({cartCount})</span>
               </button>
             )}
           </div>
@@ -1598,7 +1598,7 @@ export default function PropertyDetail() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-900 hover:bg-gray-50"
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>Cart ({cartCount})</span>
+                <span>Quote ({cartCount})</span>
               </button>
             )}
           </div>

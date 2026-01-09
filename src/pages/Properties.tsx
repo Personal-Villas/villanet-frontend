@@ -1248,7 +1248,7 @@ export default function Properties() {
                                   : 'bg-background text-foreground border-border hover:bg-accent'
                               }`}
                             >
-                              {isInCart(item.id) ? 'Remove from cart' : 'Add to cart'}
+                              {isInCart(item.id) ? 'Remove from quote' : 'Add to quote'}
                             </button>
 
                             <button

@@ -91,7 +91,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
           <div>
             <h2 className="text-lg font-semibold">
-              Cart – {items.length} {items.length === 1 ? 'villa' : 'villas'} selected
+              Quote – {items.length} {items.length === 1 ? 'villa' : 'villas'} selected
             </h2>
             <p className="text-sm text-neutral-500 mt-1">
               Send a curated selection to your client
@@ -232,10 +232,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <Send className="w-10 h-10 text-neutral-400" />
               </div>
               <h3 className="text-xl font-semibold text-neutral-900 mb-2">
-                Your cart is empty
+                Your quote is empty
               </h3>
               <p className="text-neutral-600 mb-6">
-                Add villas to your cart to create a curated selection for your clients
+                Add villas to your quote to create a curated selection for your clients
               </p>
               <button
                 onClick={onClose}

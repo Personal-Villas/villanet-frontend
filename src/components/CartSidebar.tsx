@@ -51,7 +51,7 @@ const CartSidebar: React.FC = () => {
               <ShoppingBag className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
               <p className="text-neutral-600 mb-2">No villas selected yet</p>
               <p className="text-sm text-neutral-500">
-                Click "Add to cart" on any villa to start building your collection
+                Click "Add to quote" on any villa to start building your quote
               </p>
             </div>
           ) : (

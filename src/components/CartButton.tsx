@@ -30,7 +30,7 @@ export default function CartButton({
       type="button"
       onClick={onClick}
       className={`${baseStyles} ${variants[variant]} ${className}`}
-      aria-label={hasItems ? `View cart with ${count} items` : "View cart"}
+      aria-label={hasItems ? `View quote with ${count} items` : "View quote"}
     >
       <div className="relative">
         <ShoppingCart className="w-4 h-4" />
@@ -43,7 +43,7 @@ export default function CartButton({
       
       {showLabel && variant !== "icon-only" && (
         <>
-          <span>View cart</span>
+          <span>View quote</span>
           {variant === "default" && hasItems && (
             <span className="ml-1 text-xs text-muted-foreground">
               ({count} {count === 1 ? 'item' : 'items'})
