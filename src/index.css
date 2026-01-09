@@ -112,3 +112,42 @@
     background-image: radial-gradient(var(--tw-gradient-stops));
   }
 }
+
+/* =========================
+   DayPicker (Guesty style)
+   Apunta a clases reales:
+   td: rdp-range_start/middle/end + rdp-selected
+   button: rdp-day_button
+   ========================= */
+
+   .rdp {
+    /* Mata el azul default del theme de DayPicker */
+    --rdp-accent-color: hsl(0 0% 6.7%);
+    --rdp-accent-background-color: hsl(0 0% 94%);
+  }
+  
+  /* Botón día: tamaño/forma base */
+  .rdp .rdp-day_button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Evitar cualquier focus ring azul */
+  .rdp .rdp-day_button:focus,
+  .rdp .rdp-day_button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  
+  /* Hoy: que no quede azul (solo un “hint” suave) */
+  .rdp td.rdp-today .rdp-day_button {
+    color: hsl(0 0% 6.7%) !important;
+    font-weight: 600;
+    background: hsl(0 0% 96%) !important;
+  }
+  

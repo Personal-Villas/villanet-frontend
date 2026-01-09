@@ -19,11 +19,11 @@ import {
   SlidersHorizontal,
   ChevronDown,
   ChevronUp,
-  //Search,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import CartButton from "./CartButton";
 import { DayPicker } from "react-day-picker";
-import "react-day-picker/dist/style.css";
 
 /**
  * Badge real del CRUD.
@@ -42,9 +42,9 @@ type PropertiesHeaderCompactProps = {
   location: string;
   sortBy: string;
   setSortBy: (sort: string) => void;
-  onApplyFilters?: () => void; // NUEVA PROP PARA APPLY
+  onApplyFilters?: () => void;
   query: string;
-  setQuery?: (value: string) => void; // Agregado para completitud
+  setQuery?: (value: string) => void;
 
   destinations: string[];
   selectedDestination: string;
@@ -105,20 +105,19 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   default: Shield,
 };
 
-// Formatea el texto de fechas
 const formatDates = (checkIn: string, checkOut: string): string => {
   if (!checkIn && !checkOut) return "Add dates";
   if (checkIn && !checkOut) return "Select checkout";
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseISODateLocal(dateStr); 
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
   return `${formatDate(checkIn)} – ${formatDate(checkOut)}`;
 };
 
-// Helper para formatear fecha a YYYY-MM-DD en hora local (CORREGIDO)
+// Helper para formatear fecha a YYYY-MM-DD en hora local
 const toISODateLocal = (d: Date) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -140,6 +139,11 @@ const CARIBBEAN_DESTINATIONS = [
 ];
 
 const MEXICO_DESTINATIONS = ["Punta Mita", "Puerto Vallarta", "Los Cabos", "Riviera Maya"];
+
+const parseISODateLocal = (s: string) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
 
 // Agrupa destinos por región con coincidencia flexible
 const groupDestinationsByRegion = (
@@ -212,6 +216,364 @@ const deriveInitialBedroomsCount = (bedrooms: string[]): number => {
   return numeric[0];
 };
 
+// ESTILOS GUESTY PERSONALIZADOS - EXACTOS
+const guestyCalendarStyles = `
+  .guesty-calendar {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+  
+  .guesty-calendar * {
+    box-sizing: border-box;
+  }
+  
+  .guesty-calendar button {
+    margin: 0; padding: 0; border: none; background: none;
+    cursor: pointer; font-family: inherit;
+  }
+  
+  .guesty-calendar table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 100%;
+  }
+  
+  .guesty-months { display: flex; gap: 2rem; }
+  .guesty-month { flex: 1; min-width: 280px; }
+  
+  .guesty-caption {
+    display: flex; justify-content: center; align-items: center;
+    position: relative; margin-bottom: 1rem; padding: 0.5rem 0;
+  }
+  
+  .guesty-caption-label { font-size: 0.875rem; font-weight: 600; color: hsl(0, 0%, 9%); }
+  
+  .guesty-nav { position: absolute; right: 0; display: flex; gap: 0.25rem; }
+  
+  .guesty-nav-button {
+    width: 2rem; height: 2rem; display: flex; align-items: center;
+    justify-content: center; border-radius: 0.375rem;
+    border: 1px solid hsl(0, 0%, 89.8%); transition: all 0.15s;
+  }
+  
+  .guesty-nav-button:hover { background-color: hsl(0, 0%, 96.1%); }
+  
+  .guesty-table { width: 100%; table-layout: fixed; }
+  
+  .guesty-head-row { display: table-row; }
+  
+  .guesty-head-cell {
+    text-align: center; font-size: 0.75rem;
+    font-weight: 500; color: hsl(0, 0%, 45.1%); 
+    padding: 0.5rem 0;
+    width: 14.285%;
+  }
+  
+  .guesty-tbody { display: table-row-group; }
+  
+  .guesty-row { 
+    display: table-row;
+    height: 2.5rem;
+  }
+
+  /* CONTENEDOR DE LA CELDA */
+  .guesty-cell {
+    display: table-cell;
+    position: relative;
+    text-align: center;
+    vertical-align: middle;
+    padding: 0;
+  }
+  
+  /* LA BARRA DE COLOR (Pseudo-elemento común) */
+  .guesty-cell-range-middle::before,
+  .guesty-cell-range-start::before,
+  .guesty-cell-range-end::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    height: 2.2rem;
+    transform: translateY(-50%);
+    background-color: hsl(0, 0%, 6.7%);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* BARRA INTERMEDIA: Ocupa todo el ancho */
+  .guesty-cell-range-middle::before {
+    left: 0;
+    right: 0;
+  }
+  
+  /* DÍA DE INICIO (Check-in): La barra empieza con diagonal */
+  .guesty-cell-range-start::before {
+    left: 0;
+    right: 0;
+    clip-path: polygon(0.8rem 0%, 100% 0%, 100% 100%, 0% 100%);
+  }
+  
+  /* DÍA FINAL (Check-out): La barra termina con diagonal */
+  .guesty-cell-range-end::before {
+    left: 0;
+    right: 0;
+    clip-path: polygon(0% 0%, 100% 0%, calc(100% - 0.8rem) 100%, 0% 100%);
+  }
+  
+  /* EL BOTÓN DEL DÍA */
+  .guesty-day {
+    position: relative;
+    z-index: 1;
+    width: 2.2rem;
+    height: 2.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    transition: all 0.15s;
+    color: hsl(0, 0%, 9%);
+    background-color: transparent;
+  }
+  
+  /* Día seleccionado (Check-in / Check-out) - CON círculo */
+  .guesty-day-selected {
+    background-color: hsl(0, 0%, 6.7%);
+    color: white;
+    font-weight: 600;
+    border-radius: 50%;
+  }
+  
+  /* Día en el medio del rango (Solo texto blanco, SIN círculo) */
+  .guesty-day-range-middle {
+    background-color: transparent;
+    color: white;
+    border-radius: 0;
+  }
+
+  .guesty-day-today:not(.guesty-day-selected):not(.guesty-day-range-middle) {
+    background-color: hsl(0, 0%, 96.1%);
+    font-weight: 600;
+    border-radius: 50%;
+  }
+  
+  .guesty-day:hover:not(:disabled):not(.guesty-day-selected) {
+    background-color: hsl(0, 0%, 96.1%);
+    border-radius: 50%;
+  }
+  
+  .guesty-day:disabled { 
+    opacity: 0.3; 
+    cursor: not-allowed; 
+  }
+  
+  .guesty-day-outside { 
+    color: hsl(0, 0%, 70%); 
+  }
+`;
+
+// Componente personalizado de calendario estilo Guesty
+const GuestyCalendar = ({ 
+  selected, 
+  onSelect, 
+  numberOfMonths = 2 
+}: { 
+  selected: { from?: Date; to?: Date } | undefined;
+  onSelect: (range: { from?: Date; to?: Date } | undefined) => void;
+  numberOfMonths?: number;
+}) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  
+  const getMonthData = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    const weeks: (Date | null)[][] = [];
+    let currentWeek: (Date | null)[] = [];
+    
+    // Días previos del mes anterior
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      currentWeek.push(null);
+    }
+    
+    // Días del mes actual
+    for (let day = 1; day <= daysInMonth; day++) {
+      currentWeek.push(new Date(year, month, day));
+      
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    }
+    
+    // Completar última semana
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(null);
+      }
+      weeks.push(currentWeek);
+    }
+    
+    return { weeks, month, year };
+  };
+  
+  const handleDayClick = (day: Date) => {
+    if (!selected?.from || (selected.from && selected.to)) {
+      // Iniciar nueva selección
+      onSelect({ from: day, to: undefined });
+    } else if (selected.from && !selected.to) {
+      // Completar rango
+      if (day < selected.from) {
+        onSelect({ from: day, to: selected.from });
+      } else if (day.getTime() === selected.from.getTime()) {
+        // Mismo día - mantener solo from
+        onSelect({ from: day, to: undefined });
+      } else {
+        onSelect({ from: selected.from, to: day });
+      }
+    }
+  };
+  
+  const isSameDay = (d1: Date, d2: Date) => {
+    return d1.getDate() === d2.getDate() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getFullYear() === d2.getFullYear();
+  };
+  
+  const isDayInRange = (day: Date) => {
+    if (!selected?.from || !selected?.to) return false;
+    return day >= selected.from && day <= selected.to;
+  };
+  
+  const isDayRangeStart = (day: Date) => {
+    return selected?.from && isSameDay(day, selected.from);
+  };
+  
+  const isDayRangeEnd = (day: Date) => {
+    return selected?.to && isSameDay(day, selected.to);
+  };
+  
+  const isDayRangeMiddle = (day: Date) => {
+    if (!selected?.from || !selected?.to) return false;
+    return day > selected.from && day < selected.to;
+  };
+  
+  const isToday = (day: Date) => {
+    const today = new Date();
+    return isSameDay(day, today);
+  };
+  
+  const months = [];
+  for (let i = 0; i < numberOfMonths; i++) {
+    const monthDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + i, 1);
+    months.push(getMonthData(monthDate));
+  }
+  
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+  
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+  
+  return (
+    <>
+      <style>{guestyCalendarStyles}</style>
+      <div className="guesty-calendar">
+        <div className="guesty-months">
+          {months.map((monthData, monthIndex) => (
+            <div key={monthIndex} className="guesty-month">
+              <div className="guesty-caption">
+                <div className="guesty-caption-label">
+                  {new Date(monthData.year, monthData.month).toLocaleDateString('en-US', { 
+                    month: 'long', 
+                    year: 'numeric' 
+                  })}
+                </div>
+                {monthIndex === months.length - 1 && (
+                  <div className="guesty-nav">
+                    <button
+                      type="button"
+                      className="guesty-nav-button"
+                      onClick={goToPreviousMonth}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="guesty-nav-button"
+                      onClick={goToNextMonth}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <table className="guesty-table">
+                <thead>
+                  <tr className="guesty-head-row">
+                    {daysOfWeek.map((day) => (
+                      <th key={day} className="guesty-head-cell">
+                        {day}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="guesty-tbody">
+                  {monthData.weeks.map((week, weekIndex) => (
+                    <tr key={weekIndex} className="guesty-row">
+                      {week.map((day, dayIndex) => {
+                        if (!day) {
+                          return <td key={dayIndex} className="guesty-cell" />;
+                        }
+                        
+                        const isSelected = (isDayRangeStart(day) || isDayRangeEnd(day));
+                        const isMiddle = isDayRangeMiddle(day);
+                        const isStart = isDayRangeStart(day);
+                        const isEnd = isDayRangeEnd(day);
+                        const todayClass = isToday(day);
+                        
+                        let cellClass = 'guesty-cell';
+                        if (isMiddle) cellClass += ' guesty-cell-range-middle';
+                        if (isStart) cellClass += ' guesty-cell-range-start';
+                        if (isEnd) cellClass += ' guesty-cell-range-end';
+                        
+                        let dayClass = 'guesty-day';
+                        if (isSelected) dayClass += ' guesty-day-selected';
+                        if (isMiddle) dayClass += ' guesty-day-range-middle';
+                        if (todayClass && !isSelected) dayClass += ' guesty-day-today';
+                        if (day.getMonth() !== monthData.month) dayClass += ' guesty-day-outside';
+                        
+                        return (
+                          <td key={dayIndex} className={cellClass}>
+                            <button
+                              type="button"
+                              className={dayClass}
+                              onClick={() => handleDayClick(day)}
+                              disabled={day.getMonth() !== monthData.month}
+                            >
+                              {day.getDate()}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+};
+
 export default function PropertiesHeaderCompact({
   itemsCount,
   location,
@@ -219,7 +581,6 @@ export default function PropertiesHeaderCompact({
   setSortBy,
   onApplyFilters,
   query,
-  //setQuery,
   destinations,
   selectedDestination,
   onSelectDestination,
@@ -250,13 +611,11 @@ export default function PropertiesHeaderCompact({
   const guestSelectorRef = useRef<HTMLDivElement>(null);
   const bedroomsSelectorRef = useRef<HTMLDivElement>(null);
 
-  // Estado local para el modal mobile
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
 
   const guestsLabel = guests && guests > 0 ? `${guests} Guests` : 'Guests';
   const datesLabel = formatDates(checkIn, checkOut);
   
-  // Label para bedrooms
   const bedroomsLabel = 
     bedrooms.length === 0 ? "Bedrooms" :
     bedrooms.includes("5+") ? "5+ Bedrooms" :
@@ -267,7 +626,6 @@ export default function PropertiesHeaderCompact({
     [destinations]
   );
 
-  // Handler para selección de fechas usando hora local
   const handleRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
     setUiError(null);
     
@@ -279,50 +637,41 @@ export default function PropertiesHeaderCompact({
 
     const { from, to } = range;
 
-    // CASO 1: Solo se seleccionó una fecha (check-in)
     if (from && !to) {
       setCheckIn(toISODateLocal(from));
       setCheckOut("");
       return;
     }
 
-    // CASO 2: Se seleccionaron ambas fechas
     if (from && to) {
-      // CASO 2A: Mismo día (usuario hace click en el mismo día)
       if (to.getTime() === from.getTime()) {
-        // Tratar como "solo check-in", falta checkout
         setCheckIn(toISODateLocal(from));
         setCheckOut("");
         return;
       }
 
-      // CASO 2B: Fechas invertidas (to < from)
       if (to < from) {
-        // Intercambiar las fechas
         setCheckIn(toISODateLocal(to));
         setCheckOut(toISODateLocal(from));
         return;
       }
 
-      // CASO 2C: Rango normal
       setCheckIn(toISODateLocal(from));
       setCheckOut(toISODateLocal(to));
     }
   };
 
-  // Validar rango cuando cambia check-in y limpiar check-out si es inválido
   useEffect(() => {
-    if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
+    if (checkIn && checkOut && parseISODateLocal(checkOut) <= parseISODateLocal(checkIn)) {
       setCheckOut("");
       setUiError("Check-out must be after check-in");
     } else {
       setUiError(null);
     }
   }, [checkIn, checkOut, setCheckOut]);
-
-  // Función para validar antes de ejecutar búsqueda
+  
   const validateBeforeSearch = (): boolean => {
-    if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
+    if (checkIn && checkOut && parseISODateLocal(checkOut) <= parseISODateLocal(checkIn)) {
       setUiError("Check-out must be after check-in");
       return false;
     }
@@ -330,7 +679,6 @@ export default function PropertiesHeaderCompact({
     return true;
   };
 
-  // Función para aplicar filtros y cerrar date picker
   const handleApplyDates = () => {
     if (validateBeforeSearch()) {
       setShowDatePicker(false);
@@ -338,25 +686,21 @@ export default function PropertiesHeaderCompact({
     }
   };
 
-  // Función para aplicar filtros y cerrar guest selector
   const handleApplyGuests = () => {
     setShowGuestSelector(false);
     onApplyFilters?.();
   };
 
-  // Función para aplicar filtros y cerrar bedrooms selector
   const handleApplyBedrooms = () => {
     setShowBedroomsSelector(false);
     onApplyFilters?.();
   };
 
-  // Función para aplicar todos los filtros en mobile
   const handleApplyAllFilters = () => {
     if (!validateBeforeSearch()) {
       return;
     }
     
-    // Aplicar los cambios de guests al salir del modal
     if (setGuests) {
       setGuests(localGuestsForModal);
     }
@@ -365,7 +709,6 @@ export default function PropertiesHeaderCompact({
     onApplyFilters?.();
   };
 
-  // Detectar scroll para comprimir barra en desktop - con throttling y buffer
   useEffect(() => {
     let lastScrollY = window.scrollY;
     let ticking = false;
@@ -404,14 +747,12 @@ export default function PropertiesHeaderCompact({
     };
   }, [isCollapsed]);
 
-  // Resetear guests locales cuando se abre el modal
   useEffect(() => {
     if (showMobileFilters) {
       setLocalGuestsForModal(guests && guests > 0 ? guests : 1);
     }
   }, [showMobileFilters, guests]);
 
-  // Cerrar date picker y guest selector al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!window.matchMedia("(min-width: 768px)").matches) return;
@@ -565,40 +906,15 @@ export default function PropertiesHeaderCompact({
         </div>
       )}
       
-      <DayPicker
-        mode="range"
+      <GuestyCalendar
         selected={{
-          from: checkIn ? new Date(checkIn) : undefined,
-          to: checkOut ? new Date(checkOut) : undefined,
+          from: checkIn ? parseISODateLocal(checkIn) : undefined,
+          to: checkOut ? parseISODateLocal(checkOut) : undefined,
         }}
         onSelect={handleRangeSelect}
         numberOfMonths={2}
-        className="[&_.rdp]:m-0 [&_.rdp-month]:!w-full"
-        classNames={{
-          months: "flex gap-4",
-          month: "space-y-4",
-          caption: "flex justify-center pt-1 relative items-center",
-          caption_label: "text-sm font-medium",
-          nav: "flex items-center",
-          nav_button: "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100",
-          nav_button_previous: "absolute left-1",
-          nav_button_next: "absolute right-1",
-          table: "w-full border-collapse space-y-1",
-          head_row: "flex",
-          head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
-          row: "flex w-full mt-2",
-          cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-          day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100",
-          day_selected:
-            "bg-[hsl(0,0%,6.7%)] text-white hover:bg-[hsl(0,0%,15%)] focus:bg-[hsl(0,0%,15%)]",
-          day_today: "bg-accent text-accent-foreground",
-          day_outside: "text-muted-foreground opacity-50",
-          day_disabled: "text-muted-foreground opacity-50",
-          day_range_middle:
-            "aria-selected:bg-accent aria-selected:text-accent-foreground",
-          day_hidden: "invisible",
-        }}
       />
+      
       <div className="flex justify-end pt-3 border-t border-border mt-4">
         <button
           onClick={handleApplyDates}
@@ -719,180 +1035,173 @@ export default function PropertiesHeaderCompact({
 
   return (
     <>
- {/* DESKTOP */}
- <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
-  {/* Barra compacta (SIEMPRE visible, sin saltos) */}
-  <div className="h-[72px]">
-    <div className="container mx-auto px-6 h-full flex items-center justify-between">
-      {/* IZQ: titulo + fechas + guests + bedrooms */}
-      <div className="flex items-center gap-2 text-sm flex-wrap">
-        <h1 className="text-xl font-semibold text-foreground">
-          {itemsCount} Villas in {location}
-        </h1>
-        <span className="text-muted-foreground">•</span>
+      {/* DESKTOP */}
+      <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
+        <div className="h-[72px]">
+          <div className="container mx-auto px-6 h-full flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm flex-wrap">
+              <h1 className="text-xl font-semibold text-foreground">
+                {itemsCount} Villas in {location}
+              </h1>
+              <span className="text-muted-foreground">•</span>
 
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setShowDatePicker(!showDatePicker);
-              setShowGuestSelector(false);
-              setShowBedroomsSelector(false);
-            }}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Calendar className="w-4 h-4" />
-            <span>{datesLabel}</span>
-          </button>
-          {showDatePicker && <DatePickerDesktop />}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDatePicker(!showDatePicker);
+                    setShowGuestSelector(false);
+                    setShowBedroomsSelector(false);
+                  }}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>{datesLabel}</span>
+                </button>
+                {showDatePicker && <DatePickerDesktop />}
+              </div>
+
+              <span className="text-muted-foreground">•</span>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowGuestSelector(!showGuestSelector);
+                    setShowDatePicker(false);
+                    setShowBedroomsSelector(false);
+                  }}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>{guestsLabel}</span>
+                </button>
+                {showGuestSelector && <GuestSelectorDesktop />}
+              </div>
+
+              <span className="text-muted-foreground">•</span>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBedroomsSelector(!showBedroomsSelector);
+                    setShowGuestSelector(false);
+                    setShowDatePicker(false);
+                  }}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Hotel className="w-4 h-4" />
+                  <span>{bedroomsLabel}</span>
+                </button>
+                {showBedroomsSelector && <BedroomsSelectorDesktop />}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  onApplyFilters?.();
+                }}
+                className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="rank">Sort: Villa Rank (High → Low)</option>
+                <option value="price_low">Price (Low → High)</option>
+                <option value="price_high">Price (High → Low)</option>
+                <option value="bedrooms">Bedrooms (Most → Least)</option>
+              </select>
+
+              <CartButton
+                count={cartCount}
+                onClick={onCartClick}
+                variant="default"
+                showLabel={true}
+              />
+            </div>
+          </div>
         </div>
 
-        <span className="text-muted-foreground">•</span>
-
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setShowGuestSelector(!showGuestSelector);
-              setShowDatePicker(false);
-              setShowBedroomsSelector(false);
-            }}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Users className="w-4 h-4" />
-            <span>{guestsLabel}</span>
-          </button>
-          {showGuestSelector && <GuestSelectorDesktop />}
-        </div>
-
-        <span className="text-muted-foreground">•</span>
-
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setShowBedroomsSelector(!showBedroomsSelector);
-              setShowGuestSelector(false);
-              setShowDatePicker(false);
-            }}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Hotel className="w-4 h-4" />
-            <span>{bedroomsLabel}</span>
-          </button>
-          {showBedroomsSelector && <BedroomsSelectorDesktop />}
-        </div>
-      </div>
-
-      {/* DER: sort + cart */}
-      <div className="flex items-center gap-2">
-        <select
-          value={sortBy}
-          onChange={(e) => {
-            setSortBy(e.target.value);
-            onApplyFilters?.();
-          }}
-          className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        <div
+          className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm ${
+            isCollapsed ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
+          } transition-opacity duration-200`}
         >
-          <option value="rank">Sort: Villa Rank (High → Low)</option>
-          <option value="price_low">Price (Low → High)</option>
-          <option value="price_high">Price (High → Low)</option>
-          <option value="bedrooms">Bedrooms (Most → Least)</option>
-        </select>
+          <div className="container mx-auto px-6 py-4 space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Include location(s) for your search
+                </p>
 
-        <CartButton
-          count={cartCount}
-          onClick={onCartClick}
-          variant="default"
-          showLabel={true}
-        />
-      </div>
-    </div>
-  </div>
+                {hasActiveFilters && onClearAllFilters && (
+                  <button
+                    onClick={() => {
+                      onClearAllFilters?.();
+                      onApplyFilters?.();
+                    }}
+                    className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
 
-  {/* Panel grande (NO ocupa layout, aparece debajo como overlay) */}
-  <div
-    className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm ${
-      isCollapsed ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
-    } transition-opacity duration-200`}
-  >
-    <div className="container mx-auto px-6 py-4 space-y-4">
-      {/* Include location(s) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Include location(s) for your search
-          </p>
-
-          {hasActiveFilters && onClearAllFilters && (
-            <button
-              onClick={() => {
-                onClearAllFilters?.();
-                onApplyFilters?.();
-              }}
-              className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
-            >
-              Clear Filters
-            </button>
-          )}
-        </div>
-
-        {caribbean.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground font-medium">Caribbean</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              {caribbean.map(renderDestinationButton)}
-            </div>
-          </div>
-        )}
-
-        {mexico.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground font-medium">Mexico</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              {mexico.map(renderDestinationButton)}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Popular filters */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Popular filters
-        </p>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {visibleBadges.map(renderBadge)}
-
-          {hiddenBadgesCount > 0 && (
-            <button
-              onClick={() => setShowAllBadges(!showAllBadges)}
-              className="inline-flex items-center rounded-full font-medium transition-all duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-3 py-1 text-xs gap-1 border-2 border-[hsl(0,0%,82%)] hover:border-[hsl(0,0%,64%)] bg-background text-foreground"
-            >
-              {showAllBadges ? (
-                <>
-                  <ChevronUp className="h-3 w-3" />
-                  <span>Show Less</span>
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="h-3 w-3" />
-                  <span>More ({hiddenBadgesCount})</span>
-                </>
+              {caribbean.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground font-medium">Caribbean</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {caribbean.map(renderDestinationButton)}
+                  </div>
+                </div>
               )}
-            </button>
-          )}
+
+              {mexico.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground font-medium">Mexico</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {mexico.map(renderDestinationButton)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Popular filters
+              </p>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {visibleBadges.map(renderBadge)}
+
+                {hiddenBadgesCount > 0 && (
+                  <button
+                    onClick={() => setShowAllBadges(!showAllBadges)}
+                    className="inline-flex items-center rounded-full font-medium transition-all duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-3 py-1 text-xs gap-1 border-2 border-[hsl(0,0%,82%)] hover:border-[hsl(0,0%,64%)] bg-background text-foreground"
+                  >
+                    {showAllBadges ? (
+                      <>
+                        <ChevronUp className="h-3 w-3" />
+                        <span>Show Less</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="h-3 w-3" />
+                        <span>More ({hiddenBadgesCount})</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
       {/* MOBILE VERSION */}
       <div className="md:hidden sticky top-16 z-40 bg-background border-b border-border">
         <div className="px-4 py-3 space-y-3">
-          {/* Título compacto */}
           <div className="flex items-center justify-between">
             <h1 className="text-base font-semibold text-foreground">
               {itemsCount} Villas
@@ -920,9 +1229,7 @@ export default function PropertiesHeaderCompact({
             </div>
           </div>
 
-          {/* Filtros en línea para mobile */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-            {/* Dates button */}
             <div className="relative flex-shrink-0">
               <button
                 type="button"
@@ -948,15 +1255,13 @@ export default function PropertiesHeaderCompact({
                       </button>
                     </div>
                     <div className="p-4">
-                      <DayPicker
-                        mode="range"
+                      <GuestyCalendar
                         selected={{
-                          from: checkIn ? new Date(checkIn) : undefined,
-                          to: checkOut ? new Date(checkOut) : undefined,
+                          from: checkIn ? parseISODateLocal(checkIn) : undefined,
+                          to: checkOut ? parseISODateLocal(checkOut) : undefined,
                         }}
                         onSelect={handleRangeSelect}
                         numberOfMonths={1}
-                        className="[&_.rdp]:m-0"
                       />
                     </div>
                     <div className="bg-muted/30 border-t border-border p-4">
@@ -973,7 +1278,6 @@ export default function PropertiesHeaderCompact({
               )}
             </div>
 
-            {/* Guests button */}
             <div className="relative flex-shrink-0">
               <button
                 type="button"
@@ -1046,7 +1350,6 @@ export default function PropertiesHeaderCompact({
             </div>
           </div>
 
-          {/* Badges seleccionados como chips horizontales */}
           {selectedBadges.length > 0 && (
             <div
               className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4"
@@ -1061,7 +1364,7 @@ export default function PropertiesHeaderCompact({
                     key={badge.id}
                     onClick={() => {
                       onBadgeToggle(badge.id);
-                      onApplyFilters?.(); // Aplicar inmediatamente al toggle badge
+                      onApplyFilters?.();
                     }}
                     className="flex-shrink-0 inline-flex items-center rounded-full bg-[hsl(0,0%,6.7%)] text-white px-2.5 py-1 text-xs gap-1.5 font-medium"
                   >
@@ -1076,7 +1379,6 @@ export default function PropertiesHeaderCompact({
         </div>
       </div>
 
-      {/* Modal de todos los filtros (solo para botón "Filters" en mobile) */}
       {showMobileFilters && (
         <div className="fixed inset-0 z-[200] bg-background overflow-y-auto">
           <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
@@ -1090,14 +1392,12 @@ export default function PropertiesHeaderCompact({
           </div>
 
           <div className="p-4 space-y-6 pb-24 max-w-2xl mx-auto">
-            {/* Mostrar error si existe */}
             {uiError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-600">{uiError}</p>
               </div>
             )}
 
-            {/* Sort */}
             <div>
               <label className="block text-sm font-medium mb-2">Sort by</label>
               <select
@@ -1112,7 +1412,6 @@ export default function PropertiesHeaderCompact({
               </select>
             </div>
 
-            {/* Locations */}
             <div>
               <label className="block text-sm font-medium mb-3">Locations</label>
 
@@ -1139,7 +1438,6 @@ export default function PropertiesHeaderCompact({
               )}
             </div>
 
-            {/* Dates */}
             <div>
               <label className="block text-sm font-medium mb-2">Dates</label>
               <div className="space-y-2">
@@ -1161,7 +1459,6 @@ export default function PropertiesHeaderCompact({
               </div>
             </div>
 
-            {/* Bedrooms */}
             <div>
               <label className="block text-sm font-medium mb-2">Bedrooms</label>
               <div className="flex items-center justify-between p-4 border border-input rounded-lg">
@@ -1203,7 +1500,6 @@ export default function PropertiesHeaderCompact({
               </div>
             </div>
 
-            {/* Guests */}
             {setGuests && (
               <div>
                 <label className="block text-sm font-medium mb-2">Guests</label>
@@ -1231,7 +1527,6 @@ export default function PropertiesHeaderCompact({
               </div>
             )}
 
-            {/* Amenities/Badges */}
             <div>
               <label className="block text-sm font-medium mb-3">Amenities</label>
               <div className="flex flex-wrap gap-2">
@@ -1240,7 +1535,6 @@ export default function PropertiesHeaderCompact({
             </div>
           </div>
 
-          {/* Footer fijo con botones */}
           <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 z-10">
             <div className="flex gap-3">
               {hasActiveFilters && onClearAllFilters && (
