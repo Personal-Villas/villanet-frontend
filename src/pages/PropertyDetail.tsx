@@ -1477,7 +1477,7 @@ export default function PropertyDetail() {
       </section>
 
       {/* Villa Net Collections Section */}
-      <section className="py-12 px-6 border-b border-[#E5E5E5]">
+{/*      <section className="py-12 px-6 border-b border-[#E5E5E5]">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center">
             <h3 className="text-2xl font-semibold text-gray-900 mb-3">
@@ -1547,7 +1547,7 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
-
+*/}
       {/* Booking & Stay Details Section */}
       <AccordeonBooking />
 
