@@ -28,7 +28,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const formatMoney = (n: number | null | undefined) => {
     if (n == null) return '—';
     const amount = Number(n);
-    return isNaN(amount) ? '—' : `$${(amount / 100).toLocaleString()}`;
+    return Number.isFinite(amount) ? `$${amount.toLocaleString()}` : '—';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
