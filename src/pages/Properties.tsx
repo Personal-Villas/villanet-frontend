@@ -396,61 +396,84 @@ export default function Properties() {
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
   }, [startSearchUx]);
 
-  const handleBadgeToggle = useCallback((badgeId: string) => {
-    setFilters(prev => ({
-      ...prev,
-      selectedBadges: prev.selectedBadges.includes(badgeId)
-        ? prev.selectedBadges.filter(id => id !== badgeId)
-        : [...prev.selectedBadges, badgeId]
-    }));
-    
-    setAppliedFilters(prev => ({
-      ...prev,
-      selectedBadges: prev.selectedBadges.includes(badgeId)
-        ? prev.selectedBadges.filter(id => id !== badgeId)
-        : [...prev.selectedBadges, badgeId]
-    }));
-  }, []);
+  const applyFiltersImmediately = useCallback((newFilters: typeof filters) => {
+    setFilters(newFilters);
+    startSearchUx();
+    setAppliedFilters(newFilters);
+    setCurrentPage(1);
+    setAvailabilityCursor(0);
+    setItems([]);
+    setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
+    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+  }, [startSearchUx]);
 
-  const handleDestinationChange = useCallback((destination: string) => {
-    setFilters(prev => ({
-      ...prev,
-      selectedDestination: destination === prev.selectedDestination ? '' : destination
-    }));
+  const handleBadgeToggle = useCallback((badgeId: string) => {
+    const newBadges = filters.selectedBadges.includes(badgeId)
+      ? filters.selectedBadges.filter(id => id !== badgeId)
+      : [...filters.selectedBadges, badgeId];
     
-    setAppliedFilters(prev => ({
-      ...prev,
-      selectedDestination: destination === prev.selectedDestination ? '' : destination
-    }));
-  }, []);
+    applyFiltersImmediately({
+      ...filters,
+      selectedBadges: newBadges
+    });
+  }, [filters, applyFiltersImmediately]);
+  
+  const handleDestinationChange = useCallback((destination: string) => {
+    const newDestination = destination === filters.selectedDestination ? '' : destination;
+    
+    applyFiltersImmediately({
+      ...filters,
+      selectedDestination: newDestination
+    });
+  }, [filters, applyFiltersImmediately]);
 
   const handleSortChange = useCallback((sort: string) => {
-    setFilters(prev => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       sortBy: sort as 'rank' | 'price_low' | 'price_high' | 'bedrooms'
-    }));
+    };
     
-    setAppliedFilters(prev => ({
-      ...prev,
-      sortBy: sort as 'rank' | 'price_low' | 'price_high' | 'bedrooms'
-    }));
-  }, []);
+    applyFiltersImmediately(newFilters); 
+  }, [filters, applyFiltersImmediately]);
+
+  const DEFAULT_FILTERS = {
+    query: '',
+    selectedDestination: '',
+    bedrooms: [] as string[],
+    bathrooms: [] as string[],
+    minPrice: '',
+    maxPrice: '',
+    checkIn: '',
+    checkOut: '',
+    selectedBadges: [] as string[],
+    guests: 0,
+    sortBy: 'rank' as const,
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const badgeParam = params.get('badge');
-    
-    if (badgeParam) {
-      setFilters(prev => ({
-        ...prev,
-        selectedBadges: [badgeParam]
-      }));
-      setAppliedFilters(prev => ({
-        ...prev,
-        selectedBadges: [badgeParam]
-      }));
-      window.history.replaceState({}, '', '/properties');
-    }
+    if (!badgeParam) return;
+  
+    const next = { ...DEFAULT_FILTERS, selectedBadges: [badgeParam] };
+  
+    startSearchUx();
+    setFilters(next);
+    setAppliedFilters(next);
+  
+    setCurrentPage(1);
+    setRetryCount(0);
+    setAvailabilityCursor(0);
+    setItems([]);
+    setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
+    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+  
+    window.history.replaceState({}, '', '/properties');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   useEffect(() => {
@@ -490,35 +513,6 @@ export default function Properties() {
     document.body.appendChild(script);
   }, []);
 
-  // ✅ Resetear a página 1 cuando cambian los filtros
-  useEffect(() => {
-    startSearchUx();
-  
-    console.log('🔄 Filters changed, resetting to page 1');
-    setCurrentPage(1);
-    setError(null);
-  
-    setAvailabilityCursor(0);
-    setItems([]);
-    setAvailabilitySession(null);
-    setPage1Filled(false);
-    setAutoFillDone(false);
-  
-    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-  }, [
-    startSearchUx,
-    appliedFilters.query,
-    appliedFilters.selectedDestination,
-    appliedFilters.bedrooms,
-    appliedFilters.bathrooms,
-    appliedFilters.minPrice,
-    appliedFilters.maxPrice,
-    appliedFilters.checkIn,
-    appliedFilters.checkOut,
-    appliedFilters.selectedBadges,
-    appliedFilters.sortBy,
-    appliedFilters.guests,
-  ]);
   
   
 
@@ -568,6 +562,13 @@ export default function Properties() {
 
     // si todavía no arrancó ninguna búsqueda, no hagas nada
     if (uxPhase === 'idle') return;
+
+    // Si la carga terminó y no hay items, mostrar resultados (aunque vacíos)
+    if (!loading && items.length === 0) {
+      setUxPhase('results');
+      setProgress(100);
+      return;
+    }
 
     // si no hay items aún, mantenemos skeleton (slots null)
     if (!items.length) return;
@@ -1078,7 +1079,7 @@ export default function Properties() {
               </div>
             ) : uxPhase === 'loader' ? (
               <SearchLoader progress={progress} />
-            ) : uxPhase === 'skeleton' ? (
+            ) : uxPhase === 'skeleton' || loading ? (
               <ListingGridSkeleton count={ITEMS_PER_PAGE} />
             ) : items.length > 0 ? (
               <>
@@ -1087,7 +1088,7 @@ export default function Properties() {
                   <div className="sticky top-16 z-10 mb-4">
                     <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center gap-2 shadow-sm">
                       <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
-                      Seguimos cargando más villas…
+                      We are loading more villas…
                     </div>
                   </div>
                 )}
@@ -1113,7 +1114,7 @@ export default function Properties() {
                     return (
                       <div
                         key={`${item.id}-${idx}`}
-                        className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1"
+                        className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1 mt-10"
                       >
                         {/* Image Carousel */}
                         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
@@ -1269,39 +1270,29 @@ export default function Properties() {
                 <PaginationControls />
               </>
             ) : (
-              // Empty state (igual al tuyo)
-              <div className="text-center py-20">
+              <div className="text-center py-20 mt-[300px]">
                 <div className="max-w-md mx-auto">
                   <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <Search className="w-10 h-10 text-neutral-400" />
                   </div>
                   <h3 className="text-2xl font-bold text-neutral-900 mb-3">
-                    {user ? 'No properties found' : 'Explore Amazing Properties'}
+                    No villas match your search
                   </h3>
                   <p className="text-neutral-500 mb-6">
-                    {!user
-                      ? 'Sign in to view all property details and book your stay'
-                      : debouncedQuery || activeFiltersCount > 0
-                        ? 'Try adjusting your search criteria or filters'
-                        : 'No properties available at the moment'}
+                    {activeFiltersCount > 0
+                      ? 'Unfortunately, we don\'t have properties matching those exact requirements. Try adjusting your filters to discover similar luxury villas.'
+                      : 'No properties available at the moment'}
                   </p>
-
-                  {!user && (
-                    <button
-                      onClick={openAuthModal}
-                      className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
-                    >
-                      Sign In to View Properties
-                    </button>
-                  )}
-
-                  {activeFiltersCount > 0 && user && (
-                    <button
-                      onClick={handleClearAllFilters}
-                      className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
-                    >
-                      Clear all filters
-                    </button>
+            
+                  {activeFiltersCount > 0 && (
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <button
+                        onClick={handleClearAllFilters}
+                        className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
+                      >
+                        Clear all filters
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

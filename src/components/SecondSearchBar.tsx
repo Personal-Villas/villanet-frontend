@@ -129,7 +129,6 @@ const toISODateLocal = (d: Date) => {
 const CARIBBEAN_DESTINATIONS = [
   "St. Barts",
   "Turks & Caicos",
-  "Anguilla",
   "St. Martin",
   "Barbados",
   "Jamaica",
@@ -145,7 +144,7 @@ const parseISODateLocal = (s: string) => {
   return new Date(y, (m || 1) - 1, d || 1);
 };
 
-// Agrupa destinos por región con coincidencia flexible
+// Agrupa destinos por región (sin falsos positivos por palabras sueltas como "punta")
 const groupDestinationsByRegion = (
   destinations: string[]
 ): { caribbean: string[]; mexico: string[] } => {
@@ -165,46 +164,83 @@ const groupDestinationsByRegion = (
   const caribbeanResults: Set<string> = new Set();
   const mexicoResults: Set<string> = new Set();
 
-  CARIBBEAN_DESTINATIONS.forEach((refDest) => {
-    const normalizedRef = normalizeString(refDest);
-
-    normalizedDestinations.forEach(({ normalized }) => {
-      if (
-        normalized.includes(normalizedRef) ||
-        normalizedRef.includes(normalized) ||
-        normalized.split(" ").some((word) => normalizedRef.includes(word)) ||
-        normalizedRef.split(" ").some((word) => normalized.includes(word))
-      ) {
-        caribbeanResults.add(refDest);
-      }
-    });
-  });
-
-  MEXICO_DESTINATIONS.forEach((refDest) => {
-    const normalizedRef = normalizeString(refDest);
-
-    normalizedDestinations.forEach(({ normalized }) => {
-      if (
-        normalized.includes(normalizedRef) ||
-        normalizedRef.includes(normalized) ||
-        normalized.split(" ").some((word) => normalizedRef.includes(word)) ||
-        normalizedRef.split(" ").some((word) => normalized.includes(word))
-      ) {
-        mexicoResults.add(refDest);
-      }
-    });
-  });
-
-  const caribbean = Array.from(caribbeanResults).sort(
-    (a, b) => CARIBBEAN_DESTINATIONS.indexOf(a) - CARIBBEAN_DESTINATIONS.indexOf(b)
+  // Para ordenar bien aunque el destino venga como "Punta Mita, Mexico"
+  const caribbeanOrder = new Map(
+    CARIBBEAN_DESTINATIONS.map((d, i) => [normalizeString(d), i] as const)
+  );
+  const mexicoOrder = new Map(
+    MEXICO_DESTINATIONS.map((d, i) => [normalizeString(d), i] as const)
   );
 
-  const mexico = Array.from(mexicoResults).sort(
-    (a, b) => MEXICO_DESTINATIONS.indexOf(a) - MEXICO_DESTINATIONS.indexOf(b)
-  );
+  // 1) Regla por país (si el texto trae el país, esto es lo más fiable)
+  for (const { original, normalized } of normalizedDestinations) {
+    if (/\bmexico\b/.test(normalized)) {
+      mexicoResults.add(original);
+      continue;
+    }
+    // sumá acá países del Caribe si te llegan así en el string:
+    if (
+      /\bdominican republic\b/.test(normalized) ||
+      /\bturks\b/.test(normalized) ||
+      /\bcaicos\b/.test(normalized) ||
+      /\bbarbados\b/.test(normalized) ||
+      /\bjamaica\b/.test(normalized) ||
+      /\bbritish virgin islands\b/.test(normalized) ||
+      /\bst barts\b/.test(normalized) ||
+      /\bst martin\b/.test(normalized)
+    ) {
+      caribbeanResults.add(original);
+      continue;
+    }
+  }
+
+  // 2) Match por frase completa (NO por palabras sueltas)
+  const matchByRefList = (
+    refList: string[],
+    results: Set<string>
+  ) => {
+    refList.forEach((refDest) => {
+      const normalizedRef = normalizeString(refDest);
+
+      normalizedDestinations.forEach(({ original, normalized }) => {
+        // si ya lo clasificó por país, no lo pises
+        if (results === caribbeanResults && mexicoResults.has(original)) return;
+        if (results === mexicoResults && caribbeanResults.has(original)) return;
+
+        // Match seguro: "punta mita mexico" incluye "punta mita"
+        // o caso al revés si viene corto
+        if (normalized.includes(normalizedRef) || normalizedRef.includes(normalized)) {
+          results.add(original);
+        }
+      });
+    });
+  };
+
+  matchByRefList(CARIBBEAN_DESTINATIONS, caribbeanResults);
+  matchByRefList(MEXICO_DESTINATIONS, mexicoResults);
+
+  // 3) Orden: primero según lista base si matchea, sino alfabético
+  const sortWithOrder = (orderMap: Map<string, number>) => (a: string, b: string) => {
+    const na = normalizeString(a);
+    const nb = normalizeString(b);
+
+    // buscamos si contiene alguna key del orderMap (por ejemplo "punta mita")
+    const aKey = Array.from(orderMap.keys()).find((k) => na.includes(k)) ?? null;
+    const bKey = Array.from(orderMap.keys()).find((k) => nb.includes(k)) ?? null;
+
+    const ao = aKey ? orderMap.get(aKey)! : 9999;
+    const bo = bKey ? orderMap.get(bKey)! : 9999;
+
+    if (ao !== bo) return ao - bo;
+    return a.localeCompare(b);
+  };
+
+  const caribbean = Array.from(caribbeanResults).sort(sortWithOrder(caribbeanOrder));
+  const mexico = Array.from(mexicoResults).sort(sortWithOrder(mexicoOrder));
 
   return { caribbean, mexico };
 };
+
 
 const deriveInitialBedroomsCount = (bedrooms: string[]): number => {
   if (!bedrooms || bedrooms.length === 0) return 0;
@@ -706,7 +742,7 @@ export default function PropertiesHeaderCompact({
     }
     
     setShowMobileFilters(false);
-    onApplyFilters?.();
+    onApplyFilters?.(); 
   };
 
   useEffect(() => {
@@ -820,7 +856,7 @@ export default function PropertiesHeaderCompact({
       str.toString().toLowerCase().replace(/\s+/g, "-");
   
     const iconKey = normalizeKey(badge.icon || "");
-    const slugKey = normalizeKey(badge.slug || badge.id || "");
+    const slugKey = normalizeKey(badge.slug || ""); 
     const nameKey = normalizeKey(badge.name || "");
   
     return (
@@ -833,12 +869,13 @@ export default function PropertiesHeaderCompact({
 
   const renderBadge = (badge: CrudBadge) => {
     const Icon = resolveIcon(badge);
-    const isSelected = selectedBadges.includes(badge.id);
+    const key = badge.slug || badge.id; 
+    const isSelected = selectedBadges.includes(key); 
 
     return (
       <button
-        key={badge.id}
-        onClick={() => onBadgeToggle(badge.id)}
+        key={key}
+        onClick={() => onBadgeToggle(key)} 
         role="button"
         aria-pressed={isSelected}
         aria-label={`Filter by ${badge.name}, ${isSelected ? "active" : "inactive"}`}
@@ -861,7 +898,9 @@ export default function PropertiesHeaderCompact({
     return (
       <button
         key={dest}
-        onClick={() => onSelectDestination(dest === selectedDestination ? "" : dest)}
+        onClick={() => {
+          onSelectDestination(dest === selectedDestination ? "" : dest);
+        }}
         role="button"
         aria-pressed={isSelected}
         aria-label={`Filter by ${dest}, ${isSelected ? "active" : "inactive"}`}
@@ -1137,15 +1176,22 @@ export default function PropertiesHeaderCompact({
 
                 {hasActiveFilters && onClearAllFilters && (
                   <button
-                    onClick={() => {
-                      onClearAllFilters?.();
-                      onApplyFilters?.();
-                    }}
-                    className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
-                  >
-                    Clear Filters
-                  </button>
-                )}
+  onClick={() => {
+    setShowAllBadges(false);
+    setShowDatePicker(false);
+    setShowGuestSelector(false);
+    setShowBedroomsSelector(false);
+    setUiError(null);
+    setLocalGuestsForModal(1);
+
+    // ✅ Solo esto. NO llames onApplyFilters acá.
+    onClearAllFilters?.();
+  }}
+  className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
+>
+  Clear Filters
+</button>
+              )}
               </div>
 
               {caribbean.length > 0 && (
@@ -1351,31 +1397,35 @@ export default function PropertiesHeaderCompact({
           </div>
 
           {selectedBadges.length > 0 && (
-            <div
-              className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-            >
-              {selectedBadges.map((slug) => {
-                const badge = badges.find((b: CrudBadge) => b.id === slug);
-                if (!badge) return null;
-                const Icon = resolveIcon(badge);
-                return (
-                  <button
-                    key={badge.id}
-                    onClick={() => {
-                      onBadgeToggle(badge.id);
-                      onApplyFilters?.();
-                    }}
-                    className="flex-shrink-0 inline-flex items-center rounded-full bg-[hsl(0,0%,6.7%)] text-white px-2.5 py-1 text-xs gap-1.5 font-medium"
-                  >
-                    <Icon className="h-3 w-3" />
-                    <span>{badge.name}</span>
-                    <X className="h-3 w-3" />
-                  </button>
-                );
-              })}
-            </div>
-          )}
+  <div
+    className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4"
+    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+  >
+    {selectedBadges.map((badgeKey) => {
+      // ✅ Buscar por slug primero, luego por id como fallback
+      const badge = badges.find((b: CrudBadge) => 
+        (b.slug && b.slug === badgeKey) || b.id === badgeKey
+      );
+      if (!badge) return null;
+      const Icon = resolveIcon(badge);
+      const key = badge.slug || badge.id;
+      return (
+        <button
+          key={key}
+          onClick={() => {
+            onBadgeToggle(key);
+            onApplyFilters?.();
+          }}
+          className="flex-shrink-0 inline-flex items-center rounded-full bg-[hsl(0,0%,6.7%)] text-white px-2.5 py-1 text-xs gap-1.5 font-medium"
+        >
+          <Icon className="h-3 w-3" />
+          <span>{badge.name}</span>
+          <X className="h-3 w-3" />
+        </button>
+      );
+    })}
+  </div>
+)}
         </div>
       </div>
 
@@ -1539,12 +1589,11 @@ export default function PropertiesHeaderCompact({
             <div className="flex gap-3">
               {hasActiveFilters && onClearAllFilters && (
                 <button
-                  onClick={() => {
-                    onClearAllFilters?.();
-                    setShowMobileFilters(false);
-                    setUiError(null);
-                    onApplyFilters?.();
-                  }}
+                onClick={() => {
+                  onClearAllFilters?.();
+                  setShowMobileFilters(false);
+                  setUiError(null);
+                }}
                   className="flex-1 px-4 py-3 text-sm border border-input rounded-lg hover:bg-muted transition-colors font-medium"
                 >
                   Clear All
