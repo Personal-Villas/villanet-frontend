@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Loader2, CheckCircle } from 'lucide-react';
 import DateRangeCalendar from './DateRangeCalendar';
 import { api } from '../api/api';
@@ -11,13 +11,83 @@ interface BookingModalProps {
     price_usd: number | null;
   };
   unavailableDates: Set<string>;
+  // ✅ NUEVO: Datos del usuario autenticado
+  user?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    name?: string; // Por si viene el nombre completo
+  } | null;
+  // ✅ NUEVO: Datos del buscador principal
+  prefilledCheckIn?: string;
+  prefilledCheckOut?: string;
+  prefilledGuests?: number;
 }
 
-export default function BookingModal({ isOpen, onClose, listing, unavailableDates }: BookingModalProps) {
+export default function BookingModal({ 
+  isOpen, 
+  onClose, 
+  listing, 
+  unavailableDates,
+  user,
+  prefilledCheckIn = '',
+  prefilledCheckOut = '',
+  prefilledGuests = 1
+}: BookingModalProps) {
+  // ✅ Estados para campos del formulario
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [guests, setGuests] = useState(1);
+  
   const [bookingCheckIn, setBookingCheckIn] = useState('');
   const [bookingCheckOut, setBookingCheckOut] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // ✅ Pre-llenar datos del usuario cuando se abre el modal
+  useEffect(() => {
+    if (isOpen && user) {
+      // Intentar extraer firstName y lastName
+      if (user.firstName) {
+        setFirstName(user.firstName);
+      }
+      if (user.lastName) {
+        setLastName(user.lastName);
+      }
+      
+      // Si no hay firstName/lastName pero sí name completo, intentar dividirlo
+      if (!user.firstName && !user.lastName && user.name) {
+        const nameParts = user.name.trim().split(/\s+/);
+        if (nameParts.length >= 2) {
+          setFirstName(nameParts[0]);
+          setLastName(nameParts.slice(1).join(' '));
+        } else {
+          setFirstName(user.name);
+        }
+      }
+      
+      // Email
+      if (user.email) {
+        setEmail(user.email);
+      }
+    }
+  }, [isOpen, user]);
+
+  // ✅ Pre-llenar fechas y guests del buscador principal
+  useEffect(() => {
+    if (isOpen) {
+      if (prefilledCheckIn) {
+        setBookingCheckIn(prefilledCheckIn);
+      }
+      if (prefilledCheckOut) {
+        setBookingCheckOut(prefilledCheckOut);
+      }
+      if (prefilledGuests && prefilledGuests > 0) {
+        setGuests(prefilledGuests);
+      }
+    }
+  }, [isOpen, prefilledCheckIn, prefilledCheckOut, prefilledGuests]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -35,18 +105,17 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
     setIsSubmitting(true);
 
     try {
-      const formData = new FormData(e.currentTarget);
       const payload = {
         propertyName: listing.name,
-        firstName: formData.get("firstName") as string,
-        lastName: formData.get("lastName") as string,
-        email: formData.get("email") as string,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
         checkIn: bookingCheckIn,
         checkOut: bookingCheckOut,
-        guests: Number(formData.get("guests")),
+        guests: guests,
       };
 
-      // Simular envío a la API
+      // Envío a la API
       await api("/booking", {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -56,10 +125,7 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
       
       // Cerrar automáticamente después de 2 segundos
       setTimeout(() => {
-        onClose();
-        setIsSuccess(false);
-        setBookingCheckIn('');
-        setBookingCheckOut('');
+        handleClose();
       }, 2000);
 
     } catch (error) {
@@ -73,9 +139,13 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
   const handleClose = () => {
     if (!isSubmitting) {
       onClose();
-      setBookingCheckIn('');
-      setBookingCheckOut('');
+      // ✅ NO reseteamos firstName, lastName, email porque son datos del usuario
+      // Solo reseteamos el estado de éxito
       setIsSuccess(false);
+      // Opcionalmente resetear fechas y guests si quieres que se borren al cerrar
+      // setBookingCheckIn('');
+      // setBookingCheckOut('');
+      // setGuests(1);
     }
   };
 
@@ -125,11 +195,13 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
             </div>
           </div>
         ) : (
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-neutral-700">First Name</label>
               <input 
-                name="firstName" 
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 required 
                 disabled={isSubmitting}
                 className="w-full border rounded-md px-3 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -139,7 +211,9 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
             <div>
               <label className="block text-sm font-medium text-neutral-700">Last Name</label>
               <input 
-                name="lastName" 
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
                 required 
                 disabled={isSubmitting}
                 className="w-full border rounded-md px-3 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -150,7 +224,8 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
               <label className="block text-sm font-medium text-neutral-700">Email</label>
               <input 
                 type="email" 
-                name="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required 
                 disabled={isSubmitting}
                 className="w-full border rounded-md px-3 py-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -175,7 +250,8 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
               <label className="block text-sm font-medium text-neutral-700">Guests</label>
               <input 
                 type="number" 
-                name="guests" 
+                value={guests}
+                onChange={(e) => setGuests(Number(e.target.value))}
                 min="1" 
                 required 
                 disabled={isSubmitting}
@@ -194,7 +270,13 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
               </button>
 
               <button 
-                type="submit"
+                type="button"
+                onClick={(e) => {
+                  const form = e.currentTarget.closest('.space-y-4')?.parentElement as HTMLFormElement;
+                  if (form) {
+                    handleSubmit({ preventDefault: () => {}, currentTarget: form } as any);
+                  }
+                }}
                 disabled={isSubmitting}
                 className="flex-1 bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -208,7 +290,7 @@ export default function BookingModal({ isOpen, onClose, listing, unavailableDate
                 )}
               </button>
             </div>
-          </form>
+          </div>
         )}
       </div>
     </div>

@@ -147,7 +147,7 @@ const SearchLoader = ({ progress }: { progress: number }) => (
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  
+
   // Estados para filtros
   const [filters, setFilters] = useState({
     query: '',
@@ -223,6 +223,15 @@ export default function Properties() {
       uxCleanupRef.current?.();
     };
   }, []);
+
+  useEffect(() => {
+    // Guardar filtros en localStorage para que estén disponibles en PropertyDetail
+    localStorage.setItem('searchFilters', JSON.stringify({
+      checkIn: appliedFilters.checkIn,
+      checkOut: appliedFilters.checkOut,
+      guests: appliedFilters.guests
+    }));
+  }, [appliedFilters]);
   
 
   // Sincronizar ref con state

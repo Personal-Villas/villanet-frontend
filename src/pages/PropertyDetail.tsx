@@ -1,3 +1,4 @@
+import { useAuth } from '../auth/useAuth';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -43,10 +44,10 @@ import BookingModal from '../components/BookingModal';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import VillaNetRankModal from '../components/VillaNetRankModal';
 import AccordeonBooking from '../components/AccordeonBooking';
-//import CartButton from '../components/CartButton'; // Importar CartButton
-import CartModal from '../components/CartModal'; // Importar CartModal
-import CartSidebar from '../components/CartSidebar'; // Importar CartSidebar
-import { useCart } from '../context/CartContext'; // Importar el hook del carrito
+//import CartButton from '../components/CartButton';
+import CartModal from '../components/CartModal'; 
+import CartSidebar from '../components/CartSidebar'; 
+import { useCart } from '../context/CartContext'; 
 
 type Listing = {
   listing_id: string;
@@ -185,9 +186,11 @@ export default function PropertyDetail() {
   const [query, setQuery] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
+  const [guests, setGuests] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
+  const { user } = useAuth();
 
   // Usar el contexto del carrito
   const { 
@@ -416,11 +419,35 @@ export default function PropertyDetail() {
       const passedHero = rect.bottom <= NAV_HEIGHT;
       setShowDesktopCTA(passedHero);
     };
+    
 
     handleScroll();
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    // Leer filtros del buscador principal desde localStorage
+    const savedFilters = localStorage.getItem('searchFilters');
+    if (savedFilters) {
+      try {
+        const filters = JSON.parse(savedFilters);
+        
+        // Prellenar fechas y guests desde el buscador principal
+        if (filters.checkIn) {
+          setCheckIn(filters.checkIn);
+        }
+        if (filters.checkOut) {
+          setCheckOut(filters.checkOut);
+        }
+        if (filters.guests && filters.guests > 0) {
+          setGuests(filters.guests);
+        }
+      } catch (error) {
+        console.error('Error parsing saved filters:', error);
+      }
+    }
   }, []);
 
   const retryAvailability = () => {
@@ -1604,6 +1631,10 @@ export default function PropertyDetail() {
         onClose={() => setShowBookingForm(false)}
         listing={listing}
         unavailableDates={unavailableDates}
+        user={user}
+        prefilledCheckIn={checkIn}
+        prefilledCheckOut={checkOut}
+        prefilledGuests={guests}
       />
       <VillaNetRankModal isOpen={showRankModal} onClose={closeRankModal} />
 
