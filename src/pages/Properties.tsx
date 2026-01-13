@@ -623,18 +623,27 @@ export default function Properties() {
       
       setLoading(true);
       setError(null);
-      
-      // ✅ FIX: si el fetch arranca “de entrada” (primer render) y nadie llamó startSearchUx()
-      if (searchStartRef.current === 0) {
+
+      if (items.length === 0) {
+        uxCleanupRef.current?.();
         searchStartRef.current = Date.now();
         setUxPhase('loader');
         setProgress(10);
+    
+        const t1 = window.setTimeout(() => setProgress(30), 220);
+        const t2 = window.setTimeout(() => setProgress(60), 520);
+        const t3 = window.setTimeout(() => setProgress(90), 1100);
+    
+        uxCleanupRef.current = () => {
+          window.clearTimeout(t1);
+          window.clearTimeout(t2);
+          window.clearTimeout(t3);
+        };
       }
       
-      // 🔥 mientras está en loader, cuando se cumpla el mínimo, pasamos a skeleton
       const elapsed = Date.now() - searchStartRef.current;
       const wait = Math.max(0, MIN_LOADER_MS - elapsed);
-      
+    
       phaseTimer = window.setTimeout(() => {
         setUxPhase(prev => (prev === 'loader' ? 'skeleton' : prev));
       }, wait);
@@ -841,6 +850,9 @@ export default function Properties() {
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
+        setLoading(false);
+        setProgress(100);
+    
       }
     })();
 
@@ -964,6 +976,11 @@ export default function Properties() {
   }, [appliedFilters]);
 
   const isFilling = loading && items.length > 0;
+  const visibleProgress = useMemo(() => {
+    if (uxPhase === 'loader' || uxPhase === 'skeleton') return Math.min(99, Math.max(0, progress));
+    if (loading) return 95;
+    return 100;
+  }, [uxPhase, progress, loading]);
 
   if (authLoading) {
     return (
@@ -1077,21 +1094,35 @@ export default function Properties() {
                   </button>
                 </div>
               </div>
-            ) : uxPhase === 'loader' ? (
-              <SearchLoader progress={progress} />
-            ) : uxPhase === 'skeleton' || loading ? (
-              <ListingGridSkeleton count={ITEMS_PER_PAGE} />
-            ) : items.length > 0 ? (
-              <>
-                {/* ✅ Overlay loader SOLO cuando ya hay items (no bloquea ni opaca el grid) */}
-                {isFilling && (
-                  <div className="sticky top-16 z-10 mb-4">
-                    <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center gap-2 shadow-sm">
-                      <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
-                      We are loading more villas…
-                    </div>
-                  </div>
-                )}
+          ) : uxPhase === 'loader' ? (
+            <SearchLoader progress={progress} />
+          ) : uxPhase === 'skeleton' || (loading && items.length === 0) ? (
+            <ListingGridSkeleton count={ITEMS_PER_PAGE} />
+          ) : items.length > 0 ? (
+            <>
+              {/* ✅ Overlay loader SOLO cuando ya hay items (no bloquea ni opaca el grid) */}
+              {isFilling && (
+  <div className="sticky top-16 z-10 mb-4">
+    <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center justify-between gap-3 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
+        <span>We are loading more villas…</span>
+      </div>
+
+      <div className="flex items-center gap-2 min-w-[140px]">
+        <div className="h-1.5 flex-1 rounded-full bg-neutral-200 overflow-hidden">
+          <div
+            className="h-full bg-neutral-900 transition-all duration-300"
+            style={{ width: `${visibleProgress}%` }}
+          />
+        </div>
+        <span className="text-xs text-neutral-600 tabular-nums w-9 text-right">
+          {visibleProgress}%
+        </span>
+      </div>
+    </div>
+  </div>
+)}
 
                 <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {slots.map((item, idx) => {
