@@ -17,7 +17,7 @@ export default function PropertyMap({ lat, lng, name }: Props) {
       center={center}
       zoom={17}
       options={{
-        mapTypeId: 'satellite',
+        mapTypeId: 'hybrid', 
         tilt: 0,
         streetViewControl: false,
         fullscreenControl: true,
