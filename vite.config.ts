@@ -9,6 +9,8 @@ export default defineConfig({
   },
   preview: {
     allowedHosts: [
+      'thevillanet.com',
+      'www.thevillanet.com',
       'villanet-frontend.onrender.com'
     ]
   }

@@ -20,6 +20,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { CartProvider } from './context/CartContext';
 import EarlyAccess from './pages/EarlyAccess';
 import { ToastProvider } from '@radix-ui/react-toast';
+import { GoogleMapsProvider } from './providers/GoogleMapsProvider';
 
 
 
@@ -115,9 +116,11 @@ export default function App() {
     <ToastProvider>
     <AuthProvider> 
       <CartProvider>
+      <GoogleMapsProvider>
       <BrowserRouter>
         <AppRoutes /> 
       </BrowserRouter>
+      </GoogleMapsProvider>
       </CartProvider>
     </AuthProvider>
     </ToastProvider>
