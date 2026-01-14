@@ -48,6 +48,7 @@ import AccordeonBooking from '../components/AccordeonBooking';
 import CartModal from '../components/CartModal'; 
 import CartSidebar from '../components/CartSidebar'; 
 import { useCart } from '../context/CartContext'; 
+import PropertyMap from '../components/PropertyMap';
 
 type Listing = {
   listing_id: string;
@@ -1363,24 +1364,38 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
+{/* Location Section */}
+<section className="py-12 px-6 border-b border-border">
+  <div className="container mx-auto max-w-4xl">
+    <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-foreground">
+      Location
+    </h2>
+    <div className="flex items-start gap-2 text-muted-foreground mb-6">
+      <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0" />
+      <p className="text-sm">Located in {getVillaNetLocation()}</p>
+    </div>
+    {listing.lat != null && listing.lng != null ? (
+  <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden border border-border relative">
+    <PropertyMap lat={listing.lat} lng={listing.lng} name={listing.name} />
 
-      {/* Location Section */}
-      <section className="py-12 px-6 border-b border-border">
-        <div className="container mx-auto max-w-4xl">
-          <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-foreground">
-            Location
-          </h2>
-          <div className="flex items-start gap-2 text-muted-foreground mb-6">
-            <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p className="text-sm">Located in {getVillaNetLocation()}</p>
-          </div>
-          <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden border border-border">
-            <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-              <p className="text-gray-500">Map integration would go here</p>
-            </div>
-          </div>
-        </div>
-      </section>
+    {/* ✅ Botón overlay */}
+    <a
+      href={`https://www.google.com/maps?q=${listing.lat},${listing.lng}%20(${encodeURIComponent(listing.name)})`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="absolute top-4 right-4 z-20 inline-flex items-center gap-2 rounded-full bg-white/95 backdrop-blur px-4 py-2 text-sm font-medium text-gray-900 border border-gray-200 shadow hover:bg-white hover:shadow-md transition"
+    >
+      <MapPin className="w-4 h-4" />
+      Open in Google Maps
+    </a>
+  </div>
+) : (
+      <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden border border-border bg-gray-100 flex items-center justify-center">
+        <p className="text-gray-500">Exact location not available.</p>
+      </div>
+    )}
+  </div>
+</section>
 
       {/* Designed For Section */}
       <section className="py-12 px-6 border-t border-b border-[#E5E5E5]">
