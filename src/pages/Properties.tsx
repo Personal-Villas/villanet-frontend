@@ -935,7 +935,7 @@ export default function Properties() {
       : currentPage < totalPages;
     
     return (
-      <div className="flex justify-center items-center gap-4 py-8">
+      <div className="flex justify-center items-center gap-4 py-8 lg:pb-8 pb-[50px]">
         <button
           onClick={handlePrevious}
           disabled={currentPage === 1}

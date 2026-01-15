@@ -151,3 +151,17 @@
     background: hsl(0 0% 96%) !important;
   }
   
+
+  .grecaptcha-badge {
+    z-index: 100000 !important;
+    visibility: visible !important;
+  }
+  
+  .grecaptcha-logo {
+    z-index: 100000 !important;
+  }
+  
+  /* Asegurar que los modales no interfieran */
+  .grecaptcha-badge-wrapper {
+    z-index: 100000 !important;
+  }
