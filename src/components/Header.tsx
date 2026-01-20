@@ -269,7 +269,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                       onClick={handleAuthClick}
                       className="w-full py-3 px-4 text-center bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-700 transition-colors"
                     >
-                      See All Properties
+                      Login to Access
                     </button>
                     <button
                       onClick={handleAuthClick}
@@ -401,7 +401,7 @@ const AuthButtons: React.FC<AuthButtonsProps> = ({ onAuthClick }) => (
       onClick={onAuthClick}
       className="inline-flex items-center justify-center gap-2 h-9 rounded-md bg-gray-900 text-white font-bold border-0 hover:bg-gray-700 text-sm px-4 cursor-pointer"
     >
-      See All Properties
+      Login to Access
     </button>
   </>
 );

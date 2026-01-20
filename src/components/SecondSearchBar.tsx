@@ -23,7 +23,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import CartButton from "./CartButton";
-import { DayPicker } from "react-day-picker";
 
 /**
  * Badge real del CRUD.
@@ -61,6 +60,17 @@ type PropertiesHeaderCompactProps = {
 
   bedrooms: string[];
   setBedrooms: (value: string[]) => void;
+
+  // ✅ AGREGADOS: Bathrooms
+  bathrooms: string[];
+  setBathrooms: (value: string[]) => void;
+  
+  // ✅ AGREGADOS: Price range
+  minPrice: string;
+  setMinPrice: (value: string) => void;
+  
+  maxPrice: string;
+  setMaxPrice: (value: string) => void;
 
   guests?: number;
   setGuests?: (value: number) => void;
@@ -241,11 +251,21 @@ const groupDestinationsByRegion = (
   return { caribbean, mexico };
 };
 
-
 const deriveInitialBedroomsCount = (bedrooms: string[]): number => {
   if (!bedrooms || bedrooms.length === 0) return 0;
   if (bedrooms.includes("5+")) return 5;
   const numeric = bedrooms
+    .map((v) => parseInt(v, 10))
+    .filter((n) => !Number.isNaN(n));
+  if (numeric.length === 0) return 0;
+  return numeric[0];
+};
+
+// ✅ Helper para bathrooms
+const deriveInitialBathroomsCount = (bathrooms: string[]): number => {
+  if (!bathrooms || bathrooms.length === 0) return 0;
+  if (bathrooms.includes("5+")) return 5;
+  const numeric = bathrooms
     .map((v) => parseInt(v, 10))
     .filter((n) => !Number.isNaN(n));
   if (numeric.length === 0) return 0;
@@ -629,6 +649,14 @@ export default function PropertiesHeaderCompact({
   setCheckOut,
   bedrooms,
   setBedrooms,
+  // ✅ AGREGADOS: Bathrooms
+  bathrooms,
+  setBathrooms,
+  // ✅ AGREGADOS: Price range
+  minPrice,
+  setMinPrice,
+  maxPrice,
+  setMaxPrice,
   guests = 0,
   setGuests,
   onClearAllFilters,
@@ -641,11 +669,18 @@ export default function PropertiesHeaderCompact({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGuestSelector, setShowGuestSelector] = useState(false);
   const [showBedroomsSelector, setShowBedroomsSelector] = useState(false);
+  // ✅ State para modales adicionales
+  const [showBathroomsSelector, setShowBathroomsSelector] = useState(false);
+  const [showPriceSelector, setShowPriceSelector] = useState(false);
+  
   const [uiError, setUiError] = useState<string | null>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
   const guestSelectorRef = useRef<HTMLDivElement>(null);
   const bedroomsSelectorRef = useRef<HTMLDivElement>(null);
+  // ✅ Refs para los nuevos selectores
+  const bathroomsSelectorRef = useRef<HTMLDivElement>(null);
+  const priceSelectorRef = useRef<HTMLDivElement>(null);
 
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
 
@@ -656,6 +691,18 @@ export default function PropertiesHeaderCompact({
     bedrooms.length === 0 ? "Bedrooms" :
     bedrooms.includes("5+") ? "5+ Bedrooms" :
     `${bedrooms[0]} Bedrooms`;
+
+  // ✅ Labels para bathrooms y price
+  const bathroomsLabel = 
+    bathrooms.length === 0 ? "Bathrooms" :
+    bathrooms.includes("5+") ? "5+ Bathrooms" :
+    `${bathrooms[0]} Bathrooms`;
+
+  const priceLabel = 
+    !minPrice && !maxPrice ? "Price" :
+    minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
+    !minPrice && maxPrice ? `Up to $${Number(maxPrice).toLocaleString()}` :
+    `$${Number(minPrice).toLocaleString()} - $${Number(maxPrice).toLocaleString()}`;
 
   const { caribbean, mexico } = useMemo(
     () => groupDestinationsByRegion(destinations),
@@ -729,6 +776,17 @@ export default function PropertiesHeaderCompact({
 
   const handleApplyBedrooms = () => {
     setShowBedroomsSelector(false);
+    onApplyFilters?.();
+  };
+
+  // ✅ Handlers para los nuevos selectores
+  const handleApplyBathrooms = () => {
+    setShowBathroomsSelector(false);
+    onApplyFilters?.();
+  };
+
+  const handleApplyPrice = () => {
+    setShowPriceSelector(false);
     onApplyFilters?.();
   };
 
@@ -810,6 +868,19 @@ export default function PropertiesHeaderCompact({
         !bedroomsSelectorRef.current.contains(event.target as Node)
       ) {
         setShowBedroomsSelector(false);
+      }
+      // ✅ Click fuera para nuevos selectores
+      if (
+        bathroomsSelectorRef.current &&
+        !bathroomsSelectorRef.current.contains(event.target as Node)
+      ) {
+        setShowBathroomsSelector(false);
+      }
+      if (
+        priceSelectorRef.current &&
+        !priceSelectorRef.current.contains(event.target as Node)
+      ) {
+        setShowPriceSelector(false);
       }
     };
 
@@ -922,6 +993,9 @@ export default function PropertiesHeaderCompact({
     !!checkIn ||
     !!checkOut ||
     bedrooms.length > 0 ||
+    bathrooms.length > 0 ||
+    !!minPrice ||
+    !!maxPrice ||
     selectedBadges.length > 0 ||
     sortBy !== "rank";
 
@@ -930,6 +1004,8 @@ export default function PropertiesHeaderCompact({
     (selectedDestination ? 1 : 0) +
     (checkIn || checkOut ? 1 : 0) +
     (bedrooms.length > 0 ? 1 : 0) +
+    (bathrooms.length > 0 ? 1 : 0) +
+    (minPrice || maxPrice ? 1 : 0) +
     selectedBadges.length +
     (sortBy !== "rank" ? 1 : 0);
 
@@ -1072,6 +1148,113 @@ export default function PropertiesHeaderCompact({
     );
   };
 
+  // ✅ Bathrooms Selector para desktop
+  const BathroomsSelectorDesktop = () => {
+    const current = deriveInitialBathroomsCount(bathrooms);
+    return (
+      <div
+        ref={bathroomsSelectorRef}
+        className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-5 w-auto"
+      >
+        <h3 className="font-medium text-sm mb-4">Bathrooms required</h3>
+        <div className="flex items-center justify-between p-3 border border-input rounded-lg">
+          <span className="text-sm mr-2">Bathrooms</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                const newVal = Math.max(0, current - 1);
+                if (newVal === 0) setBathrooms([]);
+                else if (newVal >= 5) setBathrooms(["5+"]);
+                else setBathrooms([String(newVal)]);
+              }}
+              className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              –
+            </button>
+            <span className="w-12 text-center font-semibold">
+              {current === 0 ? "Any" : current >= 5 ? "5+" : current}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const newVal = Math.min(6, current + 1);
+                if (newVal >= 5) setBathrooms(["5+"]);
+                else setBathrooms([String(newVal)]);
+              }}
+              className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <div className="flex justify-end pt-3 border-t border-border mt-4">
+          <button
+            onClick={() => {
+              setShowBathroomsSelector(false);
+              onApplyFilters?.();
+            }}
+            className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+          >
+            Apply Bathrooms
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ✅ Price Selector para desktop
+  const PriceSelectorDesktop = () => (
+    <div
+      ref={priceSelectorRef}
+      className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-5 w-80"
+    >
+      <h3 className="font-medium text-sm mb-4">Price range (per night)</h3>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Min Price</label>
+          <input
+            type="number"
+            value={minPrice}
+            onChange={(e) => setMinPrice(e.target.value)}
+            placeholder="$0"
+            className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Max Price</label>
+          <input
+            type="number"
+            value={maxPrice}
+            onChange={(e) => setMaxPrice(e.target.value)}
+            placeholder="Any"
+            className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+      </div>
+      <div className="flex justify-between gap-2 pt-3 border-t border-border mt-4">
+        <button
+          onClick={() => {
+            setMinPrice('');
+            setMaxPrice('');
+          }}
+          className="px-3 py-2 text-sm border border-input rounded-lg hover:bg-muted transition-colors"
+        >
+          Clear
+        </button>
+        <button
+          onClick={() => {
+            setShowPriceSelector(false);
+            onApplyFilters?.();
+          }}
+          className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+        >
+          Apply Price
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* DESKTOP */}
@@ -1083,7 +1266,7 @@ export default function PropertiesHeaderCompact({
                 {itemsCount} Villas in {location}
               </h1>
               <span className="text-muted-foreground">•</span>
-
+  
               <div className="relative">
                 <button
                   type="button"
@@ -1091,6 +1274,8 @@ export default function PropertiesHeaderCompact({
                     setShowDatePicker(!showDatePicker);
                     setShowGuestSelector(false);
                     setShowBedroomsSelector(false);
+                    setShowBathroomsSelector(false);
+                    setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -1099,9 +1284,9 @@ export default function PropertiesHeaderCompact({
                 </button>
                 {showDatePicker && <DatePickerDesktop />}
               </div>
-
+  
               <span className="text-muted-foreground">•</span>
-
+  
               <div className="relative">
                 <button
                   type="button"
@@ -1109,6 +1294,8 @@ export default function PropertiesHeaderCompact({
                     setShowGuestSelector(!showGuestSelector);
                     setShowDatePicker(false);
                     setShowBedroomsSelector(false);
+                    setShowBathroomsSelector(false);
+                    setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -1117,9 +1304,9 @@ export default function PropertiesHeaderCompact({
                 </button>
                 {showGuestSelector && <GuestSelectorDesktop />}
               </div>
-
+  
               <span className="text-muted-foreground">•</span>
-
+  
               <div className="relative">
                 <button
                   type="button"
@@ -1127,6 +1314,8 @@ export default function PropertiesHeaderCompact({
                     setShowBedroomsSelector(!showBedroomsSelector);
                     setShowGuestSelector(false);
                     setShowDatePicker(false);
+                    setShowBathroomsSelector(false);
+                    setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -1135,14 +1324,56 @@ export default function PropertiesHeaderCompact({
                 </button>
                 {showBedroomsSelector && <BedroomsSelectorDesktop />}
               </div>
+  
+              {/* ✅ OCULTAR VISUALMENTE: BATHROOMS & PRICE */}
+              {false && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+  
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBathroomsSelector(!showBathroomsSelector);
+                        setShowGuestSelector(false);
+                        setShowDatePicker(false);
+                        setShowBedroomsSelector(false);
+                        setShowPriceSelector(false);
+                      }}
+                      className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <span>{bathroomsLabel}</span>
+                    </button>
+                    {showBathroomsSelector && <BathroomsSelectorDesktop />}
+                  </div>
+  
+                  <span className="text-muted-foreground">•</span>
+  
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPriceSelector(!showPriceSelector);
+                        setShowGuestSelector(false);
+                        setShowDatePicker(false);
+                        setShowBedroomsSelector(false);
+                        setShowBathroomsSelector(false);
+                      }}
+                      className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <span>{priceLabel}</span>
+                    </button>
+                    {showPriceSelector && <PriceSelectorDesktop />}
+                  </div>
+                </>
+              )}
             </div>
-
+  
             <div className="flex items-center gap-2">
               <select
                 value={sortBy}
                 onChange={(e) => {
                   setSortBy(e.target.value);
-                  onApplyFilters?.();
                 }}
                 className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
@@ -1151,7 +1382,7 @@ export default function PropertiesHeaderCompact({
                 <option value="price_high">Price (High → Low)</option>
                 <option value="bedrooms">Bedrooms (Most → Least)</option>
               </select>
-
+  
               <CartButton
                 count={cartCount}
                 onClick={onCartClick}
@@ -1161,7 +1392,7 @@ export default function PropertiesHeaderCompact({
             </div>
           </div>
         </div>
-
+  
         <div
           className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm ${
             isCollapsed ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
@@ -1173,27 +1404,29 @@ export default function PropertiesHeaderCompact({
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Include location(s) for your search
                 </p>
-
+  
                 {hasActiveFilters && onClearAllFilters && (
                   <button
-  onClick={() => {
-    setShowAllBadges(false);
-    setShowDatePicker(false);
-    setShowGuestSelector(false);
-    setShowBedroomsSelector(false);
-    setUiError(null);
-    setLocalGuestsForModal(1);
-
-    // ✅ Solo esto. NO llames onApplyFilters acá.
-    onClearAllFilters?.();
-  }}
-  className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
->
-  Clear Filters
-</button>
-              )}
+                    onClick={() => {
+                      setShowAllBadges(false);
+                      setShowDatePicker(false);
+                      setShowGuestSelector(false);
+                      setShowBedroomsSelector(false);
+                      setShowBathroomsSelector(false);
+                      setShowPriceSelector(false);
+                      setUiError(null);
+                      setLocalGuestsForModal(1);
+  
+                      // ✅ Solo esto. NO llames onApplyFilters acá.
+                      onClearAllFilters?.();
+                    }}
+                    className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
+                  >
+                    Clear Filters
+                  </button>
+                )}
               </div>
-
+  
               {caribbean.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-muted-foreground font-medium">Caribbean</p>
@@ -1202,7 +1435,7 @@ export default function PropertiesHeaderCompact({
                   </div>
                 </div>
               )}
-
+  
               {mexico.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-muted-foreground font-medium">Mexico</p>
@@ -1212,15 +1445,15 @@ export default function PropertiesHeaderCompact({
                 </div>
               )}
             </div>
-
+  
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Popular filters
               </p>
-
+  
               <div className="flex items-center gap-2 flex-wrap">
                 {visibleBadges.map(renderBadge)}
-
+  
                 {hiddenBadgesCount > 0 && (
                   <button
                     onClick={() => setShowAllBadges(!showAllBadges)}
@@ -1244,7 +1477,7 @@ export default function PropertiesHeaderCompact({
           </div>
         </div>
       </div>
-
+  
       {/* MOBILE VERSION */}
       <div className="md:hidden sticky top-16 z-40 bg-background border-b border-border">
         <div className="px-4 py-3 space-y-3">
@@ -1274,7 +1507,7 @@ export default function PropertiesHeaderCompact({
               />
             </div>
           </div>
-
+  
           <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
             <div className="relative flex-shrink-0">
               <button
@@ -1323,7 +1556,7 @@ export default function PropertiesHeaderCompact({
                 </div>
               )}
             </div>
-
+  
             <div className="relative flex-shrink-0">
               <button
                 type="button"
@@ -1395,40 +1628,40 @@ export default function PropertiesHeaderCompact({
               )}
             </div>
           </div>
-
+  
           {selectedBadges.length > 0 && (
-  <div
-    className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4"
-    style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-  >
-    {selectedBadges.map((badgeKey) => {
-      // ✅ Buscar por slug primero, luego por id como fallback
-      const badge = badges.find((b: CrudBadge) => 
-        (b.slug && b.slug === badgeKey) || b.id === badgeKey
-      );
-      if (!badge) return null;
-      const Icon = resolveIcon(badge);
-      const key = badge.slug || badge.id;
-      return (
-        <button
-          key={key}
-          onClick={() => {
-            onBadgeToggle(key);
-            onApplyFilters?.();
-          }}
-          className="flex-shrink-0 inline-flex items-center rounded-full bg-[hsl(0,0%,6.7%)] text-white px-2.5 py-1 text-xs gap-1.5 font-medium"
-        >
-          <Icon className="h-3 w-3" />
-          <span>{badge.name}</span>
-          <X className="h-3 w-3" />
-        </button>
-      );
-    })}
-  </div>
-)}
+            <div
+              className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {selectedBadges.map((badgeKey) => {
+                // ✅ Buscar por slug primero, luego por id como fallback
+                const badge = badges.find((b: CrudBadge) => 
+                  (b.slug && b.slug === badgeKey) || b.id === badgeKey
+                );
+                if (!badge) return null;
+                const Icon = resolveIcon(badge);
+                const key = badge.slug || badge.id;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      onBadgeToggle(key);
+                      onApplyFilters?.();
+                    }}
+                    className="flex-shrink-0 inline-flex items-center rounded-full bg-[hsl(0,0%,6.7%)] text-white px-2.5 py-1 text-xs gap-1.5 font-medium"
+                  >
+                    <Icon className="h-3 w-3" />
+                    <span>{badge.name}</span>
+                    <X className="h-3 w-3" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
-
+  
       {showMobileFilters && (
         <div className="fixed inset-0 z-[200] bg-background overflow-y-auto">
           <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
@@ -1440,14 +1673,14 @@ export default function PropertiesHeaderCompact({
               <X className="w-5 h-5" />
             </button>
           </div>
-
+  
           <div className="p-4 space-y-6 pb-24 max-w-2xl mx-auto">
             {uiError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-600">{uiError}</p>
               </div>
             )}
-
+  
             <div>
               <label className="block text-sm font-medium mb-2">Sort by</label>
               <select
@@ -1461,10 +1694,10 @@ export default function PropertiesHeaderCompact({
                 <option value="bedrooms">Bedrooms (Most → Least)</option>
               </select>
             </div>
-
+  
             <div>
               <label className="block text-sm font-medium mb-3">Locations</label>
-
+  
               {caribbean.length > 0 && (
                 <div className="mb-4">
                   <p className="text-xs text-muted-foreground font-medium mb-2">
@@ -1475,7 +1708,7 @@ export default function PropertiesHeaderCompact({
                   </div>
                 </div>
               )}
-
+  
               {mexico.length > 0 && (
                 <div>
                   <p className="text-xs text-muted-foreground font-medium mb-2">
@@ -1487,7 +1720,7 @@ export default function PropertiesHeaderCompact({
                 </div>
               )}
             </div>
-
+  
             <div>
               <label className="block text-sm font-medium mb-2">Dates</label>
               <div className="space-y-2">
@@ -1508,7 +1741,7 @@ export default function PropertiesHeaderCompact({
                 />
               </div>
             </div>
-
+  
             <div>
               <label className="block text-sm font-medium mb-2">Bedrooms</label>
               <div className="flex items-center justify-between p-4 border border-input rounded-lg">
@@ -1549,7 +1782,73 @@ export default function PropertiesHeaderCompact({
                 </div>
               </div>
             </div>
-
+  
+            {/* ✅ OCULTAR VISUALMENTE EN MOBILE: BATHROOMS & PRICE */}
+            {false && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Bathrooms</label>
+                  <div className="flex items-center justify-between p-4 border border-input rounded-lg">
+                    <span className="text-sm">Number of bathrooms</span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = deriveInitialBathroomsCount(bathrooms);
+                          const newVal = Math.max(0, current - 1);
+                          if (newVal === 0) setBathrooms([]);
+                          else if (newVal >= 5) setBathrooms(["5+"]);
+                          else setBathrooms([String(newVal)]);
+                        }}
+                        className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
+                      >
+                        –
+                      </button>
+                      <span className="w-8 text-center font-medium">
+                        {bathrooms.length === 0
+                          ? "Any"
+                          : bathrooms.includes("5+")
+                          ? "5+"
+                          : bathrooms[0]}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = deriveInitialBathroomsCount(bathrooms);
+                          const newVal = Math.min(6, current + 1);
+                          if (newVal >= 5) setBathrooms(["5+"]);
+                          else setBathrooms([String(newVal)]);
+                        }}
+                        className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+  
+                <div>
+                  <label className="block text-sm font-medium mb-2">Price Range (per night)</label>
+                  <div className="space-y-2">
+                    <input
+                      type="number"
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)}
+                      placeholder="Min Price ($)"
+                      className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <input
+                      type="number"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      placeholder="Max Price ($)"
+                      className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+  
             {setGuests && (
               <div>
                 <label className="block text-sm font-medium mb-2">Guests</label>
@@ -1576,7 +1875,7 @@ export default function PropertiesHeaderCompact({
                 </div>
               </div>
             )}
-
+  
             <div>
               <label className="block text-sm font-medium mb-3">Amenities</label>
               <div className="flex flex-wrap gap-2">
@@ -1584,16 +1883,16 @@ export default function PropertiesHeaderCompact({
               </div>
             </div>
           </div>
-
+  
           <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 z-10">
             <div className="flex gap-3">
               {hasActiveFilters && onClearAllFilters && (
                 <button
-                onClick={() => {
-                  onClearAllFilters?.();
-                  setShowMobileFilters(false);
-                  setUiError(null);
-                }}
+                  onClick={() => {
+                    onClearAllFilters?.();
+                    setShowMobileFilters(false);
+                    setUiError(null);
+                  }}
                   className="flex-1 px-4 py-3 text-sm border border-input rounded-lg hover:bg-muted transition-colors font-medium"
                 >
                   Clear All

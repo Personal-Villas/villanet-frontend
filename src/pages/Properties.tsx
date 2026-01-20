@@ -439,10 +439,12 @@ export default function Properties() {
   }, [filters, applyFiltersImmediately]);
 
   const handleSortChange = useCallback((sort: string) => {
+    console.log("🧪 handleSortChange received:", sort);
     const newFilters = {
       ...filters,
       sortBy: sort as 'rank' | 'price_low' | 'price_high' | 'bedrooms'
     };
+    console.log("🧪 newFilters.sortBy:", newFilters.sortBy);
     
     applyFiltersImmediately(newFilters); 
   }, [filters, applyFiltersImmediately]);
@@ -659,19 +661,62 @@ export default function Properties() {
       
       try {
         const qs = new URLSearchParams();
+
+        if (appliedFilters.query.trim().length >= 3) {
+          qs.set('q', appliedFilters.query.trim());
+        }
         
-        if (appliedFilters.query.trim().length >= 3) qs.set('q', appliedFilters.query.trim());
-        if (appliedFilters.selectedDestination) qs.set('destination', appliedFilters.selectedDestination);
-        if (appliedFilters.bedrooms.length) qs.set('bedrooms', appliedFilters.bedrooms.join(','));
-        if (appliedFilters.bathrooms.length) qs.set('bathrooms', appliedFilters.bathrooms.join(','));
-        if (appliedFilters.minPrice) qs.set('minPrice', String(Number(appliedFilters.minPrice) || ''));
-        if (appliedFilters.maxPrice) qs.set('maxPrice', String(Number(appliedFilters.maxPrice) || ''));
-        if (appliedFilters.selectedBadges.length) qs.set('badges', appliedFilters.selectedBadges.join(',')); 
-        if (appliedFilters.sortBy) qs.set('sort', appliedFilters.sortBy);
+        if (appliedFilters.selectedDestination) {
+          qs.set('destination', appliedFilters.selectedDestination);
+        }
+        
+        // ✅ Bedrooms
+        if (appliedFilters.bedrooms.length > 0) {
+          qs.set('bedrooms', appliedFilters.bedrooms.join(','));
+        }
+        
+        // ✅ Bathrooms - FALTABA APLICAR
+        if (appliedFilters.bathrooms.length > 0) {
+          qs.set('bathrooms', appliedFilters.bathrooms.join(','));
+        }
+        
+        // ✅ Price Range - CORREGIR VALIDACIÓN
+        if (appliedFilters.minPrice && appliedFilters.minPrice.trim()) {
+          const minVal = Number(appliedFilters.minPrice);
+          if (!isNaN(minVal) && minVal > 0) {
+            qs.set('minPrice', String(minVal));
+          }
+        }
+        
+        if (appliedFilters.maxPrice && appliedFilters.maxPrice.trim()) {
+          const maxVal = Number(appliedFilters.maxPrice);
+          if (!isNaN(maxVal) && maxVal > 0) {
+            qs.set('maxPrice', String(maxVal));
+          }
+        }
+        
+        // Resto del código continúa igual...
+        if (appliedFilters.selectedBadges.length) {
+          qs.set('badges', appliedFilters.selectedBadges.join(','));
+        }
+        
+        if (appliedFilters.sortBy) {
+          qs.set('sort', appliedFilters.sortBy);
+        }
+        
         if (appliedFilters.guests && appliedFilters.guests > 0) {
           qs.set('guests', String(appliedFilters.guests));
         }
         
+        // Agregar console.log para debug
+        console.log('🔍 Query params being sent:', {
+          bedrooms: appliedFilters.bedrooms,
+          bathrooms: appliedFilters.bathrooms,
+          minPrice: appliedFilters.minPrice,
+          maxPrice: appliedFilters.maxPrice,
+          queryString: qs.toString()
+        });
+
         qs.set('limit', String(ITEMS_PER_PAGE));
         
         // 🔥 CORRECCIÓN IMPORTANTE: Usar cursor real en modo availability
@@ -712,9 +757,15 @@ export default function Properties() {
           const normalized: Listing[] = (data.results || []).map((item: any) => {
             const images = Array.isArray(item.images_json) ? item.images_json : [];
             const first = images[0];
+
+            const priceUSD =
+            item.priceUSD == null || item.priceUSD === ''
+              ? null
+              : Number(item.priceUSD);
             
             return {
               ...item,
+              priceUSD: Number.isFinite(priceUSD as any) ? priceUSD : null,
               id: item.id || `temp-${Math.random().toString(36).slice(2)}`,
               images_json: images,
               heroImage: (typeof first === 'string' && first) || item.heroImage || PLACEHOLDER,
@@ -743,7 +794,10 @@ export default function Properties() {
               villanetResortCollectionName: item.villanetResortCollectionName ?? null,
             };
           });
-
+          console.log(
+            "priceUSD first 6:",
+            normalized.slice(0, 6).map(x => x.priceUSD)
+          );
           const pageCursor = (currentPage - 1) * ITEMS_PER_PAGE;
 
           const cursorToUse =
@@ -790,7 +844,8 @@ export default function Properties() {
             
             // 🔥 ACTUALIZAR CURSOR SI HAY MÁS DATOS
             if (typeof data.nextCursor === 'number') {
-              if (hasAvailabilityFilter && currentPage === 1 && !autoFillDone && items.length < ITEMS_PER_PAGE) {
+              // si llegó data y todavía no estamos completos, avanzá cursor
+              if (hasAvailabilityFilter && currentPage === 1 && !data.exhausted) {
                 setAvailabilityCursor(data.nextCursor);
               }
             }
@@ -1044,32 +1099,42 @@ export default function Properties() {
           onAuthClick={openAuthModal} 
         />
 
-        <PropertiesHeaderCompact
-          itemsCount={total}
-          location={debouncedQuery.trim() || appliedFilters.selectedDestination || 'All Locations'}
-          query={filters.query}
-          setQuery={(query) => setFilters(prev => ({ ...prev, query }))}
-          sortBy={filters.sortBy}
-          setSortBy={handleSortChange}
-          badges={badges}
-          selectedBadges={filters.selectedBadges}
-          onBadgeToggle={handleBadgeToggle}
-          checkIn={filters.checkIn}
-          setCheckIn={(checkIn) => setFilters(prev => ({ ...prev, checkIn }))}
-          checkOut={filters.checkOut}
-          setCheckOut={(checkOut) => setFilters(prev => ({ ...prev, checkOut }))}
-          bedrooms={filters.bedrooms}
-          setBedrooms={(bedrooms) => setFilters(prev => ({ ...prev, bedrooms }))}
-          onClearAllFilters={handleClearAllFilters}
-          destinations={DESTINATIONS}
-          selectedDestination={filters.selectedDestination}
-          onSelectDestination={handleDestinationChange}
-          cartCount={cartCount}
-          onCartClick={openCart}
-          guests={filters.guests}        
-          setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
-          onApplyFilters={handleApplyFilters}
-        />
+<PropertiesHeaderCompact
+  itemsCount={total}
+  location={debouncedQuery.trim() || appliedFilters.selectedDestination || 'All Locations'}
+  query={filters.query}
+  setQuery={(query) => setFilters(prev => ({ ...prev, query }))}
+  sortBy={filters.sortBy}
+  setSortBy={handleSortChange}
+  badges={badges}
+  selectedBadges={filters.selectedBadges}
+  onBadgeToggle={handleBadgeToggle}
+  checkIn={filters.checkIn}
+  setCheckIn={(checkIn) => setFilters(prev => ({ ...prev, checkIn }))}
+  checkOut={filters.checkOut}
+  setCheckOut={(checkOut) => setFilters(prev => ({ ...prev, checkOut }))}
+  bedrooms={filters.bedrooms}
+  setBedrooms={(bedrooms) => setFilters(prev => ({ ...prev, bedrooms }))}
+  
+  bathrooms={filters.bathrooms}
+  setBathrooms={(bathrooms) => setFilters(prev => ({ ...prev, bathrooms }))}
+  
+  minPrice={filters.minPrice}
+  setMinPrice={(minPrice) => setFilters(prev => ({ ...prev, minPrice }))}
+  
+  maxPrice={filters.maxPrice}
+  setMaxPrice={(maxPrice) => setFilters(prev => ({ ...prev, maxPrice }))}
+  
+  onClearAllFilters={handleClearAllFilters}
+  destinations={DESTINATIONS}
+  selectedDestination={filters.selectedDestination}
+  onSelectDestination={handleDestinationChange}
+  cartCount={cartCount}
+  onCartClick={openCart}
+  guests={filters.guests}
+  setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
+  onApplyFilters={handleApplyFilters}
+/>
 
         <main className="pt-16">
           <div className="container mx-auto px-6 py-8 min-h-[60vh]">
