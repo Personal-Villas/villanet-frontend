@@ -109,7 +109,7 @@ export default function DashboardAdmin({ auth }: any) {
 
           {/* Tabs */}
           <div className="flex gap-1 md:gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-            {(['users', 'properties', 'partners', 'config'] as const).map((tab) => (
+            {(['users', 'partners', 'config'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}

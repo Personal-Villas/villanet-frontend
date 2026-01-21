@@ -203,10 +203,10 @@ const AuthModal: React.FC<AuthModalProps> = ({
             {/* Texto superpuesto */}
             <div className="absolute bottom-4 left-4 right-4 z-10">
               <h3 className="text-[25px] font-semibold text-neutral-900 mb-1">
-                Sign in or sign up to continue
+              Welcome to Villanet
               </h3>
               <p className="text-[17px] text-neutral-600">
-                Create a free account or sign in to continue. We will never sell your personal information.
+              Enter your email to log in or register. We will never sell your personal information.
               </p>
             </div>
           </div>
@@ -234,11 +234,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
             <>
               {/* Título solo en desktop, en mobile está sobre la imagen */}
               <h3 className="hidden sm:block text-[23px] font-semibold text-neutral-900 mb-3 mt-[100px] md:mb-[20px]">
-                Sign in or sign up to continue
+              Welcome to Villanet
               </h3>
               
               <p className="hidden sm:block text-sm text-neutral-600 mb-6 md:mb-[30px]">
-                Create a free account or sign in to continue. We will never sell your personal information.
+              Enter your email to log in or register. We will never sell your personal information.
               </p>
 
               {/* Botones sociales */}
