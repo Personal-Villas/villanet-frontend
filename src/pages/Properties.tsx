@@ -32,7 +32,7 @@ type Listing = {
   trustAccount?: boolean;
   dailyCleaning?: boolean;
   chefIncluded?: boolean;
-
+  guesty_booking_domain?: string | null;
   villanetChefIncluded?: boolean;
   villanetHeatedPool?: boolean;
   villanetOceanView?: boolean;
@@ -1406,7 +1406,9 @@ export default function Properties() {
         </main>
 
         <CartSidebar />
-        <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} />
+        <CartModal isOpen={isCartModalOpen} onClose={closeCartModal}   defaultCheckIn={appliedFilters.checkIn}
+  defaultCheckOut={appliedFilters.checkOut}
+  defaultGuests={appliedFilters.guests} />
 
         <button 
           onClick={openRankModal}

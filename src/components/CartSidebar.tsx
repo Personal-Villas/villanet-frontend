@@ -100,7 +100,7 @@ const CartSidebar: React.FC = () => {
                 className="flex-1 px-4 py-3 text-sm font-medium bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 z-50"
               >
                 <ExternalLink className="w-4 h-4" />
-                Create Client PDF
+                Create Client Quote
               </button>
             </div>
             <p className="text-xs text-neutral-500 text-center">
