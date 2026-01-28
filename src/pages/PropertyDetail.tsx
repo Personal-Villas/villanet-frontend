@@ -49,6 +49,8 @@ import CartModal from '../components/CartModal';
 import CartSidebar from '../components/CartSidebar'; 
 import { useCart } from '../context/CartContext'; 
 import PropertyMap from '../components/PropertyMap';
+import QuoteCalculator from '../components/QuoteCalculator';
+
 
 type Listing = {
   listing_id: string;
@@ -1131,6 +1133,38 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
+
+      {/* Quote Calculator */}
+      <section className="py-8 md:py-12 px-6 border-b border-[#E5E5E5]">
+  <div className="container mx-auto max-w-4xl">
+    <div className="mb-6 text-center">
+      <h2 className="text-2xl md:text-3xl font-bold mb-2 text-gray-900">
+        Calculate Your Quote
+      </h2>
+      <p className="text-sm text-gray-600">
+        Get instant pricing with your advisor commission included
+      </p>
+    </div>
+
+    <div className="max-w-xl mx-auto">
+      <QuoteCalculator
+        listingId={listing.listing_id}
+        checkIn={checkIn}
+        checkOut={checkOut}
+        guests={guests || 2}
+        defaultCommission={12}
+      />
+    </div>
+
+    {/* Info adicional */}
+    <div className="mt-6 text-center">
+      <p className="text-xs text-gray-500 max-w-2xl mx-auto">
+        Prices are calculated in real-time based on availability and seasonality. 
+        Final pricing subject to confirmation upon booking.
+      </p>
+    </div>
+  </div>
+</section>
 
       {/* Villa Net Verified Standard */}
       <section className="py-16 px-6 bg-white border-t border-b border-[#E6E6E6]">

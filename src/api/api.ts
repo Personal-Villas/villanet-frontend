@@ -109,6 +109,22 @@ export async function api<T = any>(
   return text as unknown as T;
 }
 
+// ✅ Helper methods para api (autenticada)
+api.get = <T = any>(path: string, opts?: RequestInit) => 
+  api<T>(path, { ...opts, method: 'GET' });
+
+api.post = <T = any>(path: string, body?: any, opts?: RequestInit) => 
+  api<T>(path, { ...opts, method: 'POST', body });
+
+api.put = <T = any>(path: string, body?: any, opts?: RequestInit) => 
+  api<T>(path, { ...opts, method: 'PUT', body });
+
+api.patch = <T = any>(path: string, body?: any, opts?: RequestInit) => 
+  api<T>(path, { ...opts, method: 'PATCH', body });
+
+api.delete = <T = any>(path: string, opts?: RequestInit) => 
+  api<T>(path, { ...opts, method: 'DELETE' });
+
 /**
  * API call PÚBLICA - Sin autenticación ni redirección en 401
  * Útil para endpoints públicos como /public/listings
@@ -199,3 +215,19 @@ export async function publicApi<T = any>(
   const text = await res.text();
   return text as unknown as T;
 }
+
+// ✅ Helper methods para publicApi
+publicApi.get = <T = any>(path: string, opts?: RequestInit) => 
+  publicApi<T>(path, { ...opts, method: 'GET' });
+
+publicApi.post = <T = any>(path: string, body?: any, opts?: RequestInit) => 
+  publicApi<T>(path, { ...opts, method: 'POST', body });
+
+publicApi.put = <T = any>(path: string, body?: any, opts?: RequestInit) => 
+  publicApi<T>(path, { ...opts, method: 'PUT', body });
+
+publicApi.patch = <T = any>(path: string, body?: any, opts?: RequestInit) => 
+  publicApi<T>(path, { ...opts, method: 'PATCH', body });
+
+publicApi.delete = <T = any>(path: string, opts?: RequestInit) => 
+  publicApi<T>(path, { ...opts, method: 'DELETE' });
