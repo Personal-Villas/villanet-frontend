@@ -551,7 +551,7 @@ export default function PropertiesHeader({
                       const current = deriveInitialBedroomsCount(bedrooms);
                       const newVal = Math.max(0, current - 1);
                       if (newVal === 0) setBedrooms([]);
-                      else if (newVal >= 5) setBedrooms(["5+"]);
+                      else if (newVal >= 12) setBedrooms(["12+"]);
                       else setBedrooms([String(newVal)]);
                     }}
                     className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -561,16 +561,16 @@ export default function PropertiesHeader({
                   <span className="w-8 text-center font-medium">
                     {bedrooms.length === 0
                       ? "Any"
-                      : bedrooms.includes("5+")
-                      ? "5+"
+                      : bedrooms.includes("12+")
+                      ? "12+"
                       : bedrooms[0]}
                   </span>
                   <button
                     type="button"
                     onClick={() => {
                       const current = deriveInitialBedroomsCount(bedrooms);
-                      const newVal = Math.min(6, current + 1);
-                      if (newVal >= 5) setBedrooms(["5+"]);
+                      const newVal = Math.min(13, current + 1);
+                      if (newVal >= 12) setBedrooms(["12+"]);
                       else setBedrooms([String(newVal)]);
                     }}
                     className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -714,13 +714,13 @@ export default function PropertiesHeader({
                   </button>
 
                   <span className="w-8 text-center">
-                    {tempBedrooms === 0 ? "Any" : tempBedrooms >= 5 ? "5+" : tempBedrooms}
+                    {tempBedrooms === 0 ? "Any" : tempBedrooms >= 12 ? "12+" : tempBedrooms}
                   </span>
 
                   <button
                     type="button"
                     onClick={() =>
-                      setTempBedrooms((prev) => Math.min(6, prev + 1))
+                      setTempBedrooms((prev) => Math.min(13, prev + 1))
                     }
                     className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
                   >

@@ -50,7 +50,7 @@ interface FiltersPanelProps {
           <div>
             <label className="block text-sm font-semibold text-neutral-900 mb-3">Bedrooms</label>
             <div className="flex flex-wrap gap-2">
-              {['1', '2', '3', '4', '5', '6+'].map(opt => (
+              {['1', '2', '3', '4', '5', '6','7','8','9','10','11','12+'].map(opt => (
                 <button
                   key={opt}
                   onClick={() => toggleOption(opt, setBedrooms as React.Dispatch<React.SetStateAction<string[]>>)}
@@ -70,7 +70,7 @@ interface FiltersPanelProps {
           <div>
             <label className="block text-sm font-semibold text-neutral-900 mb-3">Bathrooms</label>
             <div className="flex flex-wrap gap-2">
-              {['1', '2', '3', '4', '5+'].map(opt => (
+              {['1', '2', '3', '4', '5','6','7','8','9','10','11','12+'].map(opt => (
                 <button
                   key={opt}
                   onClick={() => toggleOption(opt, setBathrooms as React.Dispatch<React.SetStateAction<string[]>>)}

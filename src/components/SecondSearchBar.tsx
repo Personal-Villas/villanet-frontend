@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
+  Bath,
   Calendar,
+  DollarSign,
   Shield,
   Waves,
   Eye,
@@ -64,11 +66,11 @@ type PropertiesHeaderCompactProps = {
   // ✅ AGREGADOS: Bathrooms
   bathrooms: string[];
   setBathrooms: (value: string[]) => void;
-  
+
   // ✅ AGREGADOS: Price range
   minPrice: string;
   setMinPrice: (value: string) => void;
-  
+
   maxPrice: string;
   setMaxPrice: (value: string) => void;
 
@@ -120,7 +122,7 @@ const formatDates = (checkIn: string, checkOut: string): string => {
   if (checkIn && !checkOut) return "Select checkout";
 
   const formatDate = (dateStr: string) => {
-    const date = parseISODateLocal(dateStr); 
+    const date = parseISODateLocal(dateStr);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
@@ -251,9 +253,10 @@ const groupDestinationsByRegion = (
   return { caribbean, mexico };
 };
 
+// ✅ Helper para bedrooms
 const deriveInitialBedroomsCount = (bedrooms: string[]): number => {
   if (!bedrooms || bedrooms.length === 0) return 0;
-  if (bedrooms.includes("5+")) return 5;
+  if (bedrooms.includes("12+")) return 12;
   const numeric = bedrooms
     .map((v) => parseInt(v, 10))
     .filter((n) => !Number.isNaN(n));
@@ -264,7 +267,7 @@ const deriveInitialBedroomsCount = (bedrooms: string[]): number => {
 // ✅ Helper para bathrooms
 const deriveInitialBathroomsCount = (bathrooms: string[]): number => {
   if (!bathrooms || bathrooms.length === 0) return 0;
-  if (bathrooms.includes("5+")) return 5;
+  if (bathrooms.includes("12+")) return 12;
   const numeric = bathrooms
     .map((v) => parseInt(v, 10))
     .filter((n) => !Number.isNaN(n));
@@ -426,19 +429,19 @@ const guestyCalendarStyles = `
 `;
 
 // Componente personalizado de calendario estilo Guesty
-const GuestyCalendar = ({ 
-  selected, 
-  onSelect, 
-  numberOfMonths = 2 
-}: { 
+const GuestyCalendar = ({
+  selected,
+  onSelect,
+  numberOfMonths = 2
+}: {
   selected: { from?: Date; to?: Date } | undefined;
   onSelect: (range: { from?: Date; to?: Date } | undefined) => void;
   numberOfMonths?: number;
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  
+
   const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-  
+
   const getMonthData = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -446,25 +449,25 @@ const GuestyCalendar = ({
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
-    
+
     const weeks: (Date | null)[][] = [];
     let currentWeek: (Date | null)[] = [];
-    
+
     // Días previos del mes anterior
     for (let i = 0; i < startingDayOfWeek; i++) {
       currentWeek.push(null);
     }
-    
+
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
       currentWeek.push(new Date(year, month, day));
-      
+
       if (currentWeek.length === 7) {
         weeks.push(currentWeek);
         currentWeek = [];
       }
     }
-    
+
     // Completar última semana
     if (currentWeek.length > 0) {
       while (currentWeek.length < 7) {
@@ -472,10 +475,10 @@ const GuestyCalendar = ({
       }
       weeks.push(currentWeek);
     }
-    
+
     return { weeks, month, year };
   };
-  
+
   const handleDayClick = (day: Date) => {
     if (!selected?.from || (selected.from && selected.to)) {
       // Iniciar nueva selección
@@ -492,50 +495,50 @@ const GuestyCalendar = ({
       }
     }
   };
-  
+
   const isSameDay = (d1: Date, d2: Date) => {
     return d1.getDate() === d2.getDate() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getFullYear() === d2.getFullYear();
+      d1.getMonth() === d2.getMonth() &&
+      d1.getFullYear() === d2.getFullYear();
   };
-  
+
   const isDayInRange = (day: Date) => {
     if (!selected?.from || !selected?.to) return false;
     return day >= selected.from && day <= selected.to;
   };
-  
+
   const isDayRangeStart = (day: Date) => {
     return selected?.from && isSameDay(day, selected.from);
   };
-  
+
   const isDayRangeEnd = (day: Date) => {
     return selected?.to && isSameDay(day, selected.to);
   };
-  
+
   const isDayRangeMiddle = (day: Date) => {
     if (!selected?.from || !selected?.to) return false;
     return day > selected.from && day < selected.to;
   };
-  
+
   const isToday = (day: Date) => {
     const today = new Date();
     return isSameDay(day, today);
   };
-  
+
   const months = [];
   for (let i = 0; i < numberOfMonths; i++) {
     const monthDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + i, 1);
     months.push(getMonthData(monthDate));
   }
-  
+
   const goToPreviousMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   };
-  
+
   const goToNextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
-  
+
   return (
     <>
       <style>{guestyCalendarStyles}</style>
@@ -545,9 +548,9 @@ const GuestyCalendar = ({
             <div key={monthIndex} className="guesty-month">
               <div className="guesty-caption">
                 <div className="guesty-caption-label">
-                  {new Date(monthData.year, monthData.month).toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    year: 'numeric' 
+                  {new Date(monthData.year, monthData.month).toLocaleDateString('en-US', {
+                    month: 'long',
+                    year: 'numeric'
                   })}
                 </div>
                 {monthIndex === months.length - 1 && (
@@ -569,7 +572,7 @@ const GuestyCalendar = ({
                   </div>
                 )}
               </div>
-              
+
               <table className="guesty-table">
                 <thead>
                   <tr className="guesty-head-row">
@@ -587,24 +590,24 @@ const GuestyCalendar = ({
                         if (!day) {
                           return <td key={dayIndex} className="guesty-cell" />;
                         }
-                        
+
                         const isSelected = (isDayRangeStart(day) || isDayRangeEnd(day));
                         const isMiddle = isDayRangeMiddle(day);
                         const isStart = isDayRangeStart(day);
                         const isEnd = isDayRangeEnd(day);
                         const todayClass = isToday(day);
-                        
+
                         let cellClass = 'guesty-cell';
                         if (isMiddle) cellClass += ' guesty-cell-range-middle';
                         if (isStart) cellClass += ' guesty-cell-range-start';
                         if (isEnd) cellClass += ' guesty-cell-range-end';
-                        
+
                         let dayClass = 'guesty-day';
                         if (isSelected) dayClass += ' guesty-day-selected';
                         if (isMiddle) dayClass += ' guesty-day-range-middle';
                         if (todayClass && !isSelected) dayClass += ' guesty-day-today';
                         if (day.getMonth() !== monthData.month) dayClass += ' guesty-day-outside';
-                        
+
                         return (
                           <td key={dayIndex} className={cellClass}>
                             <button
@@ -672,7 +675,7 @@ export default function PropertiesHeaderCompact({
   // ✅ State para modales adicionales
   const [showBathroomsSelector, setShowBathroomsSelector] = useState(false);
   const [showPriceSelector, setShowPriceSelector] = useState(false);
-  
+
   const [uiError, setUiError] = useState<string | null>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
@@ -686,23 +689,23 @@ export default function PropertiesHeaderCompact({
 
   const guestsLabel = guests && guests > 0 ? `${guests} Guests` : 'Guests';
   const datesLabel = formatDates(checkIn, checkOut);
-  
-  const bedroomsLabel = 
+
+  const bedroomsLabel =
     bedrooms.length === 0 ? "Bedrooms" :
-    bedrooms.includes("5+") ? "5+ Bedrooms" :
-    `${bedrooms[0]} Bedrooms`;
+      bedrooms.includes("12+") ? "12+ Bedrooms" :
+        `${bedrooms[0]} Bedrooms`;
 
   // ✅ Labels para bathrooms y price
-  const bathroomsLabel = 
+  const bathroomsLabel =
     bathrooms.length === 0 ? "Bathrooms" :
-    bathrooms.includes("5+") ? "5+ Bathrooms" :
-    `${bathrooms[0]} Bathrooms`;
+      bathrooms.includes("12+") ? "12+ Bathrooms" :
+        `${bathrooms[0]} Bathrooms`;
 
-  const priceLabel = 
+  const priceLabel =
     !minPrice && !maxPrice ? "Price" :
-    minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
-    !minPrice && maxPrice ? `Up to $${Number(maxPrice).toLocaleString()}` :
-    `$${Number(minPrice).toLocaleString()} - $${Number(maxPrice).toLocaleString()}`;
+      minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
+        !minPrice && maxPrice ? `Up to $${Number(maxPrice).toLocaleString()}` :
+          `$${Number(minPrice).toLocaleString()} - $${Number(maxPrice).toLocaleString()}`;
 
   const { caribbean, mexico } = useMemo(
     () => groupDestinationsByRegion(destinations),
@@ -711,7 +714,7 @@ export default function PropertiesHeaderCompact({
 
   const handleRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
     setUiError(null);
-    
+
     if (!range) {
       setCheckIn("");
       setCheckOut("");
@@ -752,7 +755,7 @@ export default function PropertiesHeaderCompact({
       setUiError(null);
     }
   }, [checkIn, checkOut, setCheckOut]);
-  
+
   const validateBeforeSearch = (): boolean => {
     if (checkIn && checkOut && parseISODateLocal(checkOut) <= parseISODateLocal(checkIn)) {
       setUiError("Check-out must be after check-in");
@@ -794,13 +797,13 @@ export default function PropertiesHeaderCompact({
     if (!validateBeforeSearch()) {
       return;
     }
-    
+
     if (setGuests) {
       setGuests(localGuestsForModal);
     }
-    
+
     setShowMobileFilters(false);
-    onApplyFilters?.(); 
+    onApplyFilters?.();
   };
 
   useEffect(() => {
@@ -813,7 +816,7 @@ export default function PropertiesHeaderCompact({
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const shouldCollapse = lastScrollY > 100;
-          
+
           if (shouldCollapse !== isCollapsed) {
             setIsCollapsed(shouldCollapse);
           }
@@ -827,12 +830,12 @@ export default function PropertiesHeaderCompact({
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
-      
+
       scrollTimeoutRef.current = setTimeout(handleScroll, 50);
     };
 
     window.addEventListener("scroll", throttledScroll, { passive: true });
-    
+
     return () => {
       window.removeEventListener("scroll", throttledScroll);
       if (scrollTimeoutRef.current) {
@@ -892,8 +895,8 @@ export default function PropertiesHeaderCompact({
 
   const { quickBadges, restBadges, visibleBadges, hiddenBadgesCount } = useMemo(() => {
     if (!badges || badges.length === 0) {
-      return { 
-        quickBadges: [] as CrudBadge[], 
+      return {
+        quickBadges: [] as CrudBadge[],
         restBadges: [] as CrudBadge[],
         visibleBadges: [] as CrudBadge[],
         hiddenBadgesCount: 0
@@ -914,8 +917,8 @@ export default function PropertiesHeaderCompact({
     const visibleBadges = showAllBadges ? allBadges : allBadges.slice(0, desktopMaxVisible);
     const hiddenBadgesCount = allBadges.length - visibleBadges.length;
 
-    return { 
-      quickBadges: quick, 
+    return {
+      quickBadges: quick,
       restBadges: rest,
       visibleBadges,
       hiddenBadgesCount
@@ -925,11 +928,11 @@ export default function PropertiesHeaderCompact({
   const resolveIcon = (badge: CrudBadge): React.ComponentType<any> => {
     const normalizeKey = (str: string) =>
       str.toString().toLowerCase().replace(/\s+/g, "-");
-  
+
     const iconKey = normalizeKey(badge.icon || "");
-    const slugKey = normalizeKey(badge.slug || ""); 
+    const slugKey = normalizeKey(badge.slug || "");
     const nameKey = normalizeKey(badge.name || "");
-  
+
     return (
       ICON_MAP[iconKey] ||
       ICON_MAP[slugKey] ||
@@ -940,21 +943,20 @@ export default function PropertiesHeaderCompact({
 
   const renderBadge = (badge: CrudBadge) => {
     const Icon = resolveIcon(badge);
-    const key = badge.slug || badge.id; 
-    const isSelected = selectedBadges.includes(key); 
+    const key = badge.slug || badge.id;
+    const isSelected = selectedBadges.includes(key);
 
     return (
       <button
         key={key}
-        onClick={() => onBadgeToggle(key)} 
+        onClick={() => onBadgeToggle(key)}
         role="button"
         aria-pressed={isSelected}
         aria-label={`Filter by ${badge.name}, ${isSelected ? "active" : "inactive"}`}
-        className={`inline-flex items-center rounded-full font-medium transition-all duration-200 active:scale-95 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-2.5 py-1 text-xs gap-1 ${
-          isSelected
-            ? "bg-[hsl(0,0%,6.7%)] text-white border-2 border-[hsl(0,0%,6.7%)] hover:bg-[hsl(0,0%,15%)]"
-            : "bg-background text-foreground border-2 border-[hsl(0,0%,82%)] hover:border-[hsl(0,0%,64%)]"
-        }`}
+        className={`inline-flex items-center rounded-full font-medium transition-all duration-200 active:scale-95 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-2.5 py-1 text-xs gap-1 ${isSelected
+          ? "bg-[hsl(0,0%,6.7%)] text-white border-2 border-[hsl(0,0%,6.7%)] hover:bg-[hsl(0,0%,15%)]"
+          : "bg-background text-foreground border-2 border-[hsl(0,0%,82%)] hover:border-[hsl(0,0%,64%)]"
+          }`}
       >
         <Icon className="h-3 w-3" />
         <span>{badge.name}</span>
@@ -975,11 +977,10 @@ export default function PropertiesHeaderCompact({
         role="button"
         aria-pressed={isSelected}
         aria-label={`Filter by ${dest}, ${isSelected ? "active" : "inactive"}`}
-        className={`inline-flex items-center rounded-full font-medium transition-all duration-200 active:scale-95 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-2.5 py-1 text-xs gap-1 ${
-          isSelected
-            ? "bg-[hsl(0,0%,6.7%)] text-white border-2 border-[hsl(0,0%,6.7%)] hover:bg-[hsl(0,0%,15%)]"
-            : "bg-background text-foreground border-2 border-[hsl(0,0%,82%)] hover:border-[hsl(0,0%,64%)]"
-        }`}
+        className={`inline-flex items-center rounded-full font-medium transition-all duration-200 active:scale-95 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-2.5 py-1 text-xs gap-1 ${isSelected
+          ? "bg-[hsl(0,0%,6.7%)] text-white border-2 border-[hsl(0,0%,6.7%)] hover:bg-[hsl(0,0%,15%)]"
+          : "bg-background text-foreground border-2 border-[hsl(0,0%,82%)] hover:border-[hsl(0,0%,64%)]"
+          }`}
       >
         <span>{dest}</span>
         {isSelected && <X className="h-2.5 w-2.5 ml-0.5" />}
@@ -1020,7 +1021,7 @@ export default function PropertiesHeaderCompact({
           <p className="text-sm text-red-600">{uiError}</p>
         </div>
       )}
-      
+
       <GuestyCalendar
         selected={{
           from: checkIn ? parseISODateLocal(checkIn) : undefined,
@@ -1029,7 +1030,7 @@ export default function PropertiesHeaderCompact({
         onSelect={handleRangeSelect}
         numberOfMonths={2}
       />
-      
+
       <div className="flex justify-end pt-3 border-t border-border mt-4">
         <button
           onClick={handleApplyDates}
@@ -1045,7 +1046,7 @@ export default function PropertiesHeaderCompact({
   // Guest Selector para desktop
   const GuestSelectorDesktop = () => {
     const currentGuests = guests && guests > 0 ? guests : 1;
-  
+
     return (
       <div
         ref={guestSelectorRef}
@@ -1074,10 +1075,10 @@ export default function PropertiesHeaderCompact({
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-3 text-center">
-          {currentGuests === 0 
-            ? "No guest limit" 
-            : currentGuests === 1 
-              ? "1 guest" 
+          {currentGuests === 0
+            ? "No guest limit"
+            : currentGuests === 1
+              ? "1 guest"
               : `${currentGuests} guests`
           }
         </p>
@@ -1111,7 +1112,7 @@ export default function PropertiesHeaderCompact({
               onClick={() => {
                 const newVal = Math.max(0, current - 1);
                 if (newVal === 0) setBedrooms([]);
-                else if (newVal >= 5) setBedrooms(["5+"]);
+                else if (newVal >= 12) setBedrooms(["12+"]);
                 else setBedrooms([String(newVal)]);
               }}
               className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -1120,14 +1121,14 @@ export default function PropertiesHeaderCompact({
             </button>
 
             <span className="w-12 text-center font-semibold">
-              {current === 0 ? "Any" : current >= 5 ? "5+" : current}
+              {current === 0 ? "Any" : current >= 12 ? "12+" : current}
             </span>
 
             <button
               type="button"
               onClick={() => {
-                const newVal = Math.min(6, current + 1);
-                if (newVal >= 5) setBedrooms(["5+"]);
+                const newVal = Math.min(13, current + 1);
+                if (newVal >= 12) setBedrooms(["12+"]);
                 else setBedrooms([String(newVal)]);
               }}
               className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -1138,7 +1139,8 @@ export default function PropertiesHeaderCompact({
         </div>
         <div className="flex justify-end pt-3 border-t border-border mt-4">
           <button
-            onClick={handleApplyBedrooms}
+            onClick={
+              handleApplyBedrooms}
             className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
           >
             Apply Bedrooms
@@ -1165,7 +1167,7 @@ export default function PropertiesHeaderCompact({
               onClick={() => {
                 const newVal = Math.max(0, current - 1);
                 if (newVal === 0) setBathrooms([]);
-                else if (newVal >= 5) setBathrooms(["5+"]);
+                else if (newVal >= 12) setBathrooms(["12+"]);
                 else setBathrooms([String(newVal)]);
               }}
               className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -1173,13 +1175,13 @@ export default function PropertiesHeaderCompact({
               –
             </button>
             <span className="w-12 text-center font-semibold">
-              {current === 0 ? "Any" : current >= 5 ? "5+" : current}
+              {current === 0 ? "Any" : current >= 12 ? "12+" : current}
             </span>
             <button
               type="button"
               onClick={() => {
-                const newVal = Math.min(6, current + 1);
-                if (newVal >= 5) setBathrooms(["5+"]);
+                const newVal = Math.min(13, current + 1);
+                if (newVal >= 12) setBathrooms(["12+"]);
                 else setBathrooms([String(newVal)]);
               }}
               className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -1190,10 +1192,7 @@ export default function PropertiesHeaderCompact({
         </div>
         <div className="flex justify-end pt-3 border-t border-border mt-4">
           <button
-            onClick={() => {
-              setShowBathroomsSelector(false);
-              onApplyFilters?.();
-            }}
+            onClick={handleApplyBathrooms}
             className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
           >
             Apply Bathrooms
@@ -1216,9 +1215,16 @@ export default function PropertiesHeaderCompact({
           <input
             type="number"
             value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === '' || parseFloat(value) >= 0) {
+                setMinPrice(value);
+              }
+            }}
             placeholder="$0"
             className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            min="0"
+            step="100"
           />
         </div>
         <div>
@@ -1226,9 +1232,16 @@ export default function PropertiesHeaderCompact({
           <input
             type="number"
             value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === '' || parseFloat(value) >= 0) {
+                setMaxPrice(value);
+              }
+            }}
             placeholder="Any"
             className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            min="0"
+            step="100"
           />
         </div>
       </div>
@@ -1243,10 +1256,7 @@ export default function PropertiesHeaderCompact({
           Clear
         </button>
         <button
-          onClick={() => {
-            setShowPriceSelector(false);
-            onApplyFilters?.();
-          }}
+          onClick={handleApplyPrice}
           className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
         >
           Apply Price
@@ -1266,7 +1276,7 @@ export default function PropertiesHeaderCompact({
                 {itemsCount} Villas in {location}
               </h1>
               <span className="text-muted-foreground">•</span>
-  
+
               <div className="relative">
                 <button
                   type="button"
@@ -1284,9 +1294,9 @@ export default function PropertiesHeaderCompact({
                 </button>
                 {showDatePicker && <DatePickerDesktop />}
               </div>
-  
+
               <span className="text-muted-foreground">•</span>
-  
+
               <div className="relative">
                 <button
                   type="button"
@@ -1304,9 +1314,9 @@ export default function PropertiesHeaderCompact({
                 </button>
                 {showGuestSelector && <GuestSelectorDesktop />}
               </div>
-  
+
               <span className="text-muted-foreground">•</span>
-  
+
               <div className="relative">
                 <button
                   type="button"
@@ -1324,12 +1334,11 @@ export default function PropertiesHeaderCompact({
                 </button>
                 {showBedroomsSelector && <BedroomsSelectorDesktop />}
               </div>
-  
-              {/* ✅ OCULTAR VISUALMENTE: BATHROOMS & PRICE */}
-              {false && (
+
+              {
                 <>
                   <span className="text-muted-foreground">•</span>
-  
+
                   <div className="relative">
                     <button
                       type="button"
@@ -1342,13 +1351,14 @@ export default function PropertiesHeaderCompact({
                       }}
                       className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                     >
+                      <Bath className="w-4 h-4" />
                       <span>{bathroomsLabel}</span>
                     </button>
                     {showBathroomsSelector && <BathroomsSelectorDesktop />}
                   </div>
-  
+
                   <span className="text-muted-foreground">•</span>
-  
+
                   <div className="relative">
                     <button
                       type="button"
@@ -1361,14 +1371,15 @@ export default function PropertiesHeaderCompact({
                       }}
                       className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                     >
+                      <DollarSign className="w-4 h-4" />
                       <span>{priceLabel}</span>
                     </button>
                     {showPriceSelector && <PriceSelectorDesktop />}
                   </div>
                 </>
-              )}
+              }
             </div>
-  
+
             <div className="flex items-center gap-2">
               <select
                 value={sortBy}
@@ -1382,7 +1393,7 @@ export default function PropertiesHeaderCompact({
                 <option value="price_high">Price (High → Low)</option>
                 <option value="bedrooms">Bedrooms (Most → Least)</option>
               </select>
-  
+
               <CartButton
                 count={cartCount}
                 onClick={onCartClick}
@@ -1392,11 +1403,10 @@ export default function PropertiesHeaderCompact({
             </div>
           </div>
         </div>
-  
+
         <div
-          className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm ${
-            isCollapsed ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
-          } transition-opacity duration-200`}
+          className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm ${isCollapsed ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
+            } transition-opacity duration-200`}
         >
           <div className="container mx-auto px-6 py-4 space-y-4">
             <div className="space-y-3">
@@ -1404,7 +1414,7 @@ export default function PropertiesHeaderCompact({
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Include location(s) for your search
                 </p>
-  
+
                 {hasActiveFilters && onClearAllFilters && (
                   <button
                     onClick={() => {
@@ -1416,7 +1426,7 @@ export default function PropertiesHeaderCompact({
                       setShowPriceSelector(false);
                       setUiError(null);
                       setLocalGuestsForModal(1);
-  
+
                       // ✅ Solo esto. NO llames onApplyFilters acá.
                       onClearAllFilters?.();
                     }}
@@ -1426,7 +1436,7 @@ export default function PropertiesHeaderCompact({
                   </button>
                 )}
               </div>
-  
+
               {caribbean.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-muted-foreground font-medium">Caribbean</p>
@@ -1435,7 +1445,7 @@ export default function PropertiesHeaderCompact({
                   </div>
                 </div>
               )}
-  
+
               {mexico.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-xs text-muted-foreground font-medium">Mexico</p>
@@ -1445,15 +1455,15 @@ export default function PropertiesHeaderCompact({
                 </div>
               )}
             </div>
-  
+
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Popular filters
               </p>
-  
+
               <div className="flex items-center gap-2 flex-wrap">
                 {visibleBadges.map(renderBadge)}
-  
+
                 {hiddenBadgesCount > 0 && (
                   <button
                     onClick={() => setShowAllBadges(!showAllBadges)}
@@ -1477,7 +1487,7 @@ export default function PropertiesHeaderCompact({
           </div>
         </div>
       </div>
-  
+
       {/* MOBILE VERSION */}
       <div className="md:hidden sticky top-16 z-40 bg-background border-b border-border">
         <div className="px-4 py-3 space-y-3">
@@ -1507,7 +1517,7 @@ export default function PropertiesHeaderCompact({
               />
             </div>
           </div>
-  
+
           <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4">
             <div className="relative flex-shrink-0">
               <button
@@ -1556,7 +1566,7 @@ export default function PropertiesHeaderCompact({
                 </div>
               )}
             </div>
-  
+
             <div className="relative flex-shrink-0">
               <button
                 type="button"
@@ -1607,10 +1617,10 @@ export default function PropertiesHeaderCompact({
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground mt-3 text-center">
-                        {guests === 0 
-                          ? "No guest limit" 
-                          : guests === 1 
-                            ? "1 guest" 
+                        {guests === 0
+                          ? "No guest limit"
+                          : guests === 1
+                            ? "1 guest"
                             : `${guests} guests`
                         }
                       </p>
@@ -1628,7 +1638,7 @@ export default function PropertiesHeaderCompact({
               )}
             </div>
           </div>
-  
+
           {selectedBadges.length > 0 && (
             <div
               className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4"
@@ -1636,7 +1646,7 @@ export default function PropertiesHeaderCompact({
             >
               {selectedBadges.map((badgeKey) => {
                 // ✅ Buscar por slug primero, luego por id como fallback
-                const badge = badges.find((b: CrudBadge) => 
+                const badge = badges.find((b: CrudBadge) =>
                   (b.slug && b.slug === badgeKey) || b.id === badgeKey
                 );
                 if (!badge) return null;
@@ -1661,7 +1671,7 @@ export default function PropertiesHeaderCompact({
           )}
         </div>
       </div>
-  
+
       {showMobileFilters && (
         <div className="fixed inset-0 z-[200] bg-background overflow-y-auto">
           <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
@@ -1673,14 +1683,14 @@ export default function PropertiesHeaderCompact({
               <X className="w-5 h-5" />
             </button>
           </div>
-  
+
           <div className="p-4 space-y-6 pb-24 max-w-2xl mx-auto">
             {uiError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-600">{uiError}</p>
               </div>
             )}
-  
+
             <div>
               <label className="block text-sm font-medium mb-2">Sort by</label>
               <select
@@ -1694,10 +1704,10 @@ export default function PropertiesHeaderCompact({
                 <option value="bedrooms">Bedrooms (Most → Least)</option>
               </select>
             </div>
-  
+
             <div>
               <label className="block text-sm font-medium mb-3">Locations</label>
-  
+
               {caribbean.length > 0 && (
                 <div className="mb-4">
                   <p className="text-xs text-muted-foreground font-medium mb-2">
@@ -1708,7 +1718,7 @@ export default function PropertiesHeaderCompact({
                   </div>
                 </div>
               )}
-  
+
               {mexico.length > 0 && (
                 <div>
                   <p className="text-xs text-muted-foreground font-medium mb-2">
@@ -1720,7 +1730,7 @@ export default function PropertiesHeaderCompact({
                 </div>
               )}
             </div>
-  
+
             <div>
               <label className="block text-sm font-medium mb-2">Dates</label>
               <div className="space-y-2">
@@ -1741,7 +1751,7 @@ export default function PropertiesHeaderCompact({
                 />
               </div>
             </div>
-  
+
             <div>
               <label className="block text-sm font-medium mb-2">Bedrooms</label>
               <div className="flex items-center justify-between p-4 border border-input rounded-lg">
@@ -1753,7 +1763,7 @@ export default function PropertiesHeaderCompact({
                       const current = deriveInitialBedroomsCount(bedrooms);
                       const newVal = Math.max(0, current - 1);
                       if (newVal === 0) setBedrooms([]);
-                      else if (newVal >= 5) setBedrooms(["5+"]);
+                      else if (newVal >= 12) setBedrooms(["12+"]);
                       else setBedrooms([String(newVal)]);
                     }}
                     className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -1763,16 +1773,16 @@ export default function PropertiesHeaderCompact({
                   <span className="w-8 text-center font-medium">
                     {bedrooms.length === 0
                       ? "Any"
-                      : bedrooms.includes("5+")
-                      ? "5+"
-                      : bedrooms[0]}
+                      : bedrooms.includes("12+")
+                        ? "12+"
+                        : bedrooms[0]}
                   </span>
                   <button
                     type="button"
                     onClick={() => {
                       const current = deriveInitialBedroomsCount(bedrooms);
-                      const newVal = Math.min(6, current + 1);
-                      if (newVal >= 5) setBedrooms(["5+"]);
+                      const newVal = Math.min(13, current + 1);
+                      if (newVal >= 12) setBedrooms(["12+"]);
                       else setBedrooms([String(newVal)]);
                     }}
                     className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -1782,9 +1792,8 @@ export default function PropertiesHeaderCompact({
                 </div>
               </div>
             </div>
-  
-            {/* ✅ OCULTAR VISUALMENTE EN MOBILE: BATHROOMS & PRICE */}
-            {false && (
+
+            {
               <>
                 <div>
                   <label className="block text-sm font-medium mb-2">Bathrooms</label>
@@ -1797,7 +1806,7 @@ export default function PropertiesHeaderCompact({
                           const current = deriveInitialBathroomsCount(bathrooms);
                           const newVal = Math.max(0, current - 1);
                           if (newVal === 0) setBathrooms([]);
-                          else if (newVal >= 5) setBathrooms(["5+"]);
+                          else if (newVal >= 12) setBathrooms(["12+"]);
                           else setBathrooms([String(newVal)]);
                         }}
                         className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -1807,16 +1816,16 @@ export default function PropertiesHeaderCompact({
                       <span className="w-8 text-center font-medium">
                         {bathrooms.length === 0
                           ? "Any"
-                          : bathrooms.includes("5+")
-                          ? "5+"
-                          : bathrooms[0]}
+                          : bathrooms.includes("12+")
+                            ? "12+"
+                            : bathrooms[0]}
                       </span>
                       <button
                         type="button"
                         onClick={() => {
                           const current = deriveInitialBathroomsCount(bathrooms);
-                          const newVal = Math.min(6, current + 1);
-                          if (newVal >= 5) setBathrooms(["5+"]);
+                          const newVal = Math.min(13, current + 1);
+                          if (newVal >= 12) setBathrooms(["12+"]);
                           else setBathrooms([String(newVal)]);
                         }}
                         className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
@@ -1826,29 +1835,43 @@ export default function PropertiesHeaderCompact({
                     </div>
                   </div>
                 </div>
-  
+
                 <div>
                   <label className="block text-sm font-medium mb-2">Price Range (per night)</label>
                   <div className="space-y-2">
                     <input
                       type="number"
                       value={minPrice}
-                      onChange={(e) => setMinPrice(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '' || parseFloat(value) >= 0) {
+                          setMinPrice(value);
+                        }
+                      }}
                       placeholder="Min Price ($)"
                       className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      min="0"
+                      step="100"
                     />
                     <input
                       type="number"
                       value={maxPrice}
-                      onChange={(e) => setMaxPrice(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === '' || parseFloat(value) >= 0) {
+                          setMaxPrice(value);
+                        }
+                      }}
                       placeholder="Max Price ($)"
                       className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      min="0"
+                      step="100"
                     />
                   </div>
                 </div>
               </>
-            )}
-  
+            }
+
             {setGuests && (
               <div>
                 <label className="block text-sm font-medium mb-2">Guests</label>
@@ -1875,7 +1898,7 @@ export default function PropertiesHeaderCompact({
                 </div>
               </div>
             )}
-  
+
             <div>
               <label className="block text-sm font-medium mb-3">Amenities</label>
               <div className="flex flex-wrap gap-2">
@@ -1883,7 +1906,7 @@ export default function PropertiesHeaderCompact({
               </div>
             </div>
           </div>
-  
+
           <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 z-10">
             <div className="flex gap-3">
               {hasActiveFilters && onClearAllFilters && (
