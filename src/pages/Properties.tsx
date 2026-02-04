@@ -566,6 +566,10 @@ export default function Properties() {
     autoFillDone,
   ]);
 
+  useEffect(() => {
+    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+  }, [currentPage]);
+
   // 🔥 Reemplazo progresivo: slots (skeleton) -> cards reales
   useEffect(() => {
     // solo primera página: acá está el "premium feel"
@@ -1057,6 +1061,8 @@ export default function Properties() {
     );
   }
 
+  const renderList = currentPage === 1 ? slots : items;
+  
   return (
     <>
       <SEO
@@ -1199,7 +1205,7 @@ export default function Properties() {
 )}
 
                 <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {slots.map((item, idx) => {
+                {renderList.map((item, idx) => {
                     if (!item) {
                       // ✅ Skeleton por-slot (mantiene layout exacto)
                       return <ListingCardSkeleton key={`sk-${idx}`} />;                    }
