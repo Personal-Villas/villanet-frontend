@@ -31,13 +31,11 @@ export default function QuoteCalculator({
   checkIn,
   checkOut,
   guests,
-  defaultCommission = 12
 }: QuoteCalculatorProps) {
   const [quoteServer, setQuoteServer] = useState<QuoteServerData | null>(null);
-  const [commissionPct, setCommissionPct] = useState(defaultCommission);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const COMMISSION_PCT = 10;
   // Debounce para evitar spam a Guesty
   const debouncedParams = useDebouncedValue(
     { listingId, checkIn, checkOut, guests },
@@ -69,7 +67,7 @@ export default function QuoteCalculator({
           checkIn: ci,
           checkOut: co,
           guests: g,
-          commissionPct: 0 
+          commissionPct: COMMISSION_PCT 
         });
 
         if (response.ok) {
@@ -104,7 +102,7 @@ export default function QuoteCalculator({
   const computed = quoteServer
     ? (() => {
         const subtotal = quoteServer.base + quoteServer.cleaning + quoteServer.taxes;
-        const commission = money2(subtotal * (commissionPct / 100));
+        const commission = money2(subtotal * (COMMISSION_PCT / 100));
         const totalGross = money2(subtotal + commission);
         return { subtotal, commission, totalGross };
       })()
@@ -238,53 +236,29 @@ export default function QuoteCalculator({
         )}
       </div>
 
-      {/* Commission Slider */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <TrendingUp className="w-4 h-4" />
-            Advisor Commission
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.5"
-              value={commissionPct}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                if (!isNaN(val) && val >= 0 && val <= 100) {
-                  setCommissionPct(val);
-                }
-              }}
-              className="w-16 px-2 py-1 text-sm text-right border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <span className="text-sm font-semibold text-gray-900">%</span>
-          </div>
-        </div>
+{/* Commission (Fixed) */}
+<div className="mb-6">
+  <div className="flex items-center justify-between mb-3">
+    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+      <TrendingUp className="w-4 h-4" />
+      Advisor Commission
+    </label>
 
-        <input
-          type="range"
-          min="0"
-          max="25"
-          step="0.5"
-          value={commissionPct}
-          onChange={(e) => setCommissionPct(parseFloat(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-        />
+    <div className="text-sm font-semibold text-gray-900">
+      {COMMISSION_PCT}%
+    </div>
+  </div>
 
-        <div className="flex justify-between text-xs text-gray-500 mt-1">
-          <span>0%</span>
-          <span>25%</span>
-        </div>
-      </div>
+  <div className="text-xs text-gray-500">
+    Commission is fixed and included in the total.
+  </div>
+</div>
 
       {/* Commission Amount */}
       {computed && computed.commission > 0 && (
         <div className="flex justify-between items-center mb-4 py-3 px-4 bg-blue-50 rounded-lg border border-blue-200">
           <span className="text-sm font-medium text-blue-900">
-            Your Commission ({commissionPct}%)
+            Your Commission ({COMMISSION_PCT}%)
           </span>
           <span className="text-base font-bold text-blue-900">
             {formatMoney(computed.commission)}
