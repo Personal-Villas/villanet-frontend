@@ -438,10 +438,42 @@ const GuestyCalendar = ({
   onSelect: (range: { from?: Date; to?: Date } | undefined) => void;
   numberOfMonths?: number;
 }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Fecha actual normalizada
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  // Mes mínimo permitido
+  const minMonth = useMemo(() => {
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  }, [today]);
+
+  // Mes actualmente visible
+  const [currentMonth, setCurrentMonth] = useState<Date>(
+    selected?.from
+      ? new Date(selected.from.getFullYear(), selected.from.getMonth(), 1)
+      : minMonth
+  );
+
+  // Mantener el mes del check-in visible
+  useEffect(() => {
+    if (selected?.from) {
+      setCurrentMonth(
+        new Date(
+          selected.from.getFullYear(),
+          selected.from.getMonth(),
+          1
+        )
+      );
+    }
+  }, [selected?.from]);
 
   const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
+  // Generar datos del mes
   const getMonthData = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -461,7 +493,6 @@ const GuestyCalendar = ({
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
       currentWeek.push(new Date(year, month, day));
-
       if (currentWeek.length === 7) {
         weeks.push(currentWeek);
         currentWeek = [];
@@ -479,89 +510,115 @@ const GuestyCalendar = ({
     return { weeks, month, year };
   };
 
+  // Helpers de fechas
+  const isSameDay = (d1: Date, d2: Date) =>
+    d1.getDate() === d2.getDate() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getFullYear() === d2.getFullYear();
+
+  const isToday = (day: Date) => isSameDay(day, today);
+
+  const isBeforeToday = (day: Date) => day < today;
+
+  const isDayRangeStart = (day: Date) =>
+    !!selected?.from && isSameDay(day, selected.from);
+
+  const isDayRangeEnd = (day: Date) =>
+    !!selected?.to && isSameDay(day, selected.to);
+
+  const isDayRangeMiddle = (day: Date) =>
+    !!selected?.from &&
+    !!selected?.to &&
+    day > selected.from &&
+    day < selected.to;
+
+  // Click en día
   const handleDayClick = (day: Date) => {
-    if (!selected?.from || (selected.from && selected.to)) {
-      // Iniciar nueva selección
+    if (isBeforeToday(day)) return;
+
+    setCurrentMonth(new Date(day.getFullYear(), day.getMonth(), 1));
+
+    if (!selected?.from || selected.to) {
       onSelect({ from: day, to: undefined });
-    } else if (selected.from && !selected.to) {
-      // Completar rango
-      if (day < selected.from) {
-        onSelect({ from: day, to: selected.from });
-      } else if (day.getTime() === selected.from.getTime()) {
-        // Mismo día - mantener solo from
-        onSelect({ from: day, to: undefined });
-      } else {
-        onSelect({ from: selected.from, to: day });
-      }
+    } else if (day < selected.from) {
+      onSelect({ from: day, to: selected.from });
+    } else if (day.getTime() === selected.from.getTime()) {
+      onSelect({ from: day, to: undefined });
+    } else {
+      onSelect({ from: selected.from, to: day });
     }
   };
 
-  const isSameDay = (d1: Date, d2: Date) => {
-    return d1.getDate() === d2.getDate() &&
-      d1.getMonth() === d2.getMonth() &&
-      d1.getFullYear() === d2.getFullYear();
-  };
-
-  const isDayInRange = (day: Date) => {
-    if (!selected?.from || !selected?.to) return false;
-    return day >= selected.from && day <= selected.to;
-  };
-
-  const isDayRangeStart = (day: Date) => {
-    return selected?.from && isSameDay(day, selected.from);
-  };
-
-  const isDayRangeEnd = (day: Date) => {
-    return selected?.to && isSameDay(day, selected.to);
-  };
-
-  const isDayRangeMiddle = (day: Date) => {
-    if (!selected?.from || !selected?.to) return false;
-    return day > selected.from && day < selected.to;
-  };
-
-  const isToday = (day: Date) => {
-    const today = new Date();
-    return isSameDay(day, today);
-  };
-
-  const months = [];
-  for (let i = 0; i < numberOfMonths; i++) {
-    const monthDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + i, 1);
-    months.push(getMonthData(monthDate));
-  }
-
+  // Navegación de meses
   const goToPreviousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    const prevMonth = new Date(
+      currentMonth.getFullYear(),
+      currentMonth.getMonth() - 1,
+      1
+    );
+
+    if (prevMonth >= minMonth) {
+      setCurrentMonth(prevMonth);
+    }
   };
 
   const goToNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    setCurrentMonth(
+      new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + 1,
+        1
+      )
+    );
   };
+
+  const isPrevDisabled =
+    currentMonth.getFullYear() === minMonth.getFullYear() &&
+    currentMonth.getMonth() === minMonth.getMonth();
+
+  // Render de meses
+  const months = [];
+  for (let i = 0; i < numberOfMonths; i++) {
+    months.push(
+      getMonthData(
+        new Date(
+          currentMonth.getFullYear(),
+          currentMonth.getMonth() + i,
+          1
+        )
+      )
+    );
+  }
+
+
 
   return (
     <>
       <style>{guestyCalendarStyles}</style>
+
       <div className="guesty-calendar">
         <div className="guesty-months">
           {months.map((monthData, monthIndex) => (
             <div key={monthIndex} className="guesty-month">
               <div className="guesty-caption">
                 <div className="guesty-caption-label">
-                  {new Date(monthData.year, monthData.month).toLocaleDateString('en-US', {
-                    month: 'long',
-                    year: 'numeric'
-                  })}
+                  {new Date(monthData.year, monthData.month).toLocaleDateString(
+                    'en-US',
+                    { month: 'long', year: 'numeric' }
+                  )}
                 </div>
+
                 {monthIndex === months.length - 1 && (
                   <div className="guesty-nav">
                     <button
                       type="button"
-                      className="guesty-nav-button"
+                      className="guesty-nav-button disabled:opacity-30"
                       onClick={goToPreviousMonth}
+                      disabled={isPrevDisabled}
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
+
                     <button
                       type="button"
                       className="guesty-nav-button"
@@ -576,13 +633,12 @@ const GuestyCalendar = ({
               <table className="guesty-table">
                 <thead>
                   <tr className="guesty-head-row">
-                    {daysOfWeek.map((day) => (
-                      <th key={day} className="guesty-head-cell">
-                        {day}
-                      </th>
+                    {daysOfWeek.map(day => (
+                      <th key={day} className="guesty-head-cell">{day}</th>
                     ))}
                   </tr>
                 </thead>
+
                 <tbody className="guesty-tbody">
                   {monthData.weeks.map((week, weekIndex) => (
                     <tr key={weekIndex} className="guesty-row">
@@ -591,30 +647,28 @@ const GuestyCalendar = ({
                           return <td key={dayIndex} className="guesty-cell" />;
                         }
 
-                        const isSelected = (isDayRangeStart(day) || isDayRangeEnd(day));
-                        const isMiddle = isDayRangeMiddle(day);
-                        const isStart = isDayRangeStart(day);
-                        const isEnd = isDayRangeEnd(day);
-                        const todayClass = isToday(day);
+                        const isDisabled =
+                          day.getMonth() !== monthData.month ||
+                          isBeforeToday(day);
 
                         let cellClass = 'guesty-cell';
-                        if (isMiddle) cellClass += ' guesty-cell-range-middle';
-                        if (isStart) cellClass += ' guesty-cell-range-start';
-                        if (isEnd) cellClass += ' guesty-cell-range-end';
+                        if (isDayRangeMiddle(day)) cellClass += ' guesty-cell-range-middle';
+                        if (isDayRangeStart(day)) cellClass += ' guesty-cell-range-start';
+                        if (isDayRangeEnd(day)) cellClass += ' guesty-cell-range-end';
 
                         let dayClass = 'guesty-day';
-                        if (isSelected) dayClass += ' guesty-day-selected';
-                        if (isMiddle) dayClass += ' guesty-day-range-middle';
-                        if (todayClass && !isSelected) dayClass += ' guesty-day-today';
-                        if (day.getMonth() !== monthData.month) dayClass += ' guesty-day-outside';
+                        if (isDayRangeStart(day) || isDayRangeEnd(day)) dayClass += ' guesty-day-selected';
+                        if (isDayRangeMiddle(day)) dayClass += ' guesty-day-range-middle';
+                        if (isToday(day) && !isDayRangeStart(day)) dayClass += ' guesty-day-today';
+                        if (isDisabled) dayClass += ' opacity-40 cursor-not-allowed';
 
                         return (
                           <td key={dayIndex} className={cellClass}>
                             <button
                               type="button"
                               className={dayClass}
-                              onClick={() => handleDayClick(day)}
-                              disabled={day.getMonth() !== monthData.month}
+                              disabled={isDisabled}
+                              onClick={() => !isDisabled && handleDayClick(day)}
                             >
                               {day.getDate()}
                             </button>
@@ -1032,6 +1086,15 @@ export default function PropertiesHeaderCompact({
       />
 
       <div className="flex justify-end pt-3 border-t border-border mt-4">
+        {(checkIn || checkOut) && (
+          <button
+            type="button"
+            onClick={() => handleRangeSelect(undefined)}
+            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Clear Dates
+          </button>
+        )}
         <button
           onClick={handleApplyDates}
           className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
