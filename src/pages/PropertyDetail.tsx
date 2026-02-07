@@ -315,6 +315,84 @@ export default function PropertyDetail() {
     toggleItem(cartListing);
   };
 
+  //Función para "volver a propiedades"
+  const handleBackToProperties = () => {
+  const savedFilters = localStorage.getItem('searchFilters');
+  const scrollPosition = localStorage.getItem('propertiesScrollPosition');
+  
+  if (savedFilters) {
+    try {
+      const filters = JSON.parse(savedFilters);
+      const params = new URLSearchParams();
+      
+      // Query
+      if (filters.query && filters.query.trim()) {
+        params.set('q', filters.query.trim());
+      }
+      
+      // Destination
+      if (filters.destination) {
+        params.set('destination', filters.destination);
+      }
+      
+      // Bedrooms (array)
+      if (filters.bedrooms && Array.isArray(filters.bedrooms) && filters.bedrooms.length > 0) {
+        params.set('bedrooms', filters.bedrooms.join(','));
+      }
+      
+      // Bathrooms (array)
+      if (filters.bathrooms && Array.isArray(filters.bathrooms) && filters.bathrooms.length > 0) {
+        params.set('bathrooms', filters.bathrooms.join(','));
+      }
+      
+      // Price
+      if (filters.minPrice) {
+        params.set('minPrice', filters.minPrice.toString());
+      }
+      if (filters.maxPrice) {
+        params.set('maxPrice', filters.maxPrice.toString());
+      }
+      
+      // Dates
+      if (filters.checkIn) {
+        params.set('checkIn', filters.checkIn);
+      }
+      if (filters.checkOut) {
+        params.set('checkOut', filters.checkOut);
+      }
+      
+      // Guests
+      if (filters.guests && filters.guests > 0) {
+        params.set('guests', filters.guests.toString());
+      }
+      
+      // Badges (array)
+      if (filters.badges && Array.isArray(filters.badges) && filters.badges.length > 0) {
+        params.set('badges', filters.badges.join(','));
+      }
+      
+      // Sort
+      if (filters.sort) {
+        params.set('sort', filters.sort);
+      }
+      
+      const queryString = params.toString();
+      
+      console.log('🔙 Volviendo con filtros:', queryString);
+      
+      navigate(queryString ? `/properties?${queryString}` : '/properties');
+    } catch (error) {
+      console.error('Error parsing saved filters:', error);
+      navigate('/properties');
+    }
+  } else {
+    navigate('/properties');
+  }
+  
+  // Marcar para restaurar scroll
+  localStorage.setItem('restoreScrollPosition', scrollPosition || '0');
+};
+
   useEffect(() => {
     if (!id) {
       setError('Invalid property ID');
@@ -476,7 +554,12 @@ export default function PropertyDetail() {
     }
   }, [listing]);
 
-
+  useEffect(() => {
+    // Marcar cuando el usuario abandona esta página
+    return () => {
+      localStorage.setItem('fromPropertyDetail', 'true');
+    };
+  }, []);
 
   const retryAvailability = () => {
     setAvailabilityError(null);
@@ -636,6 +719,49 @@ export default function PropertyDetail() {
         showNavbarSearch={false}
       />
 
+      {/* 🆕 Back to Properties Button */}
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-md border-b border-[#E5E5E5] lg:mt-[55px]">
+        <div className="container mx-auto max-w-6xl px-4 lg:px-6 py-3">
+          <button
+            onClick={handleBackToProperties}
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-all duration-200 group"
+            aria-label="Return to properties list"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
+            <span className="text-sm font-medium">Back to Properties</span>
+            
+            {/* Badge opcional mostrando filtros activos */}
+            {(() => {
+              const savedFilters = localStorage.getItem('searchFilters');
+              if (savedFilters) {
+                try {
+                  const filters = JSON.parse(savedFilters);
+                  const filterCount = Object.keys(filters).filter(
+                    key => {
+                      const value = filters[key];
+                      if (key === 'query') return false; // No contar query
+                      if (Array.isArray(value)) return value.length > 0;
+                      return value !== '' && value !== null && value !== undefined;
+                    }
+                  ).length;
+                  
+                  if (filterCount > 0) {
+                    return (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+                        {filterCount} {filterCount === 1 ? 'filter' : 'filters'} active
+                      </span>
+                    );
+                  }
+                } catch (error) {
+                  // Silently fail
+                }
+              }
+              return null;
+            })()}
+          </button>
+        </div>
+      </div>
+
       {/* Cart Sidebar */}
       <CartSidebar />
 
@@ -742,11 +868,10 @@ export default function PropertyDetail() {
                 <button
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    index === currentImageIndex
+                  className={`w-2 h-2 rounded-full transition-all ${index === currentImageIndex
                       ? 'bg-white w-6'
                       : 'bg-white/50 hover:bg-white/75'
-                  }`}
+                    }`}
                   aria-label={`Go to image ${index + 1}`}
                 />
               ))}

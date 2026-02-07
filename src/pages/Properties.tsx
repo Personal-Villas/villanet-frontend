@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bed, MapPin, DollarSign, Star, ChevronLeft, ChevronRight, Bath, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
-import { api, publicApi } from '../api/api'; 
+import { api, publicApi } from '../api/api';
 import AuthModal from '../components/AuthModal';
 import VillaNetRankModal from '../components/VillaNetRankModal';
 import SEO, { generateLocalBusinessSchema } from '../components/SEO';
@@ -130,8 +130,8 @@ const SearchLoader = ({ progress }: { progress: number }) => (
     <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 text-center">
       <div className="mx-auto mb-4 h-10 w-10 rounded-full border-2 border-neutral-900 border-b-transparent animate-spin" />
       <p className="text-sm font-medium text-neutral-900">
-  We're finding your perfect villa…
-</p>
+        We're finding your perfect villa…
+      </p>
 
       <div className="mt-5 w-full h-2 rounded-full bg-neutral-100 overflow-hidden">
         <div
@@ -176,17 +176,17 @@ export default function Properties() {
 
   // 🔥 NUEVO: Estado para cursor de availability
   const [availabilityCursor, setAvailabilityCursor] = useState(0);
-  
+
   // Estado para availability session
   const [availabilitySession, setAvailabilitySession] = useState<string | null>(null);
-  
+
   // 🔥 NUEVO: Estado para auto-fetch incremental
   const [autoFillTick, setAutoFillTick] = useState(0);
   const [page1Filled, setPage1Filled] = useState(false);
   const [autoFillDone, setAutoFillDone] = useState(false);
   // Ref para rastrear session de forma estable (no dispara re-renders)
   const availabilitySessionRef = useRef<string | null>(null);
-  
+
   // 🔥 UX progressive loading states
   const [uxPhase, setUxPhase] = useState<UxPhase>('idle');
   const [progress, setProgress] = useState(0);
@@ -202,15 +202,15 @@ export default function Properties() {
 
   const startSearchUx = useCallback(() => {
     uxCleanupRef.current?.(); // limpia timers previos
-  
+
     searchStartRef.current = Date.now();
     setUxPhase('loader');
     setProgress(10);
-  
+
     const t1 = window.setTimeout(() => setProgress(30), 220);
     const t2 = window.setTimeout(() => setProgress(60), 520);
     const t3 = window.setTimeout(() => setProgress(90), 1100);
-  
+
     uxCleanupRef.current = () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
@@ -224,15 +224,71 @@ export default function Properties() {
     };
   }, []);
 
+  // 🆕 Guardar TODOS los filtros en localStorage
   useEffect(() => {
-    // Guardar filtros en localStorage para que estén disponibles en PropertyDetail
-    localStorage.setItem('searchFilters', JSON.stringify({
-      checkIn: appliedFilters.checkIn,
-      checkOut: appliedFilters.checkOut,
-      guests: appliedFilters.guests
-    }));
-  }, [appliedFilters]);
+  const filters = {
+    query: appliedFilters.query,
+    checkIn: appliedFilters.checkIn,
+    checkOut: appliedFilters.checkOut,
+    guests: appliedFilters.guests,
+    bedrooms: appliedFilters.bedrooms,
+    bathrooms: appliedFilters.bathrooms,
+    minPrice: appliedFilters.minPrice,
+    maxPrice: appliedFilters.maxPrice,
+    destination: appliedFilters.selectedDestination,
+    badges: appliedFilters.selectedBadges,
+    sort: appliedFilters.sortBy,
+  };
   
+  const hasActiveFilters = Object.values(filters).some(
+    value => value !== '' && value !== null && value !== undefined && value !== 0 && 
+             (Array.isArray(value) ? value.length > 0 : true)
+  );
+  
+  if (hasActiveFilters) {
+    console.log('💾 Guardando filtros en localStorage:', filters); // ← AGREGAR
+    localStorage.setItem('searchFilters', JSON.stringify(filters));
+  }
+}, [appliedFilters]);
+
+  // 🆕 Guardar y restaurar posición de scroll
+  useEffect(() => {
+    // Función para guardar scroll constantemente
+    const handleScroll = () => {
+      localStorage.setItem('propertiesScrollPosition', window.scrollY.toString());
+    };
+
+    // Verificar si venimos de property detail
+    const restoreScrollPosition = localStorage.getItem('restoreScrollPosition');
+    const fromPropertyDetail = localStorage.getItem('fromPropertyDetail');
+
+    // Restaurar scroll si venimos de property detail Y hay items cargados
+    if (fromPropertyDetail === 'true' && restoreScrollPosition && items.length > 0) {
+      setIsRestoringScroll(true);
+
+      setTimeout(() => {
+        window.scrollTo({
+          top: parseInt(restoreScrollPosition),
+          behavior: 'smooth'
+        });
+
+        // Limpiar flags después de restaurar
+        localStorage.removeItem('fromPropertyDetail');
+        localStorage.removeItem('restoreScrollPosition');
+
+        // Ocultar indicador después de completar scroll
+        setTimeout(() => setIsRestoringScroll(false), 500);
+      }, 100);
+    }
+
+    // Escuchar scroll para guardar posición constantemente
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [items.length]); // Solo re-ejecutar cuando cambien los items
+
 
   // Sincronizar ref con state
   useEffect(() => {
@@ -249,15 +305,16 @@ export default function Properties() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showRankModal, setShowRankModal] = useState(false);
   const [imageIndices, setImageIndices] = useState<{ [key: string]: number }>({});
+  const [isRestoringScroll, setIsRestoringScroll] = useState(false);
   const debouncedQuery = useDebounce(filters.query, 600);
   const [badges, setBadges] = useState<CrudBadge[]>([]);
-  
+
   const hasAvailabilityFilter = Boolean(appliedFilters.checkIn && appliedFilters.checkOut);
 
-  const { 
-    isInCart, 
-    toggleItem, 
-    openCart, 
+  const {
+    isInCart,
+    toggleItem,
+    openCart,
     cartCount,
     isCartModalOpen,
     closeCartModal
@@ -349,34 +406,34 @@ export default function Properties() {
   const handleAuthSuccess = useCallback((user: any) => {
     console.log('✅ Auth success, user received:', user);
     closeAuthModal();
-    
+
     window.dispatchEvent(new Event('authStateChange'));
-    
+
     setRetryCount(prev => prev + 1);
     setCurrentPage(1);
     setItems([]);
-    
+
     console.log('🔄 Auth state updated, Properties should re-render');
   }, [closeAuthModal]);
 
   const handleApplyFilters = useCallback(() => {
     startSearchUx();
-  
+
     setAppliedFilters(filters);
     setCurrentPage(1);
     setAvailabilityCursor(0);
     setItems([]);
     setAvailabilitySession(null);
-  
+
     setPage1Filled(false);
     setAutoFillDone(false);
-  
+
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
   }, [filters, startSearchUx]);
-  
+
   const handleClearAllFilters = useCallback(() => {
     startSearchUx();
-  
+
     const resetFilters = {
       query: '',
       selectedDestination: '',
@@ -390,18 +447,18 @@ export default function Properties() {
       guests: 0,
       sortBy: 'rank' as const,
     };
-  
+
     setFilters(resetFilters);
     setAppliedFilters(resetFilters);
     setCurrentPage(1);
     setError(null);
-  
+
     setAvailabilityCursor(0);
     setItems([]);
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
-  
+
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
   }, [startSearchUx]);
 
@@ -422,16 +479,16 @@ export default function Properties() {
     const newBadges = filters.selectedBadges.includes(badgeId)
       ? filters.selectedBadges.filter(id => id !== badgeId)
       : [...filters.selectedBadges, badgeId];
-    
+
     applyFiltersImmediately({
       ...filters,
       selectedBadges: newBadges
     });
   }, [filters, applyFiltersImmediately]);
-  
+
   const handleDestinationChange = useCallback((destination: string) => {
     const newDestination = destination === filters.selectedDestination ? '' : destination;
-    
+
     applyFiltersImmediately({
       ...filters,
       selectedDestination: newDestination
@@ -445,8 +502,8 @@ export default function Properties() {
       sortBy: sort as 'rank' | 'price_low' | 'price_high' | 'bedrooms'
     };
     console.log("🧪 newFilters.sortBy:", newFilters.sortBy);
-    
-    applyFiltersImmediately(newFilters); 
+
+    applyFiltersImmediately(newFilters);
   }, [filters, applyFiltersImmediately]);
 
   const DEFAULT_FILTERS = {
@@ -467,13 +524,13 @@ export default function Properties() {
     const params = new URLSearchParams(window.location.search);
     const badgeParam = params.get('badge');
     if (!badgeParam) return;
-  
+
     const next = { ...DEFAULT_FILTERS, selectedBadges: [badgeParam] };
-  
+
     startSearchUx();
     setFilters(next);
     setAppliedFilters(next);
-  
+
     setCurrentPage(1);
     setRetryCount(0);
     setAvailabilityCursor(0);
@@ -482,11 +539,11 @@ export default function Properties() {
     setPage1Filled(false);
     setAutoFillDone(false);
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-  
+
     window.history.replaceState({}, '', '/properties');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
+
   useEffect(() => {
     const fetchBadges = async () => {
       try {
@@ -511,6 +568,99 @@ export default function Properties() {
   }, []);
 
   useEffect(() => {
+    // Leer parámetros de la URL al montar el componente
+    const params = new URLSearchParams(window.location.search);
+
+    // Si no hay parámetros, no hacer nada (ya tiene defaults)
+    if (params.toString() === '') return;
+
+    console.log('📥 Restaurando filtros desde URL:', params.toString());
+
+    const urlFilters: typeof filters = { ...filters };
+    let hasUrlFilters = false;
+
+    // Query
+    if (params.get('q')) {
+      urlFilters.query = params.get('q') || '';
+      hasUrlFilters = true;
+    }
+
+    // Destination
+    if (params.get('destination')) {
+      urlFilters.selectedDestination = params.get('destination') || '';
+      hasUrlFilters = true;
+    }
+
+    // Bedrooms (puede ser "3,4,5")
+    if (params.get('bedrooms')) {
+      urlFilters.bedrooms = params.get('bedrooms')!.split(',').filter(Boolean);
+      hasUrlFilters = true;
+    }
+
+    // Bathrooms
+    if (params.get('bathrooms')) {
+      urlFilters.bathrooms = params.get('bathrooms')!.split(',').filter(Boolean);
+      hasUrlFilters = true;
+    }
+
+    // Price
+    if (params.get('minPrice')) {
+      urlFilters.minPrice = params.get('minPrice') || '';
+      hasUrlFilters = true;
+    }
+    if (params.get('maxPrice')) {
+      urlFilters.maxPrice = params.get('maxPrice') || '';
+      hasUrlFilters = true;
+    }
+
+    // Dates
+    if (params.get('checkIn')) {
+      urlFilters.checkIn = params.get('checkIn') || '';
+      hasUrlFilters = true;
+    }
+    if (params.get('checkOut')) {
+      urlFilters.checkOut = params.get('checkOut') || '';
+      hasUrlFilters = true;
+    }
+
+    // Guests
+    if (params.get('guests')) {
+      const guestsNum = parseInt(params.get('guests') || '0');
+      if (!isNaN(guestsNum)) {
+        urlFilters.guests = guestsNum;
+        hasUrlFilters = true;
+      }
+    }
+
+    // Badges (puede ser "chef-included,heated-pool")
+    if (params.get('badges')) {
+      urlFilters.selectedBadges = params.get('badges')!.split(',').filter(Boolean);
+      hasUrlFilters = true;
+    }
+
+    // Sort
+    if (params.get('sort')) {
+      const sortValue = params.get('sort');
+      if (sortValue === 'rank' || sortValue === 'price_low' || sortValue === 'price_high' || sortValue === 'bedrooms') {
+        urlFilters.sortBy = sortValue;
+        hasUrlFilters = true;
+      }
+    }
+
+    // Si encontramos filtros en la URL, aplicarlos
+    if (hasUrlFilters) {
+      console.log('✅ Aplicando filtros desde URL:', urlFilters);
+      setFilters(urlFilters);
+      setAppliedFilters(urlFilters);
+
+      // Limpiar URL después de leer (opcional)
+      // window.history.replaceState({}, '', '/properties');
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← Solo ejecutar UNA VEZ al montar
+
+  useEffect(() => {
     if (!RECAPTCHA_SITE_KEY) return;
 
     const existingScript = document.querySelector<HTMLScriptElement>(
@@ -524,8 +674,8 @@ export default function Properties() {
     document.body.appendChild(script);
   }, []);
 
-  
-  
+
+
 
   // 🔥 Autofill: solo para completar la page 1 hasta 12 y cortar
   useEffect(() => {
@@ -635,7 +785,7 @@ export default function Properties() {
     const sessionToUse = availabilitySessionRef.current;
 
     (async () => {
-      
+
       setLoading(true);
       setError(null);
 
@@ -644,46 +794,46 @@ export default function Properties() {
         searchStartRef.current = Date.now();
         setUxPhase('loader');
         setProgress(10);
-    
+
         const t1 = window.setTimeout(() => setProgress(30), 220);
         const t2 = window.setTimeout(() => setProgress(60), 520);
         const t3 = window.setTimeout(() => setProgress(90), 1100);
-    
+
         uxCleanupRef.current = () => {
           window.clearTimeout(t1);
           window.clearTimeout(t2);
           window.clearTimeout(t3);
         };
       }
-      
+
       const elapsed = Date.now() - searchStartRef.current;
       const wait = Math.max(0, MIN_LOADER_MS - elapsed);
-    
+
       phaseTimer = window.setTimeout(() => {
         setUxPhase(prev => (prev === 'loader' ? 'skeleton' : prev));
       }, wait);
-      
+
       try {
         const qs = new URLSearchParams();
 
         if (appliedFilters.query.trim().length >= 3) {
           qs.set('q', appliedFilters.query.trim());
         }
-        
+
         if (appliedFilters.selectedDestination) {
           qs.set('destination', appliedFilters.selectedDestination);
         }
-        
+
         // ✅ Bedrooms
         if (appliedFilters.bedrooms.length > 0) {
           qs.set('bedrooms', appliedFilters.bedrooms.join(','));
         }
-        
+
         // ✅ Bathrooms - FALTABA APLICAR
         if (appliedFilters.bathrooms.length > 0) {
           qs.set('bathrooms', appliedFilters.bathrooms.join(','));
         }
-        
+
         // ✅ Price Range - CORREGIR VALIDACIÓN
         if (appliedFilters.minPrice && appliedFilters.minPrice.trim()) {
           const minVal = Number(appliedFilters.minPrice);
@@ -691,27 +841,27 @@ export default function Properties() {
             qs.set('minPrice', String(minVal));
           }
         }
-        
+
         if (appliedFilters.maxPrice && appliedFilters.maxPrice.trim()) {
           const maxVal = Number(appliedFilters.maxPrice);
           if (!isNaN(maxVal) && maxVal > 0) {
             qs.set('maxPrice', String(maxVal));
           }
         }
-        
+
         // Resto del código continúa igual...
         if (appliedFilters.selectedBadges.length) {
           qs.set('badges', appliedFilters.selectedBadges.join(','));
         }
-        
+
         if (appliedFilters.sortBy) {
           qs.set('sort', appliedFilters.sortBy);
         }
-        
+
         if (appliedFilters.guests && appliedFilters.guests > 0) {
           qs.set('guests', String(appliedFilters.guests));
         }
-        
+
         // Agregar console.log para debug
         console.log('🔍 Query params being sent:', {
           bedrooms: appliedFilters.bedrooms,
@@ -722,7 +872,7 @@ export default function Properties() {
         });
 
         qs.set('limit', String(ITEMS_PER_PAGE));
-        
+
         // 🔥 CORRECCIÓN IMPORTANTE: Usar cursor real en modo availability
         if (hasAvailabilityFilter) {
           // Usar el cursor real (no calcular basado en página)
@@ -733,13 +883,13 @@ export default function Properties() {
             hasAvailabilityFilter && currentPage === 1 && availabilityCursor > 0
               ? availabilityCursor
               : pageCursor;
-          
+
           qs.set('cursor', String(cursorToUse));
-          
-          
+
+
           if (appliedFilters.checkIn) qs.set('checkIn', appliedFilters.checkIn);
           if (appliedFilters.checkOut) qs.set('checkOut', appliedFilters.checkOut);
-          
+
           if (sessionToUse) {
             qs.set('availabilitySession', sessionToUse);
           }
@@ -750,11 +900,11 @@ export default function Properties() {
 
         const endpoint = user ? '/listings' : '/public/listings';
         const apiToUse = user ? api : publicApi;
-        
+
         console.log(`📡 Fetching from: ${endpoint}?${qs.toString()}`);
-        
-        const data = await apiToUse<ListingsResponse>(`${endpoint}?${qs.toString()}`, { 
-          signal: controller.signal 
+
+        const data = await apiToUse<ListingsResponse>(`${endpoint}?${qs.toString()}`, {
+          signal: controller.signal
         });
 
         if (!controller.signal.aborted) {
@@ -763,10 +913,10 @@ export default function Properties() {
             const first = images[0];
 
             const priceUSD =
-            item.priceUSD == null || item.priceUSD === ''
-              ? null
-              : Number(item.priceUSD);
-            
+              item.priceUSD == null || item.priceUSD === ''
+                ? null
+                : Number(item.priceUSD);
+
             return {
               ...item,
               priceUSD: Number.isFinite(priceUSD as any) ? priceUSD : null,
@@ -808,30 +958,30 @@ export default function Properties() {
             hasAvailabilityFilter && currentPage === 1 && availabilityCursor > 0
               ? availabilityCursor
               : pageCursor;
-          
+
           // estamos trayendo "chunks extra" solo para completar page 1
           const isAutoFillChunk =
             hasAvailabilityFilter &&
             currentPage === 1 &&
             cursorToUse > 0;
-          
+
           setItems(prev => {
             if (!isAutoFillChunk) return normalized;
-          
+
             // ✅ append pero CAP a 12
             const merged = [...prev, ...normalized];
             const capped = merged.slice(0, ITEMS_PER_PAGE);
-          
+
             // ✅ cuando llegó a 12, marcamos y frenamos autofill
             if (capped.length >= ITEMS_PER_PAGE) {
               setPage1Filled(true);
               setAutoFillDone(true);
             }
-          
+
             return capped;
           });
-        
-          
+
+
           // ✅ CORRECCIÓN: Manejar diferente paginación según el modo
           if (hasAvailabilityFilter && data.availabilityApplied) {
             // Modo availability: usar lógica basada en cursor
@@ -845,7 +995,7 @@ export default function Properties() {
               setTotalPages(currentPage + (hasMoreData ? 1 : 0));
               setTotal(data.returned || normalized.length);
             }
-            
+
             // 🔥 ACTUALIZAR CURSOR SI HAY MÁS DATOS
             if (typeof data.nextCursor === 'number') {
               // si llegó data y todavía no estamos completos, avanzá cursor
@@ -853,7 +1003,7 @@ export default function Properties() {
                 setAvailabilityCursor(data.nextCursor);
               }
             }
-            
+
             // Guardar session
             if (data.availabilitySession && !sessionToUse) {
               setAvailabilitySession(data.availabilitySession);
@@ -869,9 +1019,9 @@ export default function Properties() {
             setTotal(data.total || 0);
             setTotalPages(data.totalPages || Math.ceil((data.total || 0) / ITEMS_PER_PAGE));
           }
-          
+
           setRetryCount(0);
-          
+
           console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items, total items: ${items.length + normalized.length}`);
           console.log(`📊 Availability mode: ${hasAvailabilityFilter}, session: ${data.availabilitySession?.slice(0, 12)}...`);
           console.log(`📝 Partial: ${data.partial}, HasMore: ${data.hasMore}, NextCursor: ${data.nextCursor}`);
@@ -889,19 +1039,19 @@ export default function Properties() {
               errorMsg.includes('429') || errorMsg.includes('503')
                 ? 'Too many requests. Waiting 60 seconds...'
                 : errorMsg.includes('401')
-                ? 'Session expired. Please log in.'
-                : errorMsg.includes('expired') || errorMsg.includes('filters changed')
-                ? 'Search session expired. Please refresh your search.'
-                : 'Server error. Please try again.'
+                  ? 'Session expired. Please log in.'
+                  : errorMsg.includes('expired') || errorMsg.includes('filters changed')
+                    ? 'Search session expired. Please refresh your search.'
+                    : 'Server error. Please try again.'
             );
-            
+
             if (errorMsg.includes('429') || errorMsg.includes('503')) {
               setTimeout(() => {
                 setError(null);
                 setRetryCount(prev => prev + 1);
               }, 60000);
             }
-            
+
             if (errorMsg.includes('expired') || errorMsg.includes('filters changed')) {
               // Resetear availability session
               setAvailabilitySession(null);
@@ -910,7 +1060,7 @@ export default function Properties() {
               setPage1Filled(false);
               setAutoFillDone(false);
             }
-            
+
             if (!errorMsg.includes('429') && !errorMsg.includes('503') && !errorMsg.includes('401')) {
               setRetryCount(prev => prev + 1);
             }
@@ -920,7 +1070,7 @@ export default function Properties() {
         if (!controller.signal.aborted) setLoading(false);
         setLoading(false);
         setProgress(100);
-    
+
       }
     })();
 
@@ -936,8 +1086,10 @@ export default function Properties() {
     retryCount,
     hasAvailabilityFilter,
     availabilityCursor,
-    autoFillTick, 
+    autoFillTick,
   ]);
+
+
 
   const handlePrevImage = useCallback((e: React.MouseEvent, listingId: string, totalImages: number) => {
     e.stopPropagation();
@@ -959,7 +1111,7 @@ export default function Properties() {
     if (n == null) return '—';
     const amount = Number(n);
     if (isNaN(amount)) return '—';
-  
+
     return `${amount.toLocaleString(undefined, {
       maximumFractionDigits: 0,
     })}`;
@@ -967,32 +1119,32 @@ export default function Properties() {
 
   const formatRank = (rank: number | string | null | undefined) => {
     if (rank == null) return "—";
-    return rank.toString(); 
+    return rank.toString();
   };
 
   // ✅ Componente de paginación mejorado
   const PaginationControls = () => {
     if (totalPages <= 1) return null;
-    
+
     const handlePrevious = () => {
       if (currentPage > 1) {
         setCurrentPage(currentPage - 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };
-    
+
     const handleNext = () => {
       if (currentPage < totalPages) {
         setCurrentPage(currentPage + 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     };
-    
+
     // Si estamos en modo availability y no sabemos el total de páginas exacto
-    const showNextButton = hasAvailabilityFilter 
+    const showNextButton = hasAvailabilityFilter
       ? items.length === ITEMS_PER_PAGE || currentPage < totalPages
       : currentPage < totalPages;
-    
+
     return (
       <div className="flex justify-center items-center gap-4 py-8 lg:pb-8 pb-[50px]">
         <button
@@ -1003,12 +1155,12 @@ export default function Properties() {
           <ChevronLeft className="w-4 h-4" />
           Previous
         </button>
-        
+
         <span className="text-sm text-neutral-600">
           Page {currentPage} {hasAvailabilityFilter && totalPages > 100 ? '' : `of ${totalPages}`}
           {hasAvailabilityFilter && totalPages > 100 && ' (availability mode)'}
         </span>
-        
+
         <button
           onClick={handleNext}
           disabled={!showNextButton}
@@ -1031,11 +1183,11 @@ export default function Properties() {
 
   const activeFiltersCount = useMemo(() => {
     return (
-      appliedFilters.bedrooms.length + 
-      appliedFilters.bathrooms.length + 
-      (appliedFilters.minPrice ? 1 : 0) + 
-      (appliedFilters.maxPrice ? 1 : 0) + 
-      (appliedFilters.checkIn ? 1 : 0) + 
+      appliedFilters.bedrooms.length +
+      appliedFilters.bathrooms.length +
+      (appliedFilters.minPrice ? 1 : 0) +
+      (appliedFilters.maxPrice ? 1 : 0) +
+      (appliedFilters.checkIn ? 1 : 0) +
       (appliedFilters.checkOut ? 1 : 0) +
       appliedFilters.selectedBadges.length +
       (appliedFilters.selectedDestination ? 1 : 0) +
@@ -1062,7 +1214,7 @@ export default function Properties() {
   }
 
   const renderList = currentPage === 1 ? slots : items;
-  
+
   return (
     <>
       <SEO
@@ -1098,52 +1250,59 @@ export default function Properties() {
           priceRange: "$$"
         })}
       />
-      
+
       <div className="min-h-screen bg-background">
-        <UnifiedHeader 
+        <UnifiedHeader
           mode="simple"
-          onAuthClick={openAuthModal} 
+          onAuthClick={openAuthModal}
         />
 
-<PropertiesHeaderCompact
-  itemsCount={total}
-  location={debouncedQuery.trim() || appliedFilters.selectedDestination || 'All Locations'}
-  query={filters.query}
-  setQuery={(query) => setFilters(prev => ({ ...prev, query }))}
-  sortBy={filters.sortBy}
-  setSortBy={handleSortChange}
-  badges={badges}
-  selectedBadges={filters.selectedBadges}
-  onBadgeToggle={handleBadgeToggle}
-  checkIn={filters.checkIn}
-  setCheckIn={(checkIn) => setFilters(prev => ({ ...prev, checkIn }))}
-  checkOut={filters.checkOut}
-  setCheckOut={(checkOut) => setFilters(prev => ({ ...prev, checkOut }))}
-  bedrooms={filters.bedrooms}
-  setBedrooms={(bedrooms) => setFilters(prev => ({ ...prev, bedrooms }))}
-  
-  bathrooms={filters.bathrooms}
-  setBathrooms={(bathrooms) => setFilters(prev => ({ ...prev, bathrooms }))}
-  
-  minPrice={filters.minPrice}
-  setMinPrice={(minPrice) => setFilters(prev => ({ ...prev, minPrice }))}
-  
-  maxPrice={filters.maxPrice}
-  setMaxPrice={(maxPrice) => setFilters(prev => ({ ...prev, maxPrice }))}
-  
-  onClearAllFilters={handleClearAllFilters}
-  destinations={DESTINATIONS}
-  selectedDestination={filters.selectedDestination}
-  onSelectDestination={handleDestinationChange}
-  cartCount={cartCount}
-  onCartClick={openCart}
-  guests={filters.guests}
-  setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
-  onApplyFilters={handleApplyFilters}
-/>
+        <PropertiesHeaderCompact
+          itemsCount={total}
+          location={debouncedQuery.trim() || appliedFilters.selectedDestination || 'All Locations'}
+          query={filters.query}
+          setQuery={(query) => setFilters(prev => ({ ...prev, query }))}
+          sortBy={filters.sortBy}
+          setSortBy={handleSortChange}
+          badges={badges}
+          selectedBadges={filters.selectedBadges}
+          onBadgeToggle={handleBadgeToggle}
+          checkIn={filters.checkIn}
+          setCheckIn={(checkIn) => setFilters(prev => ({ ...prev, checkIn }))}
+          checkOut={filters.checkOut}
+          setCheckOut={(checkOut) => setFilters(prev => ({ ...prev, checkOut }))}
+          bedrooms={filters.bedrooms}
+          setBedrooms={(bedrooms) => setFilters(prev => ({ ...prev, bedrooms }))}
+          bathrooms={filters.bathrooms}
+          setBathrooms={(bathrooms) => setFilters(prev => ({ ...prev, bathrooms }))}
+          minPrice={filters.minPrice}
+          setMinPrice={(minPrice) => setFilters(prev => ({ ...prev, minPrice }))}
+          maxPrice={filters.maxPrice}
+          setMaxPrice={(maxPrice) => setFilters(prev => ({ ...prev, maxPrice }))}
+          onClearAllFilters={handleClearAllFilters}
+          destinations={DESTINATIONS}
+          selectedDestination={filters.selectedDestination}
+          onSelectDestination={handleDestinationChange}
+          cartCount={cartCount}
+          onCartClick={openCart}
+          guests={filters.guests}
+          setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
+          onApplyFilters={handleApplyFilters}
+        />
 
         <main className="pt-16">
           <div className="container mx-auto px-6 py-8 min-h-[60vh]">
+
+            {/* 🆕 Indicador de restauración de scroll */}
+            {isRestoringScroll && (
+              <div className="fixed top-20 right-6 z-50 bg-white shadow-lg rounded-lg px-4 py-2 border border-gray-200 animate-fade-in">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                  <span>Restoring your position...</span>
+                </div>
+              </div>
+            )}
+
             {error ? (
               <div className="py-20">
                 <div className="max-w-md mx-auto text-center">
@@ -1166,7 +1325,7 @@ export default function Properties() {
                       setRetryCount((prev) => prev + 1);
                       setPage1Filled(false);
                       setAutoFillDone(false);
-                      setItems([]); 
+                      setItems([]);
                     }}
                     className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
                   >
@@ -1174,41 +1333,42 @@ export default function Properties() {
                   </button>
                 </div>
               </div>
-          ) : uxPhase === 'loader' ? (
-            <SearchLoader progress={progress} />
-          ) : uxPhase === 'skeleton' || (loading && items.length === 0) ? (
-            <ListingGridSkeleton count={ITEMS_PER_PAGE} />
-          ) : items.length > 0 ? (
-            <>
-              {/* ✅ Overlay loader SOLO cuando ya hay items (no bloquea ni opaca el grid) */}
-              {isFilling && (
-  <div className="sticky top-16 z-10 mb-4">
-    <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center justify-between gap-3 shadow-sm">
-      <div className="flex items-center gap-2">
-        <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
-        <span>We are loading more villas…</span>
-      </div>
+            ) : uxPhase === 'loader' ? (
+              <SearchLoader progress={progress} />
+            ) : uxPhase === 'skeleton' || (loading && items.length === 0) ? (
+              <ListingGridSkeleton count={ITEMS_PER_PAGE} />
+            ) : items.length > 0 ? (
+              <>
+                {/* ✅ Overlay loader SOLO cuando ya hay items (no bloquea ni opaca el grid) */}
+                {isFilling && (
+                  <div className="sticky top-16 z-10 mb-4">
+                    <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center justify-between gap-3 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
+                        <span>We are loading more villas…</span>
+                      </div>
 
-      <div className="flex items-center gap-2 min-w-[140px]">
-        <div className="h-1.5 flex-1 rounded-full bg-neutral-200 overflow-hidden">
-          <div
-            className="h-full bg-neutral-900 transition-all duration-300"
-            style={{ width: `${visibleProgress}%` }}
-          />
-        </div>
-        <span className="text-xs text-neutral-600 tabular-nums w-9 text-right">
-          {visibleProgress}%
-        </span>
-      </div>
-    </div>
-  </div>
-)}
+                      <div className="flex items-center gap-2 min-w-[140px]">
+                        <div className="h-1.5 flex-1 rounded-full bg-neutral-200 overflow-hidden">
+                          <div
+                            className="h-full bg-neutral-900 transition-all duration-300"
+                            style={{ width: `${visibleProgress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-neutral-600 tabular-nums w-9 text-right">
+                          {visibleProgress}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {renderList.map((item, idx) => {
+                  {renderList.map((item, idx) => {
                     if (!item) {
                       // ✅ Skeleton por-slot (mantiene layout exacto)
-                      return <ListingCardSkeleton key={`sk-${idx}`} />;                    }
+                      return <ListingCardSkeleton key={`sk-${idx}`} />;
+                    }
 
                     // ✅ tu card real (lo mismo que ya tenés)
                     // OJO: acá usá `item` en vez de `items.map`
@@ -1343,8 +1503,8 @@ export default function Properties() {
                             </div>
                           </div>
 
-{/* Action Buttons */}
-<div className="flex flex-col gap-2">
+                          {/* Action Buttons */}
+                          <div className="flex flex-col gap-2">
                             <button
                               onClick={() => goToDetail(item)}
                               className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 w-full bg-[#000000] text-white hover:bg-black/90"
@@ -1355,11 +1515,10 @@ export default function Properties() {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => toggleItem(item)}
-                                className={`inline-flex items-center justify-center gap-1 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-2 border flex-1 ${
-                                  isInCart(item.id)
-                                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                                    : 'bg-background text-foreground border-border hover:bg-accent'
-                                }`}
+                                className={`inline-flex items-center justify-center gap-1 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-2 border flex-1 ${isInCart(item.id)
+                                  ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                                  : 'bg-background text-foreground border-border hover:bg-accent'
+                                  }`}
                               >
                                 {isInCart(item.id) ? 'Remove' : 'Add to quote'}
                               </button>
@@ -1394,7 +1553,7 @@ export default function Properties() {
                       ? 'Unfortunately, we don\'t have properties matching those exact requirements. Try adjusting your filters to discover similar luxury villas.'
                       : 'No properties available at the moment'}
                   </p>
-            
+
                   {activeFiltersCount > 0 && (
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                       <button
@@ -1412,11 +1571,11 @@ export default function Properties() {
         </main>
 
         <CartSidebar />
-        <CartModal isOpen={isCartModalOpen} onClose={closeCartModal}   defaultCheckIn={appliedFilters.checkIn}
-  defaultCheckOut={appliedFilters.checkOut}
-  defaultGuests={appliedFilters.guests} />
+        <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} defaultCheckIn={appliedFilters.checkIn}
+          defaultCheckOut={appliedFilters.checkOut}
+          defaultGuests={appliedFilters.guests} />
 
-        <button 
+        <button
           onClick={openRankModal}
           className={`fixed bottom-6 z-40 px-4 py-2.5 bg-white border border-[#E5E5E5] rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-gray-700 hover:text-gray-900 animate-fade-in ${cartCount > 0 ? 'right-20' : 'right-20'}`}
           aria-label="Learn about Villa Net Rank"
@@ -1427,14 +1586,14 @@ export default function Properties() {
         </button>
 
         {showAuthModal && (
-          <AuthModal 
+          <AuthModal
             onClose={closeAuthModal}
             onSuccess={handleAuthSuccess}
           />
         )}
 
         {showRankModal && (
-          <VillaNetRankModal 
+          <VillaNetRankModal
             isOpen={showRankModal}
             onClose={closeRankModal}
           />
