@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calculator, TrendingUp, DollarSign, AlertCircle, Calendar } from 'lucide-react';
 import { api } from '../api/api';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { trackEvent } from '../services/analytics';
 
 interface QuoteCalculatorProps {
   listingId: string;
@@ -42,6 +43,8 @@ export default function QuoteCalculator({
     450
   );
 
+
+
   // Validar que tenemos las fechas necesarias
   const hasValidDates = checkIn && checkOut && checkIn !== '' && checkOut !== '';
   const hasValidGuests = guests && guests > 0;
@@ -49,7 +52,7 @@ export default function QuoteCalculator({
   // Fetch inicial y cuando cambian dates/guests/listing
   useEffect(() => {
     const { listingId: lid, checkIn: ci, checkOut: co, guests: g } = debouncedParams;
-    
+
     // ✅ Validación mejorada
     if (!lid || !ci || !co || !g || ci === '' || co === '') {
       setQuoteServer(null);
@@ -61,16 +64,35 @@ export default function QuoteCalculator({
       setLoading(true);
       setError(null);
 
+      // --- EVENTO Calculadora Usada ---
+      // Se dispara cuando el usuario ha ingresado datos válidos y se inicia el cálculo
+      trackEvent('calculator_used', {
+        listing_id: lid,
+        check_in: ci,
+        check_out: co,
+        guests: g
+      });
+
       try {
         const response = await api.post('/quotes/calculate', {
           listingId: lid,
           checkIn: ci,
           checkOut: co,
           guests: g,
-          commissionPct: COMMISSION_PCT 
+          commissionPct: COMMISSION_PCT
         });
 
         if (response.ok) {
+
+          // --- EVENTO Cotización Creada ---
+          // Se dispara cuando el servidor responde con éxito con los precios finales
+          trackEvent('quote_created', {
+            listing_id: lid,
+            total_price: response.totalGross || (response.breakdown?.base + response.breakdown?.cleaning + response.breakdown?.taxes),
+            currency: response.currency,
+            nights: response.nights
+          });
+
           setQuoteServer({
             currency: response.currency,
             nights: response.nights,
@@ -101,11 +123,11 @@ export default function QuoteCalculator({
   // Cálculos locales (instantáneos cuando cambia commissionPct)
   const computed = quoteServer
     ? (() => {
-        const subtotal = quoteServer.base + quoteServer.cleaning + quoteServer.taxes;
-        const commission = money2(subtotal * (COMMISSION_PCT / 100));
-        const totalGross = money2(subtotal + commission);
-        return { subtotal, commission, totalGross };
-      })()
+      const subtotal = quoteServer.base + quoteServer.cleaning + quoteServer.taxes;
+      const commission = money2(subtotal * (COMMISSION_PCT / 100));
+      const totalGross = money2(subtotal + commission);
+      return { subtotal, commission, totalGross };
+    })()
     : null;
 
   // ✅ Estado cuando faltan fechas (NO es loading, es "esperando input")
@@ -236,23 +258,23 @@ export default function QuoteCalculator({
         )}
       </div>
 
-{/* Commission (Fixed) */}
-<div className="mb-6">
-  <div className="flex items-center justify-between mb-3">
-    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-      <TrendingUp className="w-4 h-4" />
-      Advisor Commission
-    </label>
+      {/* Commission (Fixed) */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <TrendingUp className="w-4 h-4" />
+            Advisor Commission
+          </label>
 
-    <div className="text-sm font-semibold text-gray-900">
-      {COMMISSION_PCT}%
-    </div>
-  </div>
+          <div className="text-sm font-semibold text-gray-900">
+            {COMMISSION_PCT}%
+          </div>
+        </div>
 
-  <div className="text-xs text-gray-500">
-    Commission is fixed and included in the total.
-  </div>
-</div>
+        <div className="text-xs text-gray-500">
+          Commission is fixed and included in the total.
+        </div>
+      </div>
 
       {/* Commission Amount */}
       {computed && computed.commission > 0 && (

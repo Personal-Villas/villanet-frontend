@@ -45,12 +45,13 @@ import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import VillaNetRankModal from '../components/VillaNetRankModal';
 import AccordeonBooking from '../components/AccordeonBooking';
 //import CartButton from '../components/CartButton';
-import CartModal from '../components/CartModal'; 
-import CartSidebar from '../components/CartSidebar'; 
-import { useCart } from '../context/CartContext'; 
+import CartModal from '../components/CartModal';
+import CartSidebar from '../components/CartSidebar';
+import { useCart } from '../context/CartContext';
 import PropertyMap from '../components/PropertyMap';
 import QuoteCalculator from '../components/QuoteCalculator';
-
+import SEO, { generateProductSchema } from '../components/SEO';
+import { trackEvent } from '../services/analytics';
 
 type Listing = {
   listing_id: string;
@@ -61,7 +62,7 @@ type Listing = {
   // Campos VillaNet del backend (snake_case)
   villanet_destination_tag?: string | null;
   villanet_city?: string | null;
-  
+
   // Campo "bonito" que viene en algunos endpoints (por si las dudas)
   location?: string | null;
 
@@ -152,7 +153,7 @@ const getAmenitiesWithIcons = (amenities: string[]) => {
 
   return amenities
     .map(amenity => amenityMap[amenity] || { icon: Check, label: amenity })
-    .filter((item, index, self) => 
+    .filter((item, index, self) =>
       index === self.findIndex(t => t.label === item.label)
     );
 };
@@ -161,11 +162,11 @@ const getAmenitiesWithIcons = (amenities: string[]) => {
 // Función helper para formatear rank de forma segura
 const formatVillaNetRank = (rank: any): string => {
   if (rank == null || rank === undefined || rank === '') return '9.7';
-  
+
   try {
     const num = typeof rank === 'string' ? parseFloat(rank) : Number(rank);
     if (isNaN(num)) return '9.7';
-    
+
     return num.toFixed(1);
   } catch (error) {
     console.warn('Error formatting VillaNet rank:', error, rank);
@@ -196,9 +197,9 @@ export default function PropertyDetail() {
   const { user } = useAuth();
 
   // Usar el contexto del carrito
-  const { 
-    isInCart, 
-    toggleItem, 
+  const {
+    isInCart,
+    toggleItem,
     cartCount,
     openCart,
     isCartModalOpen,
@@ -241,8 +242,8 @@ export default function PropertyDetail() {
     return sortedImages.length > 0
       ? sortedImages
       : [
-          'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80&auto=format&fit=crop'
-        ];
+        'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80&auto=format&fit=crop'
+      ];
   }, [listing]);
 
   const unavailableDates = useMemo(() => {
@@ -286,7 +287,16 @@ export default function PropertyDetail() {
   // Función para manejar agregar/quitar del carrito
   const handleToggleCart = () => {
     if (!listing) return;
-    
+
+    const isAdding = !isInCart(listing.listing_id);
+
+    // --- NUEVO: Tracking del Carrito ---
+    trackEvent(isAdding ? 'add_to_cart' : 'remove_from_cart', {
+      property_id: listing.listing_id,
+      property_name: listing.name
+    });
+
+
     // Convertir el listing al formato que espera el carrito
     const cartListing = {
       id: listing.listing_id,
@@ -300,69 +310,70 @@ export default function PropertyDetail() {
       heroImage: listing.hero_image_url || (listing.images_json && listing.images_json[0]) || null,
       images_json: listing.images_json || [],
     };
-    
+
+
     toggleItem(cartListing);
   };
 
-    useEffect(() => {
-      if (!id) {
-        setError('Invalid property ID');
+  useEffect(() => {
+    if (!id) {
+      setError('Invalid property ID');
+      setLoading(false);
+      return;
+    }
+
+    const fetchListing = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // 🔥 IMPORTANTE: Incluir todos los campos VillaNet que necesitas
+        const listingData = await api<Listing>(`/listings/${id}`);
+
+        setListing({
+          ...listingData,
+          images_json: Array.isArray(listingData?.images_json)
+            ? listingData.images_json
+            : [],
+
+          villanet_rank: listingData.villanet_rank,
+          villanet_commission_rate: listingData.villanet_commission_rate,
+          villanet_property_manager_name: listingData.villanet_property_manager_name,
+          villanet_partner_reservation_email: listingData.villanet_partner_reservation_email,
+          villanet_property_email: listingData.villanet_property_email,
+          villanet_destination_tag: listingData.villanet_destination_tag,
+          villanet_city: listingData.villanet_city,
+          villanet_years_in_business: listingData.villanet_years_in_business,
+          villanet_chef_included: listingData.villanet_chef_included,
+          villanet_heated_pool: listingData.villanet_heated_pool,
+          villanet_ocean_view: listingData.villanet_ocean_view,
+          villanet_true_beach_front: listingData.villanet_true_beach_front,
+          villanet_golf_cart_included: listingData.villanet_golf_cart_included,
+          villanet_tennis: listingData.villanet_tennis,
+          villanet_pickleball: listingData.villanet_pickleball,
+          villanet_private_gym: listingData.villanet_private_gym,
+          villanet_private_cinema: listingData.villanet_private_cinema,
+          villanet_cook_included: listingData.villanet_cook_included,
+          villanet_waiter_butler_included: listingData.villanet_waiter_butler_included,
+          villanet_ocean_front: listingData.villanet_ocean_front,
+          villanet_walk_to_beach: listingData.villanet_walk_to_beach,
+          villanet_accessible: listingData.villanet_accessible,
+          villanet_gated_community: listingData.villanet_gated_community,
+          villanet_golf_villa: listingData.villanet_golf_villa,
+          villanet_resort_villa: listingData.villanet_resort_villa,
+          villanet_resort_collection_name: listingData.villanet_resort_collection_name,
+          villanet_standardized_housekeeping: listingData.villanet_standardized_housekeeping,
+        });
+      } catch (err: any) {
+        console.error('Error fetching property details:', err);
+        setError(err?.message || 'Failed to load property details');
+      } finally {
         setLoading(false);
-        return;
       }
-    
-      const fetchListing = async () => {
-        setLoading(true);
-        setError(null);
-    
-        try {
-          // 🔥 IMPORTANTE: Incluir todos los campos VillaNet que necesitas
-          const listingData = await api<Listing>(`/listings/${id}`);
-          
-          setListing({
-            ...listingData,
-            images_json: Array.isArray(listingData?.images_json)
-              ? listingData.images_json
-              : [],
-            
-            villanet_rank: listingData.villanet_rank,
-            villanet_commission_rate: listingData.villanet_commission_rate,
-            villanet_property_manager_name: listingData.villanet_property_manager_name,
-            villanet_partner_reservation_email: listingData.villanet_partner_reservation_email,
-            villanet_property_email: listingData.villanet_property_email,
-            villanet_destination_tag: listingData.villanet_destination_tag,
-            villanet_city: listingData.villanet_city,
-            villanet_years_in_business: listingData.villanet_years_in_business,
-            villanet_chef_included: listingData.villanet_chef_included,
-            villanet_heated_pool: listingData.villanet_heated_pool,
-            villanet_ocean_view: listingData.villanet_ocean_view,
-            villanet_true_beach_front: listingData.villanet_true_beach_front,
-            villanet_golf_cart_included: listingData.villanet_golf_cart_included,
-            villanet_tennis: listingData.villanet_tennis,
-            villanet_pickleball: listingData.villanet_pickleball,
-            villanet_private_gym: listingData.villanet_private_gym,
-            villanet_private_cinema: listingData.villanet_private_cinema,
-            villanet_cook_included: listingData.villanet_cook_included,
-            villanet_waiter_butler_included: listingData.villanet_waiter_butler_included,
-            villanet_ocean_front: listingData.villanet_ocean_front,
-            villanet_walk_to_beach: listingData.villanet_walk_to_beach,
-            villanet_accessible: listingData.villanet_accessible,
-            villanet_gated_community: listingData.villanet_gated_community,
-            villanet_golf_villa: listingData.villanet_golf_villa,
-            villanet_resort_villa: listingData.villanet_resort_villa,
-            villanet_resort_collection_name: listingData.villanet_resort_collection_name,
-            villanet_standardized_housekeeping: listingData.villanet_standardized_housekeeping,
-          });
-        } catch (err: any) {
-          console.error('Error fetching property details:', err);
-          setError(err?.message || 'Failed to load property details');
-        } finally {
-          setLoading(false);
-        }
-      };
-    
-      fetchListing();
-    }, [id]);
+    };
+
+    fetchListing();
+  }, [id]);
 
   useEffect(() => {
     if (!id || !listing) return;
@@ -422,7 +433,7 @@ export default function PropertyDetail() {
       const passedHero = rect.bottom <= NAV_HEIGHT;
       setShowDesktopCTA(passedHero);
     };
-    
+
 
     handleScroll();
 
@@ -436,7 +447,7 @@ export default function PropertyDetail() {
     if (savedFilters) {
       try {
         const filters = JSON.parse(savedFilters);
-        
+
         // Prellenar fechas y guests desde el buscador principal
         if (filters.checkIn) {
           setCheckIn(filters.checkIn);
@@ -452,6 +463,20 @@ export default function PropertyDetail() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (listing) {
+      trackEvent('view_property_detail', {
+        property_id: listing.listing_id,
+        property_name: listing.name,
+        city: listing.city || listing.villanet_city,
+        price: listing.price_usd,
+        currency: 'USD'
+      });
+    }
+  }, [listing]);
+
+
 
   const retryAvailability = () => {
     setAvailabilityError(null);
@@ -569,8 +594,7 @@ export default function PropertyDetail() {
       listing.villanet_destination_tag ||
       listing.villanet_city ||
       listing.location_text ||
-      `${listing.city || ''}${
-        listing.city && listing.country ? ', ' : ''
+      `${listing.city || ''}${listing.city && listing.country ? ', ' : ''
       }${listing.country || ''}`
     );
   };
@@ -580,6 +604,23 @@ export default function PropertyDetail() {
 
   return (
     <div className="min-h-screen bg-white max-md:overflow-x-hidden max-md:overflow-y-auto">
+      {/* ✅ SEO DINÁMICO */}
+      <SEO
+        title={listing.name}
+        description={`Book ${listing.name} in ${listing.location_text || listing.city}. Enjoy ${listing.bedrooms} bedrooms and premium amenities. Best rates guaranteed at VillaNet.`}
+        image={listing.hero_image_url || images[0]}
+        canonical={window.location.href}
+        schemaMarkup={generateProductSchema({
+          name: listing.name,
+          description: listing.description || '',
+          image: images,
+          offers: {
+            price: listing.price_usd || 0,
+            priceCurrency: 'USD',
+            availability: 'https://schema.org/InStock'
+          }
+        })}
+      />
       <Header
         query={query}
         setQuery={setQuery}
@@ -603,7 +644,7 @@ export default function PropertyDetail() {
 
       {/* Botón flotante del carrito */}
       {cartCount > 0 && (
-        <button 
+        <button
           onClick={openCart}
           className="fixed bottom-6 right-32 z-40 px-4 py-2.5 bg-white border border-[#E5E5E5] rounded-full shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 text-gray-700 hover:text-gray-900 animate-fade-in"
           aria-label="View quote"
@@ -629,7 +670,7 @@ export default function PropertyDetail() {
               <div key={index} className="flex-[0_0_100%] min-w-0">
                 <img
                   src={image}
-                  alt={`${listing.name} - Image ${index + 1}`}
+                  alt={`${listing.name} - View ${index + 1} of ${images.length}`}
                   className="w-full h-full object-cover"
                   onError={e => {
                     (e.target as HTMLImageElement).src =
@@ -653,11 +694,10 @@ export default function PropertyDetail() {
         <div className="absolute top-5 right-5">
           <button
             onClick={handleToggleCart}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-              isPropertyInCart
-                ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                : 'bg-white/90 backdrop-blur-sm text-gray-900 border-gray-200 hover:bg-white hover:shadow-lg'
-            }`}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all ${isPropertyInCart
+              ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+              : 'bg-white/90 backdrop-blur-sm text-gray-900 border-gray-200 hover:bg-white hover:shadow-lg'
+              }`}
           >
             {isPropertyInCart ? (
               <>
@@ -730,7 +770,7 @@ export default function PropertyDetail() {
             <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
               <Star className="w-4 h-4 text-blue-500" />
               <span className="text-sm font-medium">
-                {listing.villanet_years_in_business 
+                {listing.villanet_years_in_business
                   ? `Trusted ${listing.villanet_years_in_business}+ Years`
                   : 'Trusted 10+ Years'
                 }
@@ -760,7 +800,7 @@ export default function PropertyDetail() {
               if (listing.villanet_chef_included) premiumFeatures.push('Chef Included');
               if (listing.villanet_heated_pool) premiumFeatures.push('Heated Pool');
               if (listing.villanet_private_gym) premiumFeatures.push('Private Gym');
-              
+
               if (premiumFeatures.length > 0) {
                 return (
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
@@ -768,7 +808,7 @@ export default function PropertyDetail() {
                   </div>
                 );
               }
-              
+
               // Fallback estático si no hay features premium
               return (
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
@@ -790,16 +830,15 @@ export default function PropertyDetail() {
             <MapPin className="w-4 h-4 md:w-5 md:h-5 mt-1 flex-shrink-0" />
             <p className="text-base md:text-lg">{getVillaNetLocation()}</p>
           </div>
-          
+
           {/* Botón para agregar/quitar del carrito en desktop */}
           <div className="mt-4 hidden md:block">
             <button
               onClick={handleToggleCart}
-              className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-medium transition-all ${
-                isPropertyInCart
-                  ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                  : 'bg-gray-900 text-white border-gray-900 hover:bg-gray-800'
-              }`}
+              className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-medium transition-all ${isPropertyInCart
+                ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                : 'bg-gray-900 text-white border-gray-900 hover:bg-gray-800'
+                }`}
             >
               {isPropertyInCart ? (
                 <>
@@ -852,9 +891,9 @@ export default function PropertyDetail() {
             <div className="py-4">
               <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-2 text-gray-900" />
               <p className="text-2xl font-bold">
-  {listing.max_guests ??
-    (listing.bedrooms ? listing.bedrooms * 2 : '—')}
-</p>
+                {listing.max_guests ??
+                  (listing.bedrooms ? listing.bedrooms * 2 : '—')}
+              </p>
               <p className="text-xs sm:text-sm text-[#6B7280]">Sleeps</p>
             </div>
 
@@ -868,7 +907,7 @@ export default function PropertyDetail() {
               <div className="text-xs text-[#767676] mt-1 max-w-[200px] md:max-w-[160px] mx-auto leading-tight">
                 {(() => {
                   const services = [];
-                  
+
                   // 1. HOUSEKEEPER - Usar villanet_standardized_housekeeping
                   if (listing.villanet_standardized_housekeeping === true) {
                     services.push('Daily Housekeeper');
@@ -876,7 +915,7 @@ export default function PropertyDetail() {
                     // Por defecto asumir que sí hay (es estándar)
                     services.push('Daily Housekeeper');
                   }
-                  
+
                   // 2. CHEF/COOK - Usar villanet_chef_included o villanet_cook_included
                   if (listing.villanet_chef_included === true) {
                     services.push('Private Chef');
@@ -885,29 +924,28 @@ export default function PropertyDetail() {
                   } else {
                     services.push('Chef Available');
                   }
-                  
+
                   // 3. CONCIERGE/BUTLER - Usar villanet_waiter_butler_included
                   if (listing.villanet_waiter_butler_included === true) {
                     services.push('Butler Service');
                   } else {
                     services.push('Concierge');
                   }
-                  
+
                   return services.join(' · ');
                 })()}
               </div>
             </div>
           </div>
-          
+
           {/* Botón para agregar/quitar del carrito en mobile */}
           <div className="mt-6 md:hidden">
             <button
               onClick={handleToggleCart}
-              className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-medium transition-all ${
-                isPropertyInCart
-                  ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                  : 'bg-gray-900 text-white border-gray-900 hover:bg-gray-800'
-              }`}
+              className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-medium transition-all ${isPropertyInCart
+                ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                : 'bg-gray-900 text-white border-gray-900 hover:bg-gray-800'
+                }`}
             >
               {isPropertyInCart ? (
                 <>
@@ -934,182 +972,180 @@ export default function PropertyDetail() {
         </div>
       </section>
 
-{/* About Section */}
-<section className="py-8 md:py-12 px-6 border-b border-[#E5E5E5]">
-  <div className="container mx-auto max-w-4xl">
-    <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">
-      About This Villa
-    </h2>
-    <div className="text-[#6B7280]">
-      {listing.description ? (
-        <>
-          <div 
-            className={`transition-all duration-300 overflow-hidden ${
-              isDescriptionExpanded ? '' : 'max-h-[200px] relative'
-            }`}
-          >
-            {(() => {
-              const text = listing.description.trim();
-              
-              // Dividir por líneas y procesar
-              const lines = text.split('\n');
-              const elements: Array<{
-                type: 'heading' | 'list' | 'paragraph';
-                content?: string;
-                items?: string[];
-                key: string;
-              }> = [];
-              let currentList: string[] = [];
-              
-              lines.forEach((line, idx) => {
-                const trimmedLine = line.trim();
-                
-                // Saltar líneas vacías
-                if (!trimmedLine) return;
-                
-                // Detectar encabezados (líneas en mayúsculas completas)
-                if (/^[A-Z\s&/]{5,}$/.test(trimmedLine) && trimmedLine.length < 50) {
-                  // Guardar lista anterior si existe
-                  if (currentList.length > 0) {
-                    elements.push({
-                      type: 'list',
-                      items: [...currentList],
-                      key: `list-${elements.length}`
+      {/* About Section */}
+      <section className="py-8 md:py-12 px-6 border-b border-[#E5E5E5]">
+        <div className="container mx-auto max-w-4xl">
+          <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center">
+            About This Villa
+          </h2>
+          <div className="text-[#6B7280]">
+            {listing.description ? (
+              <>
+                <div
+                  className={`transition-all duration-300 overflow-hidden ${isDescriptionExpanded ? '' : 'max-h-[200px] relative'
+                    }`}
+                >
+                  {(() => {
+                    const text = listing.description.trim();
+
+                    // Dividir por líneas y procesar
+                    const lines = text.split('\n');
+                    const elements: Array<{
+                      type: 'heading' | 'list' | 'paragraph';
+                      content?: string;
+                      items?: string[];
+                      key: string;
+                    }> = [];
+                    let currentList: string[] = [];
+
+                    lines.forEach((line, idx) => {
+                      const trimmedLine = line.trim();
+
+                      // Saltar líneas vacías
+                      if (!trimmedLine) return;
+
+                      // Detectar encabezados (líneas en mayúsculas completas)
+                      if (/^[A-Z\s&/]{5,}$/.test(trimmedLine) && trimmedLine.length < 50) {
+                        // Guardar lista anterior si existe
+                        if (currentList.length > 0) {
+                          elements.push({
+                            type: 'list',
+                            items: [...currentList],
+                            key: `list-${elements.length}`
+                          });
+                          currentList = [];
+                        }
+
+                        elements.push({
+                          type: 'heading',
+                          content: trimmedLine,
+                          key: `heading-${idx}`
+                        });
+                        return;
+                      }
+
+                      // Detectar items de lista (comienzan con texto seguido de ":")
+                      if (trimmedLine.match(/^[A-Za-z0-9\s]+:/)) {
+                        currentList.push(trimmedLine);
+                        return;
+                      }
+
+                      // Si había una lista y viene texto normal, cerrar la lista
+                      if (currentList.length > 0) {
+                        elements.push({
+                          type: 'list',
+                          items: [...currentList],
+                          key: `list-${elements.length}`
+                        });
+                        currentList = [];
+                      }
+
+                      // Texto normal
+                      elements.push({
+                        type: 'paragraph',
+                        content: trimmedLine,
+                        key: `p-${idx}`
+                      });
                     });
-                    currentList = [];
-                  }
-                  
-                  elements.push({
-                    type: 'heading',
-                    content: trimmedLine,
-                    key: `heading-${idx}`
-                  });
-                  return;
-                }
-                
-                // Detectar items de lista (comienzan con texto seguido de ":")
-                if (trimmedLine.match(/^[A-Za-z0-9\s]+:/)) {
-                  currentList.push(trimmedLine);
-                  return;
-                }
-                
-                // Si había una lista y viene texto normal, cerrar la lista
-                if (currentList.length > 0) {
-                  elements.push({
-                    type: 'list',
-                    items: [...currentList],
-                    key: `list-${elements.length}`
-                  });
-                  currentList = [];
-                }
-                
-                // Texto normal
-                elements.push({
-                  type: 'paragraph',
-                  content: trimmedLine,
-                  key: `p-${idx}`
-                });
-              });
-              
-              // Agregar última lista si existe
-              if (currentList.length > 0) {
-                elements.push({
-                  type: 'list',
-                  items: currentList,
-                  key: `list-final`
-                });
-              }
-              
-              return (
-                <div className="space-y-6">
-                  {elements.map((element) => {
-                    switch (element.type) {
-                      case 'heading':
-                        return (
-                          <h3 
-                            key={element.key}
-                            className="text-base font-bold text-gray-900 uppercase tracking-wide mt-8 first:mt-0 mb-3"
-                          >
-                            {element.content}
-                          </h3>
-                        );
-                      
-                      case 'list':
-                        return (
-                          <ul key={element.key} className="space-y-2 ml-4">
-                            {element.items?.map((item, i) => (
-                              <li 
-                                key={i}
-                                className="text-[15px] leading-relaxed flex"
-                              >
-                                <span className="mr-2 text-blue-600 flex-shrink-0">•</span>
-                                <span>{item}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        );
-                      
-                      case 'paragraph':
-                        // Detectar si es una línea especial (como PROMO!, contacto, etc)
-                        const isSpecial = element.content?.includes('PROMO!') || 
-                                         element.content?.includes('Contact us') ||
-                                         element.content?.includes('**');
-                        
-                        return (
-                          <p 
-                            key={element.key}
-                            className={`text-[15px] leading-relaxed ${
-                              isSpecial ? 'font-semibold text-gray-900' : ''
-                            }`}
-                          >
-                            {element.content?.replace(/\*\*/g, '')}
-                          </p>
-                        );
-                      
-                      default:
-                        return null;
+
+                    // Agregar última lista si existe
+                    if (currentList.length > 0) {
+                      elements.push({
+                        type: 'list',
+                        items: currentList,
+                        key: `list-final`
+                      });
                     }
-                  })}
+
+                    return (
+                      <div className="space-y-6">
+                        {elements.map((element) => {
+                          switch (element.type) {
+                            case 'heading':
+                              return (
+                                <h3
+                                  key={element.key}
+                                  className="text-base font-bold text-gray-900 uppercase tracking-wide mt-8 first:mt-0 mb-3"
+                                >
+                                  {element.content}
+                                </h3>
+                              );
+
+                            case 'list':
+                              return (
+                                <ul key={element.key} className="space-y-2 ml-4">
+                                  {element.items?.map((item, i) => (
+                                    <li
+                                      key={i}
+                                      className="text-[15px] leading-relaxed flex"
+                                    >
+                                      <span className="mr-2 text-blue-600 flex-shrink-0">•</span>
+                                      <span>{item}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              );
+
+                            case 'paragraph':
+                              // Detectar si es una línea especial (como PROMO!, contacto, etc)
+                              const isSpecial = element.content?.includes('PROMO!') ||
+                                element.content?.includes('Contact us') ||
+                                element.content?.includes('**');
+
+                              return (
+                                <p
+                                  key={element.key}
+                                  className={`text-[15px] leading-relaxed ${isSpecial ? 'font-semibold text-gray-900' : ''
+                                    }`}
+                                >
+                                  {element.content?.replace(/\*\*/g, '')}
+                                </p>
+                              );
+
+                            default:
+                              return null;
+                          }
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Gradiente fade cuando está colapsado */}
+                  {!isDescriptionExpanded && (
+                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none" />
+                  )}
                 </div>
-              );
-            })()}
-            
-            {/* Gradiente fade cuando está colapsado */}
-            {!isDescriptionExpanded && (
-              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white via-white/95 to-transparent pointer-events-none" />
+
+                {/* Botón "Read more" */}
+                {listing.description.length > 600 && (
+                  <button
+                    onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                    className="text-blue-600 hover:text-blue-700 hover:underline text-sm font-semibold mt-4 inline-flex items-center gap-1 transition-colors"
+                  >
+                    {isDescriptionExpanded ? (
+                      <>
+                        Show less
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </>
+                    ) : (
+                      <>
+                        Read more
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-center py-8 text-gray-500">No description available.</p>
             )}
           </div>
-          
-          {/* Botón "Read more" */}
-          {listing.description.length > 600 && (
-            <button 
-              onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-              className="text-blue-600 hover:text-blue-700 hover:underline text-sm font-semibold mt-4 inline-flex items-center gap-1 transition-colors"
-            >
-              {isDescriptionExpanded ? (
-                <>
-                  Show less
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                  </svg>
-                </>
-              ) : (
-                <>
-                  Read more
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </>
-              )}
-            </button>
-          )}
-        </>
-      ) : (
-        <p className="text-center py-8 text-gray-500">No description available.</p>
-      )}
-    </div>
-  </div>
-</section>
+        </div>
+      </section>
 
       {/* Pricing Section */}
       <section className="py-8 md:py-12 px-6 bg-accent/20">
@@ -1136,35 +1172,35 @@ export default function PropertyDetail() {
 
       {/* Quote Calculator */}
       <section className="py-8 md:py-12 px-6 border-b border-[#E5E5E5]">
-  <div className="container mx-auto max-w-4xl">
-    <div className="mb-6 text-center">
-      <h2 className="text-2xl md:text-3xl font-bold mb-2 text-gray-900">
-        Calculate Your Quote
-      </h2>
-      <p className="text-sm text-gray-600">
-        Get instant pricing with your advisor commission included
-      </p>
-    </div>
+        <div className="container mx-auto max-w-4xl">
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl md:text-3xl font-bold mb-2 text-gray-900">
+              Calculate Your Quote
+            </h2>
+            <p className="text-sm text-gray-600">
+              Get instant pricing with your advisor commission included
+            </p>
+          </div>
 
-    <div className="max-w-xl mx-auto">
-      <QuoteCalculator
-        listingId={listing.listing_id}
-        checkIn={checkIn}
-        checkOut={checkOut}
-        guests={guests || 2}
-        defaultCommission={12}
-      />
-    </div>
+          <div className="max-w-xl mx-auto">
+            <QuoteCalculator
+              listingId={listing.listing_id}
+              checkIn={checkIn}
+              checkOut={checkOut}
+              guests={guests || 2}
+              defaultCommission={12}
+            />
+          </div>
 
-    {/* Info adicional */}
-    <div className="mt-6 text-center">
-      <p className="text-xs text-gray-500 max-w-2xl mx-auto">
-        Prices are calculated in real-time based on availability and seasonality. 
-        Final pricing subject to confirmation upon booking.
-      </p>
-    </div>
-  </div>
-</section>
+          {/* Info adicional */}
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-500 max-w-2xl mx-auto">
+              Prices are calculated in real-time based on availability and seasonality.
+              Final pricing subject to confirmation upon booking.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Villa Net Verified Standard */}
       <section className="py-16 px-6 bg-white border-t border-b border-[#E6E6E6]">
@@ -1182,11 +1218,11 @@ export default function PropertyDetail() {
               villa before it goes live.
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 gap-5 max-w-4xl mx-auto">
             {(() => {
               const verifiedFeatures = [];
-              
+
               // 1. Manager verificado
               if (listing.villanet_property_manager_name) {
                 verifiedFeatures.push(
@@ -1195,29 +1231,29 @@ export default function PropertyDetail() {
               } else {
                 verifiedFeatures.push('Professionally Managed by Verified Local Partner');
               }
-              
+
               // 2. Trust accounting
               verifiedFeatures.push('Trust Accounting with Segregated Client Funds');
-              
+
               // 3. Housekeeping estándar
               verifiedFeatures.push('Daily Housekeeping Included (Except Sundays)');
-              
+
               // 4. Chef disponible
               if (listing.villanet_chef_included) {
                 verifiedFeatures.push('Private Chef Included in Stay');
               } else {
                 verifiedFeatures.push('Private Chef Available, Fully Vetted & Local');
               }
-              
+
               // 5. Rank de VillaNet (CORREGIDO - usar formatVillaNetRank)
               if (listing.villanet_rank != null) {
                 verifiedFeatures.push(
-                  `Villa Net Quality Score: ${formatVillaNetRank(listing.villanet_rank)}` 
+                  `Villa Net Quality Score: ${formatVillaNetRank(listing.villanet_rank)}`
                 );
               } else {
                 verifiedFeatures.push('Villa Net Quality Score: 9.7+');
               }
-              
+
               // 6. Commission rate
               if (listing.villanet_commission_rate) {
                 verifiedFeatures.push(
@@ -1226,7 +1262,7 @@ export default function PropertyDetail() {
               } else {
                 verifiedFeatures.push('Commission Protected for Travel Advisors');
               }
-              
+
               return verifiedFeatures.slice(0, 6).map((feature, index) => (
                 <div
                   key={index}
@@ -1264,63 +1300,63 @@ export default function PropertyDetail() {
         </div>
       </section>
 
-{/* Amenities Section - DYNAMIC */}
-<section className="py-12 px-6 border-b border-[#E5E5E5]">
-  <div className="container mx-auto max-w-5xl">
-    <div className="text-center mb-10">
-      <h3 className="text-2xl font-bold mb-3 text-gray-900">
-        Property Amenities
-      </h3>
-      <p className="text-sm text-gray-600">Included with Your Stay</p>
-    </div>
-    
-    {(() => {
-      const amenitiesWithIcons = getAmenitiesWithIcons(listing.amenities || []);
-      const initialAmenitiesCount = 12;
-      const displayAmenities = showAllAmenities 
-        ? amenitiesWithIcons 
-        : amenitiesWithIcons.slice(0, initialAmenitiesCount);
-      const hasMoreAmenities = amenitiesWithIcons.length > initialAmenitiesCount;
-      
-      return (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {displayAmenities.map((amenity, index) => (
-              <div
-                key={index}
-                className="flex flex-col items-center text-center gap-3 p-4 rounded-lg border border-gray-100 hover:border-gray-300 hover:shadow-sm transition-all"
-              >
-                <amenity.icon className="w-7 h-7 text-gray-700" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900 leading-tight">
-                    {amenity.label}
-                  </p>
-                </div>
-              </div>
-            ))}
+      {/* Amenities Section - DYNAMIC */}
+      <section className="py-12 px-6 border-b border-[#E5E5E5]">
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-10">
+            <h3 className="text-2xl font-bold mb-3 text-gray-900">
+              Property Amenities
+            </h3>
+            <p className="text-sm text-gray-600">Included with Your Stay</p>
           </div>
-          
-          {hasMoreAmenities && (
-            <div className="text-center mt-8">
-              <button
-                onClick={() => setShowAllAmenities(!showAllAmenities)}
-                className="px-6 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                {showAllAmenities ? 'View Less' : 'View More'}
-              </button>
-            </div>
-          )}
-          
-          {amenitiesWithIcons.length === 0 && (
-            <p className="text-center text-gray-500 text-sm mt-8">
-              Amenity details available upon inquiry
-            </p>
-          )}
-        </>
-      );
-    })()}
-  </div>
-</section>
+
+          {(() => {
+            const amenitiesWithIcons = getAmenitiesWithIcons(listing.amenities || []);
+            const initialAmenitiesCount = 12;
+            const displayAmenities = showAllAmenities
+              ? amenitiesWithIcons
+              : amenitiesWithIcons.slice(0, initialAmenitiesCount);
+            const hasMoreAmenities = amenitiesWithIcons.length > initialAmenitiesCount;
+
+            return (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+                  {displayAmenities.map((amenity, index) => (
+                    <div
+                      key={index}
+                      className="flex flex-col items-center text-center gap-3 p-4 rounded-lg border border-gray-100 hover:border-gray-300 hover:shadow-sm transition-all"
+                    >
+                      <amenity.icon className="w-7 h-7 text-gray-700" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 leading-tight">
+                          {amenity.label}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {hasMoreAmenities && (
+                  <div className="text-center mt-8">
+                    <button
+                      onClick={() => setShowAllAmenities(!showAllAmenities)}
+                      className="px-6 py-2.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      {showAllAmenities ? 'View Less' : 'View More'}
+                    </button>
+                  </div>
+                )}
+
+                {amenitiesWithIcons.length === 0 && (
+                  <p className="text-center text-gray-500 text-sm mt-8">
+                    Amenity details available upon inquiry
+                  </p>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      </section>
 
       {/* Concierge Services */}
       <section className="py-12 px-6 bg-white border-b border-[#E5E5E5]">
@@ -1398,38 +1434,38 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
-{/* Location Section */}
-<section className="py-12 px-6 border-b border-border">
-  <div className="container mx-auto max-w-4xl">
-    <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-foreground">
-      Location
-    </h2>
-    <div className="flex items-start gap-2 text-muted-foreground mb-6">
-      <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0" />
-      <p className="text-sm">Located in {getVillaNetLocation()}</p>
-    </div>
-    {listing.lat != null && listing.lng != null ? (
-  <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden border border-border relative">
-    <PropertyMap lat={listing.lat} lng={listing.lng} name={listing.name} />
+      {/* Location Section */}
+      <section className="py-12 px-6 border-b border-border">
+        <div className="container mx-auto max-w-4xl">
+          <h2 className="text-2xl md:text-3xl font-semibold mb-6 text-foreground">
+            Location
+          </h2>
+          <div className="flex items-start gap-2 text-muted-foreground mb-6">
+            <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <p className="text-sm">Located in {getVillaNetLocation()}</p>
+          </div>
+          {listing.lat != null && listing.lng != null ? (
+            <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden border border-border relative">
+              <PropertyMap lat={listing.lat} lng={listing.lng} name={listing.name} />
 
-    {/* ✅ Botón overlay */}
-    <a
-      href={`https://www.google.com/maps?q=${listing.lat},${listing.lng}%20(${encodeURIComponent(listing.name)})`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="absolute top-4 right-4 z-20 inline-flex items-center gap-2 rounded-full bg-white/95 backdrop-blur px-4 py-2 text-sm font-medium text-gray-900 border border-gray-200 shadow hover:bg-white hover:shadow-md transition"
-    >
-      <MapPin className="w-4 h-4" />
-      Open in Google Maps
-    </a>
-  </div>
-) : (
-      <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden border border-border bg-gray-100 flex items-center justify-center">
-        <p className="text-gray-500">Exact location not available.</p>
-      </div>
-    )}
-  </div>
-</section>
+              {/* ✅ Botón overlay */}
+              <a
+                href={`https://www.google.com/maps?q=${listing.lat},${listing.lng}%20(${encodeURIComponent(listing.name)})`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-4 right-4 z-20 inline-flex items-center gap-2 rounded-full bg-white/95 backdrop-blur px-4 py-2 text-sm font-medium text-gray-900 border border-gray-200 shadow hover:bg-white hover:shadow-md transition"
+              >
+                <MapPin className="w-4 h-4" />
+                Open in Google Maps
+              </a>
+            </div>
+          ) : (
+            <div className="w-full h-[400px] md:h-[500px] rounded-lg overflow-hidden border border-border bg-gray-100 flex items-center justify-center">
+              <p className="text-gray-500">Exact location not available.</p>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Designed For Section */}
       <section className="py-12 px-6 border-t border-b border-[#E5E5E5]">
@@ -1553,7 +1589,7 @@ export default function PropertyDetail() {
       </section>
 
       {/* Villa Net Collections Section */}
-{/*      <section className="py-12 px-6 border-b border-[#E5E5E5]">
+      {/*      <section className="py-12 px-6 border-b border-[#E5E5E5]">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center">
             <h3 className="text-2xl font-semibold text-gray-900 mb-3">
@@ -1644,11 +1680,10 @@ export default function PropertyDetail() {
       <div
         className={`hidden md:block fixed left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E5E5E5] shadow-sm top-16 
      transition-all duration-300 ease-in-out 
-     ${
-       showDesktopCTA
-         ? 'opacity-100 translate-y-0 pointer-events-auto'
-         : 'opacity-0 -translate-y-4 pointer-events-none'
-     }`}
+     ${showDesktopCTA
+            ? 'opacity-100 translate-y-0 pointer-events-auto'
+            : 'opacity-0 -translate-y-4 pointer-events-none'
+          }`}
       >
         <div className="container mx-auto px-6 py-4 md:max-w-4xl">
           <div className="flex gap-3 items-center">
@@ -1660,7 +1695,7 @@ export default function PropertyDetail() {
                 INQUIRE
               </button>
             </div>
-            
+
             {/* Botón del carrito en sticky CTA */}
             {cartCount > 0 && (
               <button
