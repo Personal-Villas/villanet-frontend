@@ -11,7 +11,7 @@ import imageLoginDefault from '../assets/images/villanet-login.jpg';
 //import people5 from '../assets/images/people-5.png';
 //import people6 from '../assets/images/people-6.png';
 import { publicApi } from '../api/api';
-import { useAuth } from '../auth/useAuth'; 
+import { useAuth } from '../auth/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 // Definición de tipos
@@ -39,11 +39,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [userExists, setUserExists] = useState<boolean>(false);
-  
+
   // ✅ Usa el hook real de autenticación
   const { verifyCode: realVerifyCode } = useAuth();
   const navigate = useNavigate();
-  
+
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const bgImage = imageLogin ?? imageLoginDefault;
 
@@ -62,16 +62,16 @@ const AuthModal: React.FC<AuthModalProps> = ({
       setError('Please enter a valid email');
       return;
     }
-  
+
     setError(null);
     setLoading(true);
-  
+
     try {
       const response = await publicApi('/auth/send-code', {
         method: 'POST',
         body: JSON.stringify({ email }),
       }) as ApiResponse;
-  
+
       console.log('📥 /auth/send-code response:', response);
       setUserExists(response.userExists);
       setMode('code');
@@ -86,11 +86,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const handleCodeChange = (index: number, value: string): void => {
     if (value.length > 1) value = value[0];
     if (!/^\d*$/.test(value)) return;
-    
+
     const newCode = [...code];
     newCode[index] = value;
     setCode(newCode);
-    
+
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -109,12 +109,12 @@ const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text').slice(0, 6);
     if (!/^\d+$/.test(pastedData)) return;
-    
+
     const newCode = pastedData.split('');
     while (newCode.length < 6) newCode.push('');
-    
+
     setCode(newCode);
-    
+
     const nextEmptyIndex = newCode.findIndex(c => !c);
     if (nextEmptyIndex !== -1) {
       inputRefs.current[nextEmptyIndex]?.focus();
@@ -129,21 +129,21 @@ const AuthModal: React.FC<AuthModalProps> = ({
       setError('Please enter the complete code');
       return;
     }
-  
+
     if (!userExists && !fullName.trim()) {
       setError('Full name required for new users');
       return;
     }
-  
+
     setError(null);
     setLoading(true);
-  
+
     try {
       // ✅ Usa la función real verifyCode que actualiza el estado global
       const data = await realVerifyCode(email, codeString, fullName.trim() || undefined);
-  
+
       console.log('✅ verify-code OK', data);
-      
+
       // ✅ El hook useAuth ya actualizó el estado global del usuario
       // ✅ Ahora llamamos a onSuccess con el usuario real
       if (data.user) {
@@ -170,7 +170,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div 
+    <div
       className="
         fixed inset-0 bg-black/50 z-50
         flex items-stretch justify-center
@@ -178,7 +178,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
       "
       onClick={onClose}
     >
-      <div 
+      <div
         className="
           bg-white 
           w-full h-full
@@ -199,14 +199,14 @@ const AuthModal: React.FC<AuthModalProps> = ({
             />
             {/* Gradiente que desvanece la imagen hacia blanco */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/30 to-white" />
-            
+
             {/* Texto superpuesto */}
             <div className="absolute bottom-4 left-4 right-4 z-10">
               <h3 className="text-[25px] font-semibold text-neutral-900 mb-1">
-              Welcome to Villanet
+                Welcome to Villanet
               </h3>
               <p className="text-[17px] text-neutral-600">
-              Enter your email to log in or register. We will never sell your personal information.
+                Enter your email to log in or register. We will never sell your personal information.
               </p>
             </div>
           </div>
@@ -224,9 +224,12 @@ const AuthModal: React.FC<AuthModalProps> = ({
         <div className="flex-1 p-4 sm:p-8 flex flex-col min-h-0">
           {/* Logo solo en desktop */}
           <div className="hidden sm:flex items-center mx-auto gap-2 mb-6">
-            <div className="w-10 h-10 bg-neutral-900 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg">V</span>
-            </div>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="8" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
+              <circle cx="20" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
+              <circle cx="14" cy="20" r="3" stroke="#111111" strokeWidth="1.5" />
+              <path d="M10.5 9.5L14 17L17.5 9.5" stroke="#111111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
             <h2 className="text-2xl font-bold text-neutral-900">Villanet</h2>
           </div>
 
@@ -234,15 +237,15 @@ const AuthModal: React.FC<AuthModalProps> = ({
             <>
               {/* Título solo en desktop, en mobile está sobre la imagen */}
               <h3 className="hidden sm:block text-[23px] font-semibold text-neutral-900 mb-3 mt-[100px] md:mb-[20px]">
-              Welcome to Villanet
+                Welcome to Villanet
               </h3>
-              
+
               <p className="hidden sm:block text-sm text-neutral-600 mb-6 md:mb-[30px]">
-              Enter your email to log in or register. We will never sell your personal information.
+                Enter your email to log in or register. We will never sell your personal information.
               </p>
 
               {/* Botones sociales */}
-           {/*    <div className="flex gap-2 sm:gap-3 mb-4 lg:mt-5">
+              {/*    <div className="flex gap-2 sm:gap-3 mb-4 lg:mt-5">
                 <button
                   type="button"
                   onClick={() => handleSocialClick('apple')}
@@ -267,7 +270,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 */}
               {/* Separador OR */}
-             {/*  <div className="flex items-center gap-3 my-4 lg:my-8">
+              {/*  <div className="flex items-center gap-3 my-4 lg:my-8">
                 <div className="h-px bg-neutral-200 flex-1" />
                 <span className="text-xs uppercase tracking-wider text-neutral-500 font-medium">or</span>
                 <div className="h-px bg-neutral-200 flex-1" />
@@ -282,7 +285,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   onKeyDown={(e) => e.key === 'Enter' && handleSendCode()}
                   className="w-full px-4 py-3 rounded-[50px] h-[70px] lg:h-[50px] border border-neutral-300 focus:outline-none focus:border-neutral-900 transition mb-4 text-[17px] lg:text-[15px]"
                 />
-                
+
                 {error && <p className="text-red-600 text-[17px] mb-4">{error}</p>}
 
                 <button
@@ -341,11 +344,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 <h3 className="text-xl font-semibold text-neutral-900 mb-2 ">
                   We sent you a 6-digit code to {email}
                 </h3>
-                
+
                 <p className="text-[10px] text-neutral-600 mb-4">
-                Please check your email for the code. If you don't see it, check your spam folder.
+                  Please check your email for the code. If you don't see it, check your spam folder.
                 </p>
-                
+
                 <p className="text-sm text-neutral-500 mb-6 lg:mb-10">
                   Click the link or enter the code below to login
                 </p>
@@ -382,7 +385,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                       />
                     ))}
                   </div>
-                  
+
                   {error && (
                     <p className="text-red-600 text-sm mb-4 text-center">
                       {error}

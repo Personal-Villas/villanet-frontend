@@ -13,7 +13,7 @@ export default function Signup({ auth }: any) {
     e.preventDefault();
     setErr(null);
     setIsLoading(true);
-    
+
     try {
       await auth.register(full_name, email, password);
       navigate('/properties');
@@ -30,13 +30,15 @@ export default function Signup({ auth }: any) {
         {/* Logo Section */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 mb-8">
-            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="8" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
+              <circle cx="20" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
+              <circle cx="14" cy="20" r="3" stroke="#111111" strokeWidth="1.5" />
+              <path d="M10.5 9.5L14 17L17.5 9.5" stroke="#111111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span className="text-2xl font-bold">villanet</span>
           </div>
-          
+
           <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 mb-2">
             Request Access
           </h1>
@@ -51,11 +53,11 @@ export default function Signup({ auth }: any) {
             <label className="text-sm font-medium text-gray-900 mb-2 block">
               Full Name
             </label>
-            <input 
+            <input
               type="text"
               className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 text-base"
-              value={full_name} 
-              onChange={e => setFullName(e.target.value)} 
+              value={full_name}
+              onChange={e => setFullName(e.target.value)}
               placeholder="John Doe"
               disabled={isLoading}
               required
@@ -66,39 +68,39 @@ export default function Signup({ auth }: any) {
             <label className="text-sm font-medium text-gray-900 mb-2 block">
               Email
             </label>
-            <input 
+            <input
               type="email"
               className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 text-base"
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
               disabled={isLoading}
               required
             />
           </div>
-          
+
           <div>
             <label className="text-sm font-medium text-gray-900 mb-2 block">
               Password
             </label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-14 text-base"
-              value={password} 
+              value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
               disabled={isLoading}
               required
             />
           </div>
-          
+
           {err && (
             <div className="rounded-lg bg-red-50 border border-red-200 p-3">
               <p className="text-sm text-red-600">{err}</p>
             </div>
           )}
-          
-          <button 
+
+          <button
             type="submit"
             disabled={isLoading}
             className="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-[#000000] text-white hover:bg-black/90 px-4 py-2 w-full h-14 text-base font-medium rounded-md shadow-none"
