@@ -10,7 +10,7 @@
       rel="stylesheet"
     />
     <link rel="icon" type="image/svg+xml" href="./public/villanet-icon.svg" />
-    
+
     <!-- Google Tag Manager -->
     <script>
       (function (w, d, s, l, i) {
@@ -25,14 +25,56 @@
       })(window, document, "script", "dataLayer", "GTM-KJ6THH9K");
     </script>
     <!-- End Google Tag Manager -->
-    
+
+    <!-- Google tag (gtag.js) -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-TDHGQPHMG7"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+
+      gtag("config", "G-TDHGQPHMG7");
+    </script>
+    <!-- End Google Tag (gtag.js) -->
+
+    <!-- Hotjar Tracking Code for VillaNet -->
+    <script>
+      (function (h, o, t, j, a, r) {
+        h.hj =
+          h.hj ||
+          function () {
+            (h.hj.q = h.hj.q || []).push(arguments);
+          };
+        h._hjSettings = { hjid: 6642458, hjsv: 6 };
+        a = o.getElementsByTagName("head")[0];
+        r = o.createElement("script");
+        r.async = 1;
+        r.src = t + h._hjSettings.hjid + j + h._hjSettings.hjsv;
+        a.appendChild(r);
+      })(window, document, "https://static.hotjar.com/c/hotjar-", ".js?sv=");
+    </script>
+    <!-- End Hotjar Tracking code for VillaNet -->
+     
     <title>VillaNet</title>
   </head>
+
   <body>
     <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KJ6THH9K"
-    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <noscript
+      ><iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-KJ6THH9K"
+        height="0"
+        width="0"
+        style="display: none; visibility: hidden"
+      ></iframe
+    ></noscript>
     <!-- End Google Tag Manager (noscript) -->
+     
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
