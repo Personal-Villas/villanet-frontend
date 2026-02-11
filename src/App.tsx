@@ -21,7 +21,6 @@ import { CartProvider } from './context/CartContext';
 import EarlyAccess from './pages/EarlyAccess';
 import { ToastProvider } from '@radix-ui/react-toast';
 import { GoogleMapsProvider } from './providers/GoogleMapsProvider';
-import { StBartsLanding } from './pages/StBartsLanding';
 
 
 
@@ -56,7 +55,6 @@ function AppRoutes() {
       <Route path="/trust-framework" element={<TrustFramework />} />
       <Route path="/terms-of-service" element={<TermsOfService />} /> 
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-      <Route path="/st-barts" element={<StBartsLanding />} />
       {/* ✅ Rutas de autenticación */}
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />

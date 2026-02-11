@@ -539,7 +539,7 @@ const CartModal: React.FC<CartModalProps> = ({
                       <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
+                            <label className="text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               Check-in
                             </label>
@@ -553,7 +553,7 @@ const CartModal: React.FC<CartModalProps> = ({
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
+                            <label className="text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
                               Check-out
                             </label>
@@ -568,7 +568,7 @@ const CartModal: React.FC<CartModalProps> = ({
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
+                            <label className=" text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
                               <Users className="w-3 h-3" />
                               Guests
                             </label>

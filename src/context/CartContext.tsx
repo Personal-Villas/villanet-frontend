@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type Listing = {
+export type Listing = {
   id: string;
   name: string;
   location?: string | null;
@@ -11,6 +11,7 @@ type Listing = {
   priceUSD?: number | null;
   heroImage?: string | null;
   images_json?: string[];
+  rank?: number | null; 
 };
 
 type CartContextType = {
@@ -102,3 +103,4 @@ export const useCart = () => {
   }
   return context;
 };
+
