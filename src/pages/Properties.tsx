@@ -1,6 +1,5 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bed, MapPin, DollarSign, Star, ChevronLeft, ChevronRight, Bath, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { api, publicApi } from '../api/api';
 import AuthModal from '../components/AuthModal';
@@ -11,8 +10,10 @@ import PropertiesHeaderCompact, { type CrudBadge } from '../components/SecondSea
 import { useCart } from '../context/CartContext';
 import CartSidebar from '../components/CartSidebar';
 import CartModal from '../components/CartModal';
-import { ListingGridSkeleton } from '../ui/ListingGridSkeleton';
 import { ListingCardSkeleton } from '../ui/ListingCardSkeleton';
+import { PropertyCard } from '../components/PropertyCard';
+import { PaginationControls } from '../components/PaginationControls';
+import { SearchLoader } from '../components/SearchLoader';
 
 type Listing = {
   id: string;
@@ -113,7 +114,7 @@ const DESTINATIONS = [
 ];
 
 const Info = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/src" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="12" cy="12" r="10"></circle>
     <path d="M12 16v-4"></path>
     <path d="M12 8h.01"></path>
@@ -123,26 +124,6 @@ const Info = ({ className }: { className?: string }) => (
 // 🔥 UX progressive loading
 type UxPhase = 'idle' | 'loader' | 'skeleton' | 'results';
 const MIN_LOADER_MS = 3000; // 400–600ms (elige 520ms estable)
-
-// Componente loader simple
-const SearchLoader = ({ progress }: { progress: number }) => (
-  <div className="fixed inset-0 z-40 bg-white/70 backdrop-blur-sm flex items-center justify-center px-6">
-    <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white shadow-xl p-6 text-center">
-      <div className="mx-auto mb-4 h-10 w-10 rounded-full border-2 border-neutral-900 border-b-transparent animate-spin" />
-      <p className="text-sm font-medium text-neutral-900">
-        We're finding your perfect villa…
-      </p>
-
-      <div className="mt-5 w-full h-2 rounded-full bg-neutral-100 overflow-hidden">
-        <div
-          className="h-full bg-neutral-900 transition-all duration-300"
-          style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-        />
-      </div>
-      <p className="mt-2 text-xs text-neutral-500">{progress}%</p>
-    </div>
-  </div>
-);
 
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
@@ -226,35 +207,37 @@ export default function Properties() {
 
   // 🆕 Guardar TODOS los filtros en localStorage
   useEffect(() => {
-  const filters = {
-    query: appliedFilters.query,
-    checkIn: appliedFilters.checkIn,
-    checkOut: appliedFilters.checkOut,
-    guests: appliedFilters.guests,
-    bedrooms: appliedFilters.bedrooms,
-    bathrooms: appliedFilters.bathrooms,
-    minPrice: appliedFilters.minPrice,
-    maxPrice: appliedFilters.maxPrice,
-    destination: appliedFilters.selectedDestination,
-    badges: appliedFilters.selectedBadges,
-    sort: appliedFilters.sortBy,
-  };
-  
-  const hasActiveFilters = Object.values(filters).some(
-    value => value !== '' && value !== null && value !== undefined && value !== 0 && 
-             (Array.isArray(value) ? value.length > 0 : true)
-  );
-  
-  if (hasActiveFilters) {
-    console.log('💾 Guardando filtros en localStorage:', filters); // ← AGREGAR
-    localStorage.setItem('searchFilters', JSON.stringify(filters));
-  }
-}, [appliedFilters]);
+    const filters = {
+      query: appliedFilters.query,
+      checkIn: appliedFilters.checkIn,
+      checkOut: appliedFilters.checkOut,
+      guests: appliedFilters.guests,
+      bedrooms: appliedFilters.bedrooms,
+      bathrooms: appliedFilters.bathrooms,
+      minPrice: appliedFilters.minPrice,
+      maxPrice: appliedFilters.maxPrice,
+      destination: appliedFilters.selectedDestination,
+      badges: appliedFilters.selectedBadges,
+      sort: appliedFilters.sortBy,
+    };
+
+    const hasActiveFilters = Object.values(filters).some(
+      value => value !== '' && value !== null && value !== undefined && value !== 0 &&
+        (Array.isArray(value) ? value.length > 0 : true)
+    );
+
+    if (hasActiveFilters) {
+      console.log('💾 Guardando filtros en localStorage:', filters); // ← AGREGAR
+      localStorage.setItem('searchFilters', JSON.stringify(filters));
+    }
+  }, [appliedFilters]);
 
   // 🆕 Guardar y restaurar posición de scroll
   useEffect(() => {
     // Función para guardar scroll constantemente
     const handleScroll = () => {
+      if (isRestoringScroll) return;
+      
       localStorage.setItem('propertiesScrollPosition', window.scrollY.toString());
     };
 
@@ -674,9 +657,6 @@ export default function Properties() {
     document.body.appendChild(script);
   }, []);
 
-
-
-
   // 🔥 Autofill: solo para completar la page 1 hasta 12 y cortar
   useEffect(() => {
     if (!hasAvailabilityFilter) return;
@@ -1089,8 +1069,6 @@ export default function Properties() {
     autoFillTick,
   ]);
 
-
-
   const handlePrevImage = useCallback((e: React.MouseEvent, listingId: string, totalImages: number) => {
     e.stopPropagation();
     setImageIndices(prev => ({
@@ -1122,57 +1100,6 @@ export default function Properties() {
     return rank.toString();
   };
 
-  // ✅ Componente de paginación mejorado
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    const handlePrevious = () => {
-      if (currentPage > 1) {
-        setCurrentPage(currentPage - 1);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    };
-
-    const handleNext = () => {
-      if (currentPage < totalPages) {
-        setCurrentPage(currentPage + 1);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    };
-
-    // Si estamos en modo availability y no sabemos el total de páginas exacto
-    const showNextButton = hasAvailabilityFilter
-      ? items.length === ITEMS_PER_PAGE || currentPage < totalPages
-      : currentPage < totalPages;
-
-    return (
-      <div className="flex justify-center items-center gap-4 py-8 lg:pb-8 pb-[50px]">
-        <button
-          onClick={handlePrevious}
-          disabled={currentPage === 1}
-          className="px-6 py-3 border border-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors font-medium text-neutral-700 flex items-center gap-2"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Previous
-        </button>
-
-        <span className="text-sm text-neutral-600">
-          Page {currentPage} {hasAvailabilityFilter && totalPages > 100 ? '' : `of ${totalPages}`}
-          {hasAvailabilityFilter && totalPages > 100 && ' (availability mode)'}
-        </span>
-
-        <button
-          onClick={handleNext}
-          disabled={!showNextButton}
-          className="px-6 py-3 border border-neutral-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-neutral-50 transition-colors font-medium text-neutral-700 flex items-center gap-2"
-        >
-          Next
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  };
-
   const goToDetail = useCallback((property: Listing) => {
     if (!user) {
       openAuthModal();
@@ -1180,27 +1107,6 @@ export default function Properties() {
     }
     navigate(`/property/${property.id}`);
   }, [navigate, user, openAuthModal]);
-
-  const activeFiltersCount = useMemo(() => {
-    return (
-      appliedFilters.bedrooms.length +
-      appliedFilters.bathrooms.length +
-      (appliedFilters.minPrice ? 1 : 0) +
-      (appliedFilters.maxPrice ? 1 : 0) +
-      (appliedFilters.checkIn ? 1 : 0) +
-      (appliedFilters.checkOut ? 1 : 0) +
-      appliedFilters.selectedBadges.length +
-      (appliedFilters.selectedDestination ? 1 : 0) +
-      (appliedFilters.query ? 1 : 0)
-    );
-  }, [appliedFilters]);
-
-  const isFilling = loading && items.length > 0;
-  const visibleProgress = useMemo(() => {
-    if (uxPhase === 'loader' || uxPhase === 'skeleton') return Math.min(99, Math.max(0, progress));
-    if (loading) return 95;
-    return 100;
-  }, [uxPhase, progress, loading]);
 
   if (authLoading) {
     return (
@@ -1214,6 +1120,10 @@ export default function Properties() {
   }
 
   const renderList = currentPage === 1 ? slots : items;
+
+  const showNextButton = hasAvailabilityFilter
+    ? items.length === ITEMS_PER_PAGE || currentPage < totalPages
+    : currentPage < totalPages;
 
   return (
     <>
@@ -1290,284 +1200,43 @@ export default function Properties() {
           onApplyFilters={handleApplyFilters}
         />
 
-        <main className="pt-16">
-          <div className="container mx-auto px-6 py-8 min-h-[60vh]">
+        <main className="w-full px-4 md:px-8">
+          {uxPhase === 'loader' && (<SearchLoader progress={progress} />)}
+          <div className={`pt-10 md:pt-[300px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${uxPhase === 'loader' ? 'hidden' : 'grid'}`}>
+            {renderList.map((item, idx) => {
+              if (!item) {
+                return <ListingCardSkeleton key={`sk-${idx}`} />;
+              }
 
-            {/* 🆕 Indicador de restauración de scroll */}
-            {isRestoringScroll && (
-              <div className="fixed top-20 right-6 z-50 bg-white shadow-lg rounded-lg px-4 py-2 border border-gray-200 animate-fade-in">
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                  <span>Restoring your position...</span>
-                </div>
-              </div>
-            )}
 
-            {error ? (
-              <div className="py-20">
-                <div className="max-w-md mx-auto text-center">
-                  <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <X className="w-10 h-10 text-red-600" />
-                  </div>
-
-                  <h3 className="text-2xl font-bold text-neutral-900 mb-3">
-                    {error.includes('expired') ? 'Search expired' : 'Something went wrong'}
-                  </h3>
-
-                  <p className="text-neutral-500 mb-6">{error}</p>
-
-                  <button
-                    onClick={() => {
-                      setError(null);
-                      setCurrentPage(1);
-                      setAvailabilitySession(null);
-                      setAvailabilityCursor(0);
-                      setRetryCount((prev) => prev + 1);
-                      setPage1Filled(false);
-                      setAutoFillDone(false);
-                      setItems([]);
-                    }}
-                    className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </div>
-            ) : uxPhase === 'loader' ? (
-              <SearchLoader progress={progress} />
-            ) : uxPhase === 'skeleton' || (loading && items.length === 0) ? (
-              <ListingGridSkeleton count={ITEMS_PER_PAGE} />
-            ) : items.length > 0 ? (
-              <>
-                {/* ✅ Overlay loader SOLO cuando ya hay items (no bloquea ni opaca el grid) */}
-                {isFilling && (
-                  <div className="sticky top-16 z-10 mb-4">
-                    <div className="rounded-lg border border-border bg-white/80 backdrop-blur px-4 py-2 text-sm text-neutral-700 flex items-center justify-between gap-3 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-2 w-2 rounded-full bg-neutral-900 animate-pulse" />
-                        <span>We are loading more villas…</span>
-                      </div>
-
-                      <div className="flex items-center gap-2 min-w-[140px]">
-                        <div className="h-1.5 flex-1 rounded-full bg-neutral-200 overflow-hidden">
-                          <div
-                            className="h-full bg-neutral-900 transition-all duration-300"
-                            style={{ width: `${visibleProgress}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-neutral-600 tabular-nums w-9 text-right">
-                          {visibleProgress}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {renderList.map((item, idx) => {
-                    if (!item) {
-                      // ✅ Skeleton por-slot (mantiene layout exacto)
-                      return <ListingCardSkeleton key={`sk-${idx}`} />;
-                    }
-
-                    // ✅ tu card real (lo mismo que ya tenés)
-                    // OJO: acá usá `item` en vez de `items.map`
-                    const images =
-                      item.images_json.length > 0 ? item.images_json : [item.heroImage || PLACEHOLDER];
-                    const currentIndex = imageIndices[item.id] || 0;
-
-                    const displayLocation =
-                      item.villaNetDestinationTag ||
-                      item.villaNetCity ||
-                      item.location ||
-                      'Location not specified';
-
-                    return (
-                      <div
-                        key={`${item.id}-${idx}`}
-                        className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1 mt-10"
-                      >
-                        {/* Image Carousel */}
-                        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                          <div className="relative w-full h-full" role="region" aria-roledescription="carousel">
-                            <div className="relative w-full h-full overflow-hidden">
-                              <div
-                                className="flex h-full transition-transform duration-300 ease-out"
-                                style={{ transform: `translateX(${-currentIndex * 100}%)` }}
-                              >
-                                {images.map((image, imgIdx) => (
-                                  <div
-                                    key={imgIdx}
-                                    role="group"
-                                    aria-roledescription="slide"
-                                    className="w-full h-full flex-shrink-0"
-                                    style={{ minWidth: '100%' }}
-                                  >
-                                    <img
-                                      src={image}
-                                      alt={`${item.name} - Image ${imgIdx + 1}`}
-                                      className="w-full h-full object-cover"
-                                      loading={imgIdx === 0 ? 'eager' : 'lazy'}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Navigation Arrows */}
-                            <button
-                              disabled={currentIndex === 0}
-                              onClick={(e) => handlePrevImage(e, item.id, images.length)}
-                              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                              aria-label="Previous image"
-                            >
-                              <ChevronLeft className="w-4 h-4 text-foreground" />
-                            </button>
-
-                            <button
-                              onClick={(e) => handleNextImage(e, item.id, images.length)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                              aria-label="Next image"
-                            >
-                              <ChevronRight className="w-4 h-4 text-foreground" />
-                            </button>
-
-                            {/* Image Counter */}
-                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
-                              {currentIndex + 1} / {images.length}
-                            </div>
-                          </div>
-
-                          {/* Top Badges */}
-                          <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                              <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
-                              <span className="text-xs font-medium text-foreground">Verified 2025</span>
-                            </div>
-
-                            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                              <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                              <span className="text-xs font-semibold text-foreground">
-                                {formatRank(item.rank)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Property Info */}
-                        <div className="p-4">
-                          <a
-                            className="block mb-2 group/link"
-                            href={`/property/${item.id}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              goToDetail(item);
-                            }}
-                          >
-                            <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
-                              {item.name}
-                            </h3>
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                              <MapPin className="w-3.5 h-3.5" />
-                              <span>{displayLocation}</span>
-                            </div>
-                          </a>
-
-                          {/* Basic Info */}
-                          <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
-                            <div className="flex items-center gap-1 whitespace-nowrap">
-                              <Bed className="w-4 h-4" />
-                              <span>{item.bedrooms ?? '—'} BR</span>
-                            </div>
-
-                            <span className="hidden md:inline">•</span>
-
-                            <div className="flex items-center gap-1 whitespace-nowrap">
-                              <Bath className="w-4 h-4" />
-                              <span>{item.bathrooms ?? '—'} BA</span>
-                            </div>
-
-                            <span className="hidden md:inline">•</span>
-
-                            <div className="flex items-center gap-1 whitespace-nowrap">
-                              <DollarSign className="w-4 h-4" />
-                              <span>From {formatMoney(item.priceUSD)}/nt</span>
-                            </div>
-                          </div>
-
-                          {/* Trust Metrics */}
-                          <div className="mb-4 text-xs space-y-2">
-                            <div className="flex items-center gap-1.5">
-                              <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                              <span className="text-muted-foreground truncate">{item.propertyManager}</span>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex flex-col gap-2">
-                            <button
-                              onClick={() => goToDetail(item)}
-                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 w-full bg-[#000000] text-white hover:bg-black/90"
-                            >
-                              View Villa
-                            </button>
-
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => toggleItem(item)}
-                                className={`inline-flex items-center justify-center gap-1 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-2 border flex-1 ${isInCart(item.id)
-                                  ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                                  : 'bg-background text-foreground border-border hover:bg-accent'
-                                  }`}
-                              >
-                                {isInCart(item.id) ? 'Remove' : 'Add to quote'}
-                              </button>
-
-                              <button
-                                onClick={() => openMessageModalFor(item)}
-                                className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-2 border-border hover:bg-accent flex-1"
-                              >
-                                Message
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <PaginationControls />
-              </>
-            ) : (
-              <div className="text-center py-20 mt-[300px]">
-                <div className="max-w-md mx-auto">
-                  <div className="w-20 h-20 bg-neutral-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <Search className="w-10 h-10 text-neutral-400" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-neutral-900 mb-3">
-                    No villas match your search
-                  </h3>
-                  <p className="text-neutral-500 mb-6">
-                    {activeFiltersCount > 0
-                      ? 'Unfortunately, we don\'t have properties matching those exact requirements. Try adjusting your filters to discover similar luxury villas.'
-                      : 'No properties available at the moment'}
-                  </p>
-
-                  {activeFiltersCount > 0 && (
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <button
-                        onClick={handleClearAllFilters}
-                        className="bg-neutral-900 text-white px-8 py-4 rounded-full hover:bg-neutral-800 transition font-medium"
-                      >
-                        Clear all filters
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+              return (
+                <PropertyCard
+                  key={`${item.id}-${idx}`}
+                  item={item}
+                  currentIndex={imageIndices[item.id] || 0}
+                  onImagePrev={handlePrevImage}
+                  onImageNext={handleNextImage}
+                  onGoToDetail={goToDetail}
+                  onToggleCart={toggleItem}
+                  onOpenMessage={openMessageModalFor}
+                  isInCart={isInCart(item.id)}
+                  formatMoney={formatMoney}
+                  formatRank={formatRank}
+                />
+              );
+            })}
           </div>
+
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            hasAvailabilityFilter={hasAvailabilityFilter}
+            showNextButton={showNextButton}
+            onPageChange={(newPage: number) => {
+              setCurrentPage(newPage);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
         </main>
 
         <CartSidebar />
