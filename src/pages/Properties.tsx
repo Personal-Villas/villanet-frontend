@@ -1202,7 +1202,7 @@ export default function Properties() {
 
         <main className="w-full px-4 md:px-8">
           {uxPhase === 'loader' && (<SearchLoader progress={progress} />)}
-          <div className={`pt-10 md:pt-[300px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${uxPhase === 'loader' ? 'hidden' : 'grid'}`}>
+          <div className={`pt-10 lg:pt-[290px] md:pt-[360px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${uxPhase === 'loader' ? 'hidden' : 'grid'}`}>
             {renderList.map((item, idx) => {
               if (!item) {
                 return <ListingCardSkeleton key={`sk-${idx}`} />;
