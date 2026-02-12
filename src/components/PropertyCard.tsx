@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 interface PropertyCardProps {
-    item: any; 
+    item: any;
     currentIndex: number;
     onImagePrev: (e: React.MouseEvent, id: string, total: number) => void;
     onImageNext: (e: React.MouseEvent, id: string, total: number) => void;
@@ -47,10 +47,10 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                         <div
                             className="flex h-full transition-transform duration-300 ease-out"
                             style={{ transform: `translateX(${-currentIndex * 100}%)` }}
-                         >
+                        >
                             {images.map((image: string, imgIdx: number) => (
                                 <div key={imgIdx} className="w-full h-full flex-shrink-0" style={{ minWidth: '100%' }}>
-                                     <img
+                                    <img
                                         src={image}
                                         alt={`${item.name} - Image ${imgIdx + 1}`}
                                         className="w-full h-full object-cover"
@@ -63,10 +63,10 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
                     {/* Flechas de Navegación */}
                     <button
-                       disabled={currentIndex === 0}
+                        disabled={currentIndex === 0}
                         onClick={(e) => onImagePrev(e, item.id, images.length)}
                         className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                     >
+                    >
                         <ChevronLeft className="w-4 h-4 text-foreground" />
                     </button>
 
@@ -79,27 +79,28 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
                     {/* Contador */}
                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium pointer-events-none">
-                         {currentIndex + 1} / {images.length}
+                        {currentIndex + 1} / {images.length}
                     </div>
                 </div>
 
                 {/* Badges Superiores */}
                 <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
-                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                        <ShieldCheck className="w-3.5 h-3.5 text-green-600" />
-                        <span className="text-xs font-medium text-foreground">Verified 2025</span>
-                    </div>
-                   <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
-                        <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
-                        <span className="text-xs font-semibold text-foreground">
-                             {formatRank(item.rank)}
-                        </span>
-                    </div>
+                    {/* BADGE DE RANK: Solo si existe y es > 0 */}
+                    {(item.rank !== null && item.rank !== undefined && item.rank > 0) ? (
+                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
+                            <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
+                            <span className="text-xs font-semibold text-foreground">
+                                {formatRank(item.rank)}
+                            </span>
+                        </div>
+                    ) : (
+                        null
+                    )}
                 </div>
             </div>
 
             {/* --- INFO DE LA PROPIEDAD --- */}
-             <div className="p-4">
+            <div className="p-4">
                 <a
                     className="block mb-2 group/link"
                     href={`/property/${item.id}`}
@@ -111,10 +112,13 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                     <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
                         {item.name}
                     </h3>
-                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>{item.villaNetDestinationTag || item.city || item.location || 'Location not specified'}</span>
-                    </div>
+                    {/* Ubicación: Si es vacío o Unknown, no mostrar el tag */}
+                    {item.location && item.location !== 'Unknown' && (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                            <MapPin className="w-3 h-3" />
+                            <span className="text-xs truncate">{item.location}</span>
+                        </div>
+                    )}
                 </a>
 
                 {/* Métricas (Camas, Baños, Precio) */}
@@ -137,7 +141,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
                 {/* Property Manager Info */}
                 <div className="mb-4 text-xs space-y-2">
-                     <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
                         <span className="text-muted-foreground truncate">{item.propertyManager}</span>
                     </div>
@@ -150,7 +154,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                         onClick={() => onGoToDetail(item)}
                         className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 w-full bg-[#000000] text-white hover:bg-black/90"
                     >
-                         View Villa
+                        View Villa
                     </button>
 
                     {/* 2. Add to Quote & Message (Split Row) */}
@@ -158,8 +162,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                         <button
                             onClick={() => onToggleCart(item)}
                             className={`inline-flex items-center justify-center gap-1 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-2 border flex-1 ${isInCart
-                                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                                    : 'bg-background text-foreground border-border hover:bg-accent'
+                                ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                                : 'bg-background text-foreground border-border hover:bg-accent'
                                 }`}
                         >
                             {isInCart ? 'Remove' : 'Add to quote'}
@@ -170,7 +174,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                             className="inline-flex items-center justify-center gap-1 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border bg-background hover:text-accent-foreground h-9 rounded-md px-2 border-border hover:bg-accent flex-1"
                         >
                             Message
-                         </button>
+                        </button>
                     </div>
                 </div>
             </div>
