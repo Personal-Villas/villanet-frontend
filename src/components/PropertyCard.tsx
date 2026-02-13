@@ -112,11 +112,13 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                     <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
                         {item.name}
                     </h3>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                        <MapPin className="w-3 h-3" />
-                        <span className="text-xs truncate">{item.location}</span>
-                    </div>
-
+                    {/* Ubicación: Si es vacío o Unknown, no mostrar el tag */}
+                    {item.location?.trim() && item.location !== 'Unknown' && (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                            <MapPin className="w-3 h-3" />
+                            <span className="text-xs truncate">{item.location}</span>
+                        </div>
+                    )}
                 </a>
 
                 {/* Métricas (Camas, Baños, Precio) */}
