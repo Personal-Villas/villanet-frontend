@@ -113,7 +113,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                         {item.name}
                     </h3>
                     {/* Ubicación: Si es vacío o Unknown, no mostrar el tag */}
-                    {item.location && item.location !== 'Unknown' && (
+                    {item.location?.trim() && item.location !== 'Unknown' && (
                         <div className="flex items-center gap-1 text-muted-foreground">
                             <MapPin className="w-3 h-3" />
                             <span className="text-xs truncate">{item.location}</span>
