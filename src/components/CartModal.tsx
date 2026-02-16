@@ -22,7 +22,7 @@ type AvailabilityResponse = {
   ok: boolean;
   results: Array<{
     listingId: string;
-    available: boolean | null; // null => unknown
+    available: boolean | null;
     reason?: string;
   }>;
 };
@@ -36,8 +36,13 @@ const CartModal: React.FC<CartModalProps> = ({
 }) => {
   const { items, removeItem, clearCart } = useCart();
 
-  const [clientName, setClientName] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
+  // ===== NUEVOS CAMPOS =====
+  const [guestFirstName, setGuestFirstName] = useState('');
+  const [guestLastName, setGuestLastName] = useState('');
+  const [travelAdvisorEmail, setTravelAdvisorEmail] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [sendToGuest, setSendToGuest] = useState(false);
+
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState('');
@@ -51,7 +56,6 @@ const CartModal: React.FC<CartModalProps> = ({
 
   const travelLocked = !!defaultCheckIn && !!defaultCheckOut;
 
-  // Abort controller para cancelar checks viejos
   const avAbortRef = useRef<AbortController | null>(null);
   const avDebounceRef = useRef<number | null>(null);
 
@@ -103,16 +107,13 @@ const CartModal: React.FC<CartModalProps> = ({
     setCheckOut((v) => v || (defaultCheckOut ?? ''));
     setGuests((v) => v || (defaultGuests && defaultGuests > 0 ? String(defaultGuests) : ''));
 
-    // Reset mensajes al abrir
     setMessage(null);
 
-    // Asegurar badges base por item (idle)
     setAvMap((prev) => {
       const next: AvMap = { ...prev };
       for (const it of items as any[]) {
         if (!next[it.id]) next[it.id] = { status: 'idle' };
       }
-      // limpiar ids que ya no existen
       for (const key of Object.keys(next)) {
         if (!(items as any[]).some((it) => String(it.id) === String(key))) {
           delete next[key];
@@ -122,7 +123,6 @@ const CartModal: React.FC<CartModalProps> = ({
     });
   }, [isOpen, defaultCheckIn, defaultCheckOut, defaultGuests, items]);
 
-  // ===== Mantener avMap sincronizado con items (si agregan/quitan villas) =====
   useEffect(() => {
     if (!isOpen) return;
     setAvMap((prev) => {
@@ -142,13 +142,8 @@ const CartModal: React.FC<CartModalProps> = ({
   // ======== Availability check (debounced) ========
   useEffect(() => {
     if (!isOpen) return;
-
-    // Si está locked (viene de una búsqueda con availability), NO chequeamos acá.
-    // Igual mantenemos badges sin forzar "available", porque no queremos mentir;
-    // podrías setearlos a idle/unknown.
     if (travelLocked) return;
 
-    // si no hay fechas, reset badges
     if (!hasDates) {
       setIsCheckingAvailability(false);
       setAvMap((prev) => {
@@ -161,14 +156,11 @@ const CartModal: React.FC<CartModalProps> = ({
       return;
     }
 
-    // rango inválido: no chequeamos
     if (!isValidRange) return;
 
-    // debounce
     if (avDebounceRef.current) window.clearTimeout(avDebounceRef.current);
 
     avDebounceRef.current = window.setTimeout(async () => {
-      // cancelar request anterior
       avAbortRef.current?.abort();
       const ac = new AbortController();
       avAbortRef.current = ac;
@@ -176,7 +168,6 @@ const CartModal: React.FC<CartModalProps> = ({
       try {
         setIsCheckingAvailability(true);
 
-        // marcar checking por item
         setAvMap((prev) => {
           const next: AvMap = { ...prev };
           for (const it of items as any[]) next[it.id] = { status: 'checking' };
@@ -187,46 +178,55 @@ const CartModal: React.FC<CartModalProps> = ({
           checkIn,
           checkOut,
           guests: guestsNum,
-          strict: false, // si querés CTA/CTD estricto, ponelo true
+          strict: false,
           items: (items as any[]).map((villa) => ({
             id: villa.id,
             guestyBookingDomain:
               (villa as any).guestyBookingDomain ||
               (villa as any).guesty_booking_domain ||
-              null,
+              'book.guesty.com',
           })),
         };
 
-        const res = await api<AvailabilityResponse>('/quotes/availability-check', {
-          method: 'POST',
-          body: JSON.stringify(body),
-          signal: ac.signal,
-        });
+        const resp = await api.post('/quotes/availability-check', body);
+        if (ac.signal.aborted) return;
 
-        // default unknown para todos
-        const next: AvMap = {};
-        for (const it of items as any[]) next[it.id] = { status: 'unknown' };
-
-        // aplicar results
-        for (const r of res.results || []) {
-          if (r.available === true) next[r.listingId] = { status: 'available' };
-          else if (r.available === false) next[r.listingId] = { status: 'unavailable', reason: r.reason };
-          else next[r.listingId] = { status: 'unknown', reason: r.reason };
+        const data: AvailabilityResponse = resp.data;
+        if (!data.ok || !Array.isArray(data.results)) {
+          throw new Error('Invalid response from availability check');
         }
 
-        setAvMap(next);
-      } catch (e: any) {
-        if (e?.name === 'AbortError') return;
-        console.error('availability-check error:', e);
+        const newMap: AvMap = {};
+        for (const r of data.results) {
+          const lid = String(r.listingId);
+          if (r.available === true) {
+            newMap[lid] = { status: 'available' };
+          } else if (r.available === false) {
+            newMap[lid] = { status: 'unavailable', reason: r.reason };
+          } else {
+            newMap[lid] = { status: 'unknown', reason: r.reason };
+          }
+        }
 
-        // dejamos unknown (pero no rompemos UX)
-        setAvMap(() => {
-          const next: AvMap = {};
+        setAvMap((prev) => {
+          const merged: AvMap = {};
+          for (const it of items as any[]) {
+            merged[it.id] = newMap[it.id] || prev[it.id] || { status: 'idle' };
+          }
+          return merged;
+        });
+      } catch (err: any) {
+        if (ac.signal.aborted) return;
+        console.error('Availability check error:', err);
+        setAvMap((prev) => {
+          const next: AvMap = { ...prev };
           for (const it of items as any[]) next[it.id] = { status: 'unknown' };
           return next;
         });
       } finally {
-        setIsCheckingAvailability(false);
+        if (!ac.signal.aborted) {
+          setIsCheckingAvailability(false);
+        }
       }
     }, 500);
 
@@ -236,10 +236,26 @@ const CartModal: React.FC<CartModalProps> = ({
     };
   }, [isOpen, travelLocked, hasDates, isValidRange, checkIn, checkOut, guestsNum, items]);
 
-  // ======== Submit ========
+  // ======== Submit (ORIGINAL LOGIC) ========
   async function submitQuote({ sendWithoutDates }: { sendWithoutDates: boolean }) {
-    if (!clientEmail.trim()) {
-      setMessage({ type: 'error', text: 'Please enter your client email.' });
+    // Validaciones de campos requeridos
+    if (!guestFirstName.trim()) {
+      setMessage({ type: 'error', text: 'Guest first name is required' });
+      return;
+    }
+
+    if (!guestLastName.trim()) {
+      setMessage({ type: 'error', text: 'Guest last name is required' });
+      return;
+    }
+
+    if (!travelAdvisorEmail.trim()) {
+      setMessage({ type: 'error', text: 'Travel advisor email is required' });
+      return;
+    }
+
+    if (sendToGuest && !guestEmail.trim()) {
+      setMessage({ type: 'error', text: 'Guest email is required when "Send copy to guest" is checked' });
       return;
     }
 
@@ -248,7 +264,6 @@ const CartModal: React.FC<CartModalProps> = ({
       return;
     }
 
-    // si hay fechas y hay unavailable -> bloquear (a menos que sendWithoutDates)
     if (hasDates && anyUnavailable && !sendWithoutDates) {
       setMessage({
         type: 'error',
@@ -257,7 +272,6 @@ const CartModal: React.FC<CartModalProps> = ({
       return;
     }
 
-    // si está chequeando disponibilidad, evitamos submit con fechas (pero permitimos sin fechas)
     if (!sendWithoutDates && hasDates && isCheckingAvailability) {
       setMessage({ type: 'error', text: 'Please wait until availability check finishes.' });
       return;
@@ -268,8 +282,10 @@ const CartModal: React.FC<CartModalProps> = ({
 
     try {
       const payload = {
-        clientName: clientName.trim() || null,
-        clientEmail: clientEmail.trim(),
+        guestFirstName: guestFirstName.trim(),
+        guestLastName: guestLastName.trim(),
+        travelAdvisorEmail: travelAdvisorEmail.trim(),
+        guestEmail: sendToGuest && guestEmail.trim() ? guestEmail.trim() : null,
         checkIn: sendWithoutDates ? null : (checkIn || null),
         checkOut: sendWithoutDates ? null : (checkOut || null),
         guests: sendWithoutDates ? null : (guestsNum ?? null),
@@ -288,6 +304,7 @@ const CartModal: React.FC<CartModalProps> = ({
         })),
       };
 
+      // PASO 1: Crear el quote
       const createResponse = await api<{ quoteId: number; success: boolean; message: string }>('/quotes', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -295,15 +312,25 @@ const CartModal: React.FC<CartModalProps> = ({
 
       const quoteId = createResponse.quoteId;
 
-      await api(`/quotes/${quoteId}/send`, { method: 'POST' });
+      // PASO 2: Enviar el quote
+      await api(`/quotes/${quoteId}/send`, { 
+        method: 'POST',
+        body: JSON.stringify(payload), // Enviar los mismos datos para que se actualicen
+      });
 
       setMessage({
         type: 'success',
-        text: `Quote sent successfully to ${clientEmail}. Your client will receive direct booking links.`,
+        text: guestEmail 
+          ? `Quote sent successfully to ${travelAdvisorEmail} and ${guestEmail}!`
+          : `Quote sent successfully to ${travelAdvisorEmail}!`,
       });
 
-      setClientName('');
-      setClientEmail('');
+      // Limpiar formulario
+      setGuestFirstName('');
+      setGuestLastName('');
+      setTravelAdvisorEmail('');
+      setGuestEmail('');
+      setSendToGuest(false);
       setCheckIn('');
       setCheckOut('');
       setGuests('');
@@ -328,367 +355,415 @@ const CartModal: React.FC<CartModalProps> = ({
 
   if (!isOpen) return null;
 
-  const badgeFor = (id: string) => {
-    if (!hasDates) return null;
-
-    const s = avMap[id]?.status || 'idle';
-
-    if (s === 'checking') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-700">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          Checking
-        </span>
-      );
-    }
-
-    if (s === 'available') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] text-green-800 border border-green-200">
-          <CheckCircle className="h-3 w-3" />
-          Available
-        </span>
-      );
-    }
-
-    if (s === 'unavailable') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] text-red-800 border border-red-200">
-          <AlertCircle className="h-3 w-3" />
-          Not available
-        </span>
-      );
-    }
-
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800 border border-amber-200">
-        <AlertCircle className="h-3 w-3" />
-        Unknown
-      </span>
-    );
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="relative w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-neutral-200 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
-          <div>
-            <h2 className="text-lg font-semibold">
-              Send Quote – {items.length} {items.length === 1 ? 'villa' : 'villas'} selected
-            </h2>
-            <p className="text-sm text-neutral-500 mt-1">Send direct booking links to your client</p>
-          </div>
-          <button onClick={onClose} className="text-2xl leading-none text-neutral-500 hover:text-neutral-900 p-1">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {items.length > 0 ? (
-            <>
-              {/* Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                {(items as any[]).map((villa) => (
-                  <div
-                    key={villa.id}
-                    className="border border-neutral-200 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow"
-                  >
-                    <div className="relative">
-                      <img
-                        src={getImageUrl(villa)}
-                        alt={villa.name}
-                        className="w-full h-32 object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = PLACEHOLDER;
-                        }}
-                      />
-                      <button
-                        onClick={() => removeItem(villa.id)}
-                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
-                        aria-label="Remove villa"
-                      >
-                        ✕
-                      </button>
-                      <div className="absolute bottom-2 left-2">{badgeFor(villa.id)}</div>
-                    </div>
-
-                    <div className="p-3 space-y-1">
-                      <p className="text-sm font-semibold truncate">{villa.name}</p>
-                      <p className="text-xs text-neutral-500 truncate">{getLocation(villa)}</p>
-                      <p className="text-xs text-neutral-500">
-                        {villa.bedrooms ?? '—'} BR • {villa.bathrooms ?? '—'} BA
-                      </p>
-                      <p className="text-xs text-neutral-700 font-medium">From {formatMoney(villa.priceUSD)}/nt</p>
-
-                      {hasDates && avMap[villa.id]?.status === 'unavailable' && (
-                        <p className="text-[11px] text-red-700">
-                          {avMap[villa.id]?.reason
-                            ? `Reason: ${avMap[villa.id].reason}`
-                            : 'Not available for selected dates.'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Form */}
-              <div className="border border-neutral-200 rounded-lg p-6 bg-gradient-to-r from-neutral-50 to-white">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <Send className="w-5 h-5" />
-                  Send Quote with Direct Booking Links
-                </h3>
-
-                <p className="text-sm text-neutral-600 mb-3">
-                  Your client will receive an email with direct links to check availability and book each villa.
-                </p>
-
-                {hasDates && (
-                  <div className="mb-4 rounded-lg border border-neutral-200 bg-white p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm text-neutral-800">
-                        {isCheckingAvailability ? 'Checking availability…' : 'Availability check ready.'}
-                        {anyUnavailable && (
-                          <span className="ml-2 text-red-700 font-medium">Some villas are not available.</span>
-                        )}
-                        {!anyUnavailable && anyUnknown && (
-                          <span className="ml-2 text-amber-700 font-medium">Some villas could not be verified.</span>
-                        )}
-                      </div>
-                      {isCheckingAvailability && <Loader2 className="h-4 w-4 animate-spin text-neutral-700" />}
-                    </div>
-                    <p className="text-xs text-neutral-500 mt-1">
-                      We verify each villa for the selected date range to avoid broken booking links.
-                    </p>
-                  </div>
-                )}
-
-                {!isValidRange && hasDates && (
-                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 text-sm flex gap-2">
-                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                    <p>Check-out date must be after check-in date.</p>
-                  </div>
-                )}
-
-                {message && (
-                  <div
-                    className={`mb-4 p-3 rounded-lg flex items-start gap-2 ${
-                      message.type === 'success'
-                        ? 'bg-green-50 text-green-800 border border-green-200'
-                        : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
-                  >
-                    {message.type === 'success' ? (
-                      <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    )}
-                    <p className="text-sm">{message.text}</p>
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Client */}
-                  <div>
-                    <h4 className="text-sm font-medium text-neutral-700 mb-3">Client Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">Client name (optional)</label>
-                        <input
-                          type="text"
-                          value={clientName}
-                          onChange={(e) => setClientName(e.target.value)}
-                          className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
-                          placeholder="e.g. Sarah Johnson"
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-700 mb-1">Client email*</label>
-                        <input
-                          type="email"
-                          value={clientEmail}
-                          onChange={(e) => setClientEmail(e.target.value)}
-                          required
-                          className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
-                          placeholder="client@email.com"
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Travel */}
-                  <div>
-                    <h4 className="text-sm font-medium text-neutral-700 mb-3">Travel Details (Optional)</h4>
-
-                    {travelLocked ? (
-                      <div className="rounded-lg border border-neutral-200 bg-white p-3">
-                        <p className="text-sm font-medium text-neutral-900">Travel details</p>
-                        <p className="text-sm text-neutral-600">
-                          {defaultCheckIn} → {defaultCheckOut}
-                          {defaultGuests && defaultGuests > 0 ? ` • ${defaultGuests} guests` : ''}
-                        </p>
-                        <p className="text-xs text-neutral-500 mt-1">
-                          These dates will be pre-filled in all booking links.
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              Check-in
-                            </label>
-                            <input
-                              type="date"
-                              value={checkIn}
-                              onChange={(e) => setCheckIn(e.target.value)}
-                              className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
-                              disabled={isSubmitting}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              Check-out
-                            </label>
-                            <input
-                              type="date"
-                              value={checkOut}
-                              onChange={(e) => setCheckOut(e.target.value)}
-                              min={checkIn || undefined}
-                              className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
-                              disabled={isSubmitting}
-                            />
-                          </div>
-
-                          <div>
-                            <label className=" text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              Guests
-                            </label>
-                            <input
-                              type="number"
-                              min={1}
-                              value={guests}
-                              onChange={(e) => setGuests(e.target.value)}
-                              className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
-                              placeholder="Number of guests"
-                              disabled={isSubmitting}
-                            />
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-neutral-500 mt-2">
-                          {hasDates
-                            ? 'We will check availability for the selected range.'
-                            : 'Leave dates empty for flexible date links.'}
-                        </p>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Submit */}
-                  <div className="pt-4 border-t border-neutral-200">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <button
-                          type="submit"
-                          disabled={
-                            isSubmitting ||
-                            (items as any[]).length === 0 ||
-                            (!travelLocked && hasDates && anyUnavailable) ||
-                            (!travelLocked && hasDates && isCheckingAvailability) ||
-                            (!isValidRange && hasDates)
-                          }
-                          className="px-8 py-3.5 text-sm font-medium bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Sending…
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-4 h-4" />
-                              Send Quote
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => submitQuote({ sendWithoutDates: true })}
-                          disabled={isSubmitting || (items as any[]).length === 0}
-                          className="px-6 py-3.5 text-sm font-medium border border-neutral-300 rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Send without dates
-                        </button>
-                      </div>
-
-                      <div className="text-xs text-neutral-600">
-                        {hasDates && anyUnavailable && (
-                          <p className="text-red-700 font-medium">
-                            Remove unavailable villas or change dates. (Or “Send without dates”.)
-                          </p>
-                        )}
-                        {hasDates && !anyUnavailable && anyUnknown && (
-                          <p className="text-amber-700 font-medium">
-                            Some villas couldn’t be verified, but you can still send.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Send className="w-10 h-10 text-neutral-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-neutral-900 mb-2">Your quote is empty</h3>
-              <p className="text-neutral-600 mb-6">Add villas to your quote to create a curated selection for your clients</p>
-              <button
-                onClick={onClose}
-                className="px-6 py-3 text-sm font-medium border border-neutral-300 rounded-lg hover:bg-neutral-50"
-              >
-                Continue browsing villas
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        {(items as any[]).length > 0 && (
-          <div className="border-t border-neutral-200 px-6 py-4 bg-neutral-50">
-            <div className="flex justify-between items-center">
-              <div className="text-xs text-neutral-500">
-                <p className="font-medium">Benefits for your clients:</p>
-                <ul className="list-disc list-inside mt-1">
-                  <li>Direct booking with property managers</li>
-                  <li>Real-time availability</li>
-                  <li>Secure payment processing</li>
-                </ul>
-              </div>
-
-              <div className="text-right">
-                <p className="text-sm font-medium text-neutral-900">
-                  {(items as any[]).length} {(items as any[]).length === 1 ? 'villa' : 'villas'} selected
-                </p>
-                <button onClick={onClose} className="mt-2 text-sm font-medium text-neutral-700 hover:text-neutral-900">
-                  Close preview
+      {/* Modal */}
+      <div className="absolute inset-0 overflow-auto">
+        <div className="min-h-full flex items-start justify-center p-4 sm:p-6">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl my-8 flex flex-col max-h-[calc(100vh-4rem)]">
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-white border-b border-neutral-200 px-6 py-4 rounded-t-2xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-2xl font-semibold text-neutral-900 mb-1">
+                    Send Curated Email Quote
+                  </h3>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded-lg hover:bg-neutral-100"
+                >
+                  <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
+
+            {/* Body - scrollable */}
+            <div className="flex-1 overflow-auto">
+              {(items as any[]).length > 0 ? (
+                <>
+                  {/* Villas grid */}
+                  <div className="px-6 py-6 border-b border-neutral-200">
+                    <h4 className="text-sm font-medium text-neutral-700 mb-4">
+                      Selected Villas ({(items as any[]).length})
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {(items as any[]).map((villa) => {
+                        const avStatus = avMap[villa.id]?.status || 'idle';
+                        const avReason = avMap[villa.id]?.reason;
+
+                        return (
+                          <div key={villa.id} className="group relative bg-white border border-neutral-200 rounded-xl overflow-hidden hover:shadow-md transition-all">
+                            <div className="relative h-48">
+                              <img
+                                src={getImageUrl(villa)}
+                                alt={villa.name}
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                onClick={() => removeItem(villa.id)}
+                                className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors opacity-0 group-hover:opacity-100"
+                                title="Remove from quote"
+                              >
+                                <X className="w-4 h-4 text-neutral-600" />
+                              </button>
+
+                              {/* Availability badge */}
+                              {hasDates && (
+                                <div className="absolute top-2 left-2">
+                                  {avStatus === 'checking' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-md">
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                      Checking...
+                                    </span>
+                                  )}
+                                  {avStatus === 'available' && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-md">
+                                      <CheckCircle className="w-3 h-3" />
+                                      Available
+                                    </span>
+                                  )}
+                                  {avStatus === 'unavailable' && (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-md cursor-help"
+                                      title={avReason || 'Not available'}
+                                    >
+                                      <AlertCircle className="w-3 h-3" />
+                                      Unavailable
+                                    </span>
+                                  )}
+                                  {avStatus === 'unknown' && (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-md cursor-help"
+                                      title={avReason || 'Could not verify'}
+                                    >
+                                      <AlertCircle className="w-3 h-3" />
+                                      Unknown
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="p-4">
+                              <h5 className="font-semibold text-neutral-900 mb-1 line-clamp-1">{villa.name}</h5>
+                              <p className="text-sm text-neutral-600 mb-2 line-clamp-1">{getLocation(villa)}</p>
+                              <div className="flex items-center justify-between text-xs text-neutral-500">
+                                <span>
+                                  {villa.bedrooms} BD • {villa.bathrooms} BA
+                                </span>
+                                <span className="font-semibold text-neutral-900">{formatMoney(villa.priceUSD)}/nt</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Message */}
+                  {message && (
+                    <div className="px-6 pt-4">
+                      <div
+                        className={`p-4 rounded-lg flex items-start gap-2 ${
+                          message.type === 'success'
+                            ? 'bg-green-50 border border-green-200 text-green-800'
+                            : 'bg-red-50 border border-red-200 text-red-800'
+                        }`}
+                      >
+                        {message.type === 'success' ? (
+                          <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                        )}
+                        <p className="text-sm font-medium">{message.text}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Form */}
+                  <div className="px-6 py-6">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                      {/* Client Information */}
+                      <div>
+                        <h4 className="text-sm font-medium text-neutral-700 mb-3">Client Information</h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Guest First Name */}
+                          <div>
+                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                              Guest First Name*
+                            </label>
+                            <input
+                              type="text"
+                              value={guestFirstName}
+                              onChange={(e) => setGuestFirstName(e.target.value)}
+                              required
+                              className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
+                              placeholder="e.g. Sarah"
+                              disabled={isSubmitting}
+                            />
+                          </div>
+
+                          {/* Guest Last Name */}
+                          <div>
+                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                              Guest Last Name*
+                            </label>
+                            <input
+                              type="text"
+                              value={guestLastName}
+                              onChange={(e) => setGuestLastName(e.target.value)}
+                              required
+                              className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
+                              placeholder="e.g. Johnson"
+                              disabled={isSubmitting}
+                            />
+                          </div>
+
+                          {/* Travel Advisor Email */}
+                          <div>
+                            <label className="block text-sm font-medium text-neutral-700 mb-1">
+                              Travel Advisor Email*
+                            </label>
+                            <input
+                              type="email"
+                              value={travelAdvisorEmail}
+                              onChange={(e) => setTravelAdvisorEmail(e.target.value)}
+                              required
+                              className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
+                              placeholder="advisor@email.com"
+                              disabled={isSubmitting}
+                            />
+                            <p className="text-xs text-neutral-500 mt-1">
+                              You will receive an email with the full quote which you can forward to your client
+                            </p>
+                          </div>
+
+                          {/* Guest Email (Checkbox + Campo) */}
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <input
+                                type="checkbox"
+                                id="sendToGuest"
+                                checked={sendToGuest}
+                                onChange={(e) => setSendToGuest(e.target.checked)}
+                                className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-2 focus:ring-neutral-900"
+                                disabled={isSubmitting}
+                              />
+                              <label htmlFor="sendToGuest" className="text-sm font-medium text-neutral-700">
+                                Send copy to guest
+                              </label>
+                            </div>
+
+                            {sendToGuest && (
+                              <input
+                                type="email"
+                                value={guestEmail}
+                                onChange={(e) => setGuestEmail(e.target.value)}
+                                required={sendToGuest}
+                                className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
+                                placeholder="guest@email.com"
+                                disabled={isSubmitting}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Travel */}
+                      <div>
+                        <h4 className="text-sm font-medium text-neutral-700 mb-3">Travel Details (Optional)</h4>
+
+                        {travelLocked ? (
+                          <div className="rounded-lg border border-neutral-200 bg-white p-3">
+                            <p className="text-sm font-medium text-neutral-900">Travel details</p>
+                            <p className="text-sm text-neutral-600">
+                              {defaultCheckIn} → {defaultCheckOut}
+                              {defaultGuests && defaultGuests > 0 ? ` • ${defaultGuests} guests` : ''}
+                            </p>
+                            <p className="text-xs text-neutral-500 mt-1">
+                              These dates will be pre-filled in all booking links.
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <label className="text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  Check-in
+                                </label>
+                                <input
+                                  type="date"
+                                  value={checkIn}
+                                  onChange={(e) => setCheckIn(e.target.value)}
+                                  className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
+                                  disabled={isSubmitting}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  Check-out
+                                </label>
+                                <input
+                                  type="date"
+                                  value={checkOut}
+                                  onChange={(e) => setCheckOut(e.target.value)}
+                                  min={checkIn || undefined}
+                                  className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
+                                  disabled={isSubmitting}
+                                />
+                              </div>
+
+                              <div>
+                                <label className=" text-sm font-medium text-neutral-700 mb-1 flex items-center gap-1">
+                                  <Users className="w-3 h-3" />
+                                  Guests
+                                </label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={guests}
+                                  onChange={(e) => setGuests(e.target.value)}
+                                  className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
+                                  placeholder="Number of guests"
+                                  disabled={isSubmitting}
+                                />
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-neutral-500 mt-2">
+                              {hasDates
+                                ? 'We will check availability for the selected range.'
+                                : 'Leave dates empty for flexible date links.'}
+                            </p>
+
+                            {/* Nota de Comisiones */}
+                            <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                              <p className="text-sm text-amber-900">
+                                <span className="font-semibold">Note:</span> To ensure your commission is properly protected,
+                                we require the first and last name of the lead guest for each quote submitted.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Submit */}
+                      <div className="pt-4 border-t border-neutral-200">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <button
+                              type="submit"
+                              disabled={
+                                isSubmitting ||
+                                (items as any[]).length === 0 ||
+                                !guestFirstName.trim() ||
+                                !guestLastName.trim() ||
+                                !travelAdvisorEmail.trim() ||
+                                (sendToGuest && !guestEmail.trim()) ||
+                                (!travelLocked && hasDates && anyUnavailable) ||
+                                (!travelLocked && hasDates && isCheckingAvailability) ||
+                                (!isValidRange && hasDates)
+                              }
+                              className="px-8 py-3.5 text-sm font-medium bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Sending…
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-4 h-4" />
+                                  Send Quote
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => submitQuote({ sendWithoutDates: true })}
+                              disabled={
+                                isSubmitting ||
+                                (items as any[]).length === 0 ||
+                                !guestFirstName.trim() ||
+                                !guestLastName.trim() ||
+                                !travelAdvisorEmail.trim() ||
+                                (sendToGuest && !guestEmail.trim())
+                              }
+                              className="px-6 py-3.5 text-sm font-medium border border-neutral-300 rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Send without dates
+                            </button>
+                          </div>
+
+                          <div className="text-xs text-neutral-600">
+                            {hasDates && anyUnavailable && (
+                              <p className="text-red-700 font-medium">
+                                Remove unavailable villas or change dates. (Or "Send without dates".)
+                              </p>
+                            )}
+                            {hasDates && !anyUnavailable && anyUnknown && (
+                              <p className="text-amber-700 font-medium">
+                                Some villas couldn't be verified, but you can still send.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Send className="w-10 h-10 text-neutral-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-neutral-900 mb-2">Your quote is empty</h3>
+                  <p className="text-neutral-600 mb-6">Add villas to your quote to create a curated selection for your clients</p>
+                  <button
+                    onClick={onClose}
+                    className="px-6 py-3 text-sm font-medium border border-neutral-300 rounded-lg hover:bg-neutral-50"
+                  >
+                    Continue browsing villas
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {(items as any[]).length > 0 && (
+              <div className="border-t border-neutral-200 px-6 py-4 bg-neutral-50">
+                <div className="flex justify-between items-center">
+                  <div className="text-xs text-neutral-500">
+                    <p className="font-medium">Benefits for your clients:</p>
+                    <ul className="list-disc list-inside mt-1">
+                      <li>Direct booking with property managers</li>
+                      <li>Real-time availability</li>
+                      <li>Secure payment processing</li>
+                    </ul>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-neutral-900">
+                      {(items as any[]).length} {(items as any[]).length === 1 ? 'villa' : 'villas'} selected
+                    </p>
+                    <button onClick={onClose} className="mt-2 text-sm font-medium text-neutral-700 hover:text-neutral-900">
+                      Close preview
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
