@@ -9,6 +9,7 @@ import {
     Bath,
     DollarSign
 } from 'lucide-react';
+import LazyImage from './LazyImage';
 
 interface PropertyCardProps {
     item: any;
@@ -48,16 +49,19 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                             className="flex h-full transition-transform duration-300 ease-out"
                             style={{ transform: `translateX(${-currentIndex * 100}%)` }}
                         >
-                            {images.map((image: string, imgIdx: number) => (
-                                <div key={imgIdx} className="w-full h-full flex-shrink-0" style={{ minWidth: '100%' }}>
-                                    <img
-                                        src={image}
-                                        alt={`${item.name} - Image ${imgIdx + 1}`}
-                                        className="w-full h-full object-cover"
-                                        loading={imgIdx === 0 ? 'eager' : 'lazy'}
-                                    />
-                                </div>
-                            ))}
+{images.map((image: string, imgIdx: number) => (
+  <div key={imgIdx} className="w-full h-full flex-shrink-0" style={{ minWidth: '100%' }}>
+    <LazyImage
+      src={image}
+      alt={`${item.name} - Image ${imgIdx + 1}`}
+      lowResSrc={undefined}       
+      aspectRatio="4/3"
+      className="w-full h-full object-cover"
+
+      fetchPriority={imgIdx === currentIndex ? 'high' : 'low'}
+    />
+  </div>
+))}
                         </div>
                     </div>
 
