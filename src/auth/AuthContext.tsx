@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../api/api';
 
 interface User {
+  company_name: any;
+  first_name: any;
+  last_name: any;
   id: string;
   email: string;
   role: 'admin' | 'ta' | 'pmc';
