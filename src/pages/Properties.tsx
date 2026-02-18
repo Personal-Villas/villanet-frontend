@@ -14,6 +14,9 @@ import { ListingCardSkeleton } from '../ui/ListingCardSkeleton';
 import { PropertyCard } from '../components/PropertyCard';
 import { PaginationControls } from '../components/PaginationControls';
 import { SearchLoader } from '../components/SearchLoader';
+import ExpansionButton from '../components/ExpansionButton';
+import ExpansionModal from '../components/ExpansionModal';
+
 
 type Listing = {
   id: string;
@@ -165,6 +168,7 @@ export default function Properties() {
   const [autoFillTick, setAutoFillTick] = useState(0);
   const [page1Filled, setPage1Filled] = useState(false);
   const [autoFillDone, setAutoFillDone] = useState(false);
+
   // Ref para rastrear session de forma estable (no dispara re-renders)
   const availabilitySessionRef = useRef<string | null>(null);
 
@@ -177,6 +181,9 @@ export default function Properties() {
   const [slots, setSlots] = useState<(Listing | null)[]>(
     Array.from({ length: ITEMS_PER_PAGE }, () => null)
   );
+
+  //Estado para ExpansionModal
+  const [showExpansionModal, setShowExpansionModal] = useState(false);
 
   // helper: arranca loader intencional + progreso simulado
   const uxCleanupRef = useRef<null | (() => void)>(null);
@@ -237,7 +244,7 @@ export default function Properties() {
     // Función para guardar scroll constantemente
     const handleScroll = () => {
       if (isRestoringScroll) return;
-      
+
       localStorage.setItem('propertiesScrollPosition', window.scrollY.toString());
     };
 
@@ -1227,6 +1234,23 @@ export default function Properties() {
             })}
           </div>
 
+          {/* Botón de expansión cuando hay pocos resultados */}
+          <ExpansionButton
+            resultsCount={total}
+            onClick={() => {
+              setShowExpansionModal(true);
+
+              // Tracking GTM
+              if (window.dataLayer) {
+                window.dataLayer.push({
+                  event: 'expansion_button_clicked',
+                  results_count: total,
+                  location: appliedFilters.selectedDestination || appliedFilters.query,
+                });
+              }
+            }}
+          />
+
           <PaginationControls
             currentPage={currentPage}
             totalPages={totalPages}
@@ -1340,6 +1364,15 @@ export default function Properties() {
               </form>
             </div>
           </div>
+        )}
+
+        {showExpansionModal && (
+          <ExpansionModal
+            isOpen={showExpansionModal}
+            onClose={() => setShowExpansionModal(false)}
+            currentFilters={appliedFilters}
+            currentResultsCount={total}
+          />
         )}
       </div>
     </>
