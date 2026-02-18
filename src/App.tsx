@@ -55,13 +55,12 @@ function AppRoutes() {
       <Route path="/trust-framework" element={<TrustFramework />} />
       <Route path="/terms-of-service" element={<TermsOfService />} /> 
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/properties" element={<Properties />} />
       {/* ✅ Rutas de autenticación */}
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />
       <Route path="/pending" element={<Pending auth={auth} />} />
       <Route path="/early-access" element={<EarlyAccess />} />
-      {/* ✅ Properties - PÚBLICO (cualquiera puede ver el listado) */}
-      <Route path="/properties" element={<Properties />} />
 
       {/* ✅ Property Detail - REQUIERE LOGIN para ver detalles */}
       <Route 
