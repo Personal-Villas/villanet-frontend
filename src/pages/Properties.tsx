@@ -16,6 +16,7 @@ import { PaginationControls } from '../components/PaginationControls';
 import { SearchLoader } from '../components/SearchLoader';
 import ExpansionButton from '../components/ExpansionButton';
 import ExpansionModal from '../components/ExpansionModal';
+import { initPerformanceMetrics } from '../services/imageUtils';
 
 
 type Listing = {
@@ -284,6 +285,14 @@ export default function Properties() {
   useEffect(() => {
     availabilitySessionRef.current = availabilitySession;
   }, [availabilitySession]);
+
+  // Métricas LCP CLS
+  useEffect(() => {
+  const cleanup = initPerformanceMetrics({
+    debug: import.meta.env.DEV,  // logs en consola solo en desarrollo
+  });
+  return cleanup;
+}, []);
 
   // Message modal
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -704,62 +713,69 @@ export default function Properties() {
   ]);
 
   useEffect(() => {
-    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+    // Cuando cambia la página, resetear slots
+    if (!loading && items.length > 0 && items.length < ITEMS_PER_PAGE) {
+      // Si hay menos de 12 items, ajustar slots al número exacto
+      setSlots(items.map(item => item));
+    } else {
+      // Caso normal: 12 slots (pueden ser null o items)
+      setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+    }
   }, [currentPage]);
 
-  // 🔥 Reemplazo progresivo: slots (skeleton) -> cards reales
-  useEffect(() => {
-    // solo primera página: acá está el "premium feel"
-    if (currentPage !== 1) return;
+// 🔥 Reemplazo progresivo: slots (skeleton) -> cards reales
+useEffect(() => {
+  // solo primera página: acá está el "premium feel"
+  if (currentPage !== 1) return;
 
-    // si todavía no arrancó ninguna búsqueda, no hagas nada
-    if (uxPhase === 'idle') return;
+  // si todavía no arrancó ninguna búsqueda, no hagas nada
+  if (uxPhase === 'idle') return;
 
-    // Si la carga terminó y no hay items, mostrar resultados (aunque vacíos)
-    if (!loading && items.length === 0) {
-      setUxPhase('results');
-      setProgress(100);
-      return;
-    }
-
-    // si no hay items aún, mantenemos skeleton (slots null)
-    if (!items.length) return;
-
-    // cuando llegan los primeros datos, mostramos resultados (pero revelando 1x1)
+  // Si la carga terminó y no hay items, mostrar resultados (aunque vacíos)
+  if (!loading && items.length === 0) {
     setUxPhase('results');
-
-    // completamos progreso al final visual
     setProgress(100);
+    setSlots([]);
+    return;
+  }
 
-    // Revelado progresivo SIN mover layout:
-    // - si un slot ya estaba lleno, no lo tocamos
-    // - si viene un item nuevo, lo llenamos con delay
-    setSlots(prev => {
-      const next = [...prev];
-      // aseguramos que exista largo fijo
-      if (next.length !== ITEMS_PER_PAGE) {
-        return Array.from({ length: ITEMS_PER_PAGE }, (_, i) => items[i] ?? null);
-      }
-      return next;
-    });
+  // si no hay items aún, mantenemos skeleton (slots null)
+  if (!items.length) return;
 
-    const timers: number[] = [];
+  // cuando llegan los primeros datos, mostramos resultados (pero revelando 1x1)
+  setUxPhase('results');
 
-    for (let i = 0; i < Math.min(items.length, ITEMS_PER_PAGE); i++) {
-      timers.push(
-        window.setTimeout(() => {
-          setSlots(prev => {
-            if (prev[i] != null) return prev; // ya está
-            const next = [...prev];
-            next[i] = items[i];
-            return next;
-          });
-        }, i * 65) // 50–90ms queda muy "premium"
-      );
-    }
+  // completamos progreso al final visual
+  setProgress(100);
 
-    return () => timers.forEach(t => window.clearTimeout(t));
-  }, [items, currentPage, uxPhase]);
+  // ✅ CORRECCIÓN: Ajustar slots al tamaño real de items
+  const finalSlotCount = items.length < ITEMS_PER_PAGE ? items.length : ITEMS_PER_PAGE;
+
+  // Revelado progresivo SIN mover layout:
+  setSlots(prev => {
+    // Si ya tenemos el tamaño correcto de slots, mantenerlos
+    if (prev.length === finalSlotCount) return prev;
+    // Sino, crear array del tamaño correcto con nulls
+    return Array.from({ length: finalSlotCount }, () => null);
+  });
+
+  const timers: number[] = [];
+
+  for (let i = 0; i < finalSlotCount; i++) {
+    timers.push(
+      window.setTimeout(() => {
+        setSlots(prev => {
+          if (prev[i] != null) return prev; // ya está
+          const next = [...prev];
+          next[i] = items[i];
+          return next;
+        });
+      }, i * 65)
+    );
+  }
+
+  return () => timers.forEach(t => window.clearTimeout(t));
+}, [items, currentPage, uxPhase, loading]);
 
   // ✅ Fetch principal - se ejecuta cuando cambian filtros O página
   useEffect(() => {
@@ -1220,6 +1236,7 @@ export default function Properties() {
                 <PropertyCard
                   key={`${item.id}-${idx}`}
                   item={item}
+                  cardIndex={idx}
                   currentIndex={imageIndices[item.id] || 0}
                   onImagePrev={handlePrevImage}
                   onImageNext={handleNextImage}
