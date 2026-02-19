@@ -117,7 +117,7 @@ export default function LazyImage({
           loading={priority ? 'eager' : 'lazy'}
           decoding={priority ? 'sync' : 'async'}
           // @ts-ignore — fetchPriority es válido en navegadores modernos
-          fetchpriority={priority ? 'high' : 'auto'}
+          fetchPriority={priority ? 'high' : 'auto'}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ease-out ${
             loaded ? 'opacity-100' : 'opacity-0'
           }`}
