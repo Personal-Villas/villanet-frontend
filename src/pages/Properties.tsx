@@ -16,6 +16,7 @@ import { PaginationControls } from '../components/PaginationControls';
 import { SearchLoader } from '../components/SearchLoader';
 import ExpansionButton from '../components/ExpansionButton';
 import ExpansionModal from '../components/ExpansionModal';
+import { initPerformanceMetrics } from '../services/imageUtils';
 
 
 type Listing = {
@@ -284,6 +285,14 @@ export default function Properties() {
   useEffect(() => {
     availabilitySessionRef.current = availabilitySession;
   }, [availabilitySession]);
+
+  // Métricas LCP CLS
+  useEffect(() => {
+  const cleanup = initPerformanceMetrics({
+    debug: import.meta.env.DEV,  // logs en consola solo en desarrollo
+  });
+  return cleanup;
+}, []);
 
   // Message modal
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -1227,6 +1236,7 @@ useEffect(() => {
                 <PropertyCard
                   key={`${item.id}-${idx}`}
                   item={item}
+                  cardIndex={idx}
                   currentIndex={imageIndices[item.id] || 0}
                   onImagePrev={handlePrevImage}
                   onImageNext={handleNextImage}
