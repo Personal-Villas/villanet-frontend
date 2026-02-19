@@ -524,6 +524,16 @@ const CartModal: React.FC<CartModalProps> = ({
                             />
                           </div>
 
+                          {/* Nota de Comisiones (Visible solo si faltan nombres) */}
+                          {(!guestFirstName.trim() || !guestLastName.trim()) && (
+                            <div className="md:col-span-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                              <p className="text-sm text-amber-900">
+                                <span className="font-semibold">Note:</span> To ensure your commission is properly protected,
+                                we require the first and last name of the lead guest for each quote submitted.
+                              </p>
+                            </div>
+                          )}
+
                           {/* Travel Advisor Email */}
                           <div>
                             <label className="block text-sm font-medium text-neutral-700 mb-1">
@@ -643,14 +653,7 @@ const CartModal: React.FC<CartModalProps> = ({
                                 ? 'We will check availability for the selected range.'
                                 : 'Leave dates empty for flexible date links.'}
                             </p>
-
-                            {/* Nota de Comisiones */}
-                            <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
-                              <p className="text-sm text-amber-900">
-                                <span className="font-semibold">Note:</span> To ensure your commission is properly protected,
-                                we require the first and last name of the lead guest for each quote submitted.
-                              </p>
-                            </div>
+                            
                           </>
                         )}
                       </div>
@@ -710,12 +713,7 @@ const CartModal: React.FC<CartModalProps> = ({
                                 Remove unavailable villas or change dates. (Or "Send without dates".)
                               </p>
                             )}
-                            {hasDates && !anyUnavailable && anyUnknown && (
-                              <p className="text-amber-700 font-medium">
-                                Some villas couldn't be verified, but you can still send.
-                              </p>
-                            )}
-                          </div>
+                            </div>
                         </div>
                       </div>
                     </form>
