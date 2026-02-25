@@ -388,6 +388,12 @@ export function NewQuoteModal() {
                 >
                   START
                 </button>
+                <button
+                  onClick={close}
+                  className="mt-4 text-sm text-neutral-400 hover:text-neutral-700 transition-colors underline underline-offset-2"
+                >
+                  Browse All Villas
+                </button>
               </div>
             )}
 
