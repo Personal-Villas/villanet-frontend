@@ -21,6 +21,7 @@ import { CartProvider } from './context/CartContext';
 import EarlyAccess from './pages/EarlyAccess';
 import { ToastProvider } from '@radix-ui/react-toast';
 import { GoogleMapsProvider } from './providers/GoogleMapsProvider';
+import { QuotePreloadProvider } from './context/QuotePreloadContext';
 
 
 
@@ -116,13 +117,15 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <CartProvider>
-          <GoogleMapsProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </GoogleMapsProvider>
-        </CartProvider>
+        <QuotePreloadProvider>
+          <CartProvider>
+            <GoogleMapsProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </GoogleMapsProvider>
+          </CartProvider>
+        </QuotePreloadProvider>
       </AuthProvider>
     </ToastProvider>
   );

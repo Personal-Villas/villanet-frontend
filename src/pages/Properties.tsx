@@ -18,6 +18,7 @@ import ExpansionButton from '../components/ExpansionButton';
 import ExpansionModal from '../components/ExpansionModal';
 import { initPerformanceMetrics } from '../services/imageUtils';
 import { NewQuoteModal } from '../components/NewQuoteModal';
+import { useQuotePreload } from '../context/QuotePreloadContext';
 
 
 type Listing = {
@@ -134,11 +135,13 @@ export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { consumePreload } = useQuotePreload();
 
   // Estados para filtros
   const [filters, setFilters] = useState({
     query: '',
     selectedDestination: '',
+    selectedDestinations: [] as string[], // múltiples destinos del Quote Wizard
     bedrooms: [] as string[],
     bathrooms: [] as string[],
     minPrice: '',
@@ -151,6 +154,85 @@ export default function Properties() {
   });
 
   const [appliedFilters, setAppliedFilters] = useState(filters);
+
+  // ── Reaccionar a fromQuote=true (puede llegar después del montaje inicial) ──
+  // Cuando el usuario termina el wizard y navega a /properties?fromQuote=true,
+  // el componente puede ya estar montado (no se re-monta), por eso necesitamos
+  // un efecto reactivo a searchParams en vez de solo el useEffect de mount.
+  useEffect(() => {
+    if (searchParams.get('fromQuote') !== 'true') return;
+
+    const destination = searchParams.get('destination') || '';
+    const destinationsRaw = searchParams.get('destinations') || '';
+    const selectedDestinations = destinationsRaw
+      ? destinationsRaw.split(',').filter(Boolean)
+      : [];
+    const bedroomsParam = searchParams.get('bedrooms');
+    const guestsParam = searchParams.get('guests');
+    const checkIn = searchParams.get('checkIn') || '';
+    const checkOut = searchParams.get('checkOut') || '';
+    const maxPrice = searchParams.get('maxPrice') || '';
+
+    const quoteFilters = {
+      query: '',
+      selectedDestination: destination,
+      selectedDestinations,
+      bedrooms: bedroomsParam ? bedroomsParam.split(',').filter(Boolean) : [] as string[],
+      bathrooms: [] as string[],
+      minPrice: '',
+      maxPrice,
+      checkIn,
+      checkOut,
+      selectedBadges: [] as string[],
+      guests: guestsParam ? parseInt(guestsParam, 10) : 0,
+      sortBy: 'rank' as const,
+    };
+
+    console.log('🎯 Aplicando filtros del Quote Wizard:', quoteFilters);
+
+    // Intentar consumir el preload antes de mostrar spinner
+    const preloaded = consumePreload({
+      destination: destination || undefined,
+      guests: guestsParam ? parseInt(guestsParam, 10) : undefined,
+      checkIn: checkIn || undefined,
+      checkOut: checkOut || undefined,
+      bedrooms: bedroomsParam ? parseInt(bedroomsParam, 10) : undefined,
+      maxPrice: maxPrice ? parseInt(maxPrice, 10) : undefined,
+    });
+
+    setFilters(quoteFilters);
+    setAppliedFilters(quoteFilters);
+    setCurrentPage(1);
+    setAvailabilityCursor(0);
+    setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
+
+    if (preloaded && preloaded.results.length > 0) {
+      // ✅ Tenemos datos precargados — mostrar resultados de inmediato sin spinner largo
+      console.log(`🚀 [Preload] Usando ${preloaded.results.length} resultados precargados`);
+      setItems(preloaded.results);
+      setTotal(preloaded.total);
+      setSlots(preloaded.results.slice(0, ITEMS_PER_PAGE));
+      setUxPhase('results');
+      setProgress(100);
+      // Properties igual disparará su propio fetch con los filtros exactos (fechas, precio)
+      // via el useEffect de appliedFilters — los resultados se actualizarán en background
+    } else {
+      // Sin preload — flujo normal con loader
+      startSearchUx();
+      setItems([]);
+      setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+    }
+
+    // Limpiar todos los params del quote de la URL
+    const cleanParams = new URLSearchParams(searchParams);
+    ['fromQuote', 'destination', 'destinations', 'bedrooms', 'guests',
+     'checkIn', 'checkOut', 'maxPrice', 'flexibleRange'].forEach(k => cleanParams.delete(k));
+    setSearchParams(cleanParams, { replace: true });
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Estados de paginación
   const [items, setItems] = useState<Listing[]>([]);
@@ -438,6 +520,7 @@ export default function Properties() {
     const resetFilters = {
       query: '',
       selectedDestination: '',
+      selectedDestinations: [] as string[],
       bedrooms: [] as string[],
       bathrooms: [] as string[],
       minPrice: '',
@@ -510,6 +593,7 @@ export default function Properties() {
   const DEFAULT_FILTERS = {
     query: '',
     selectedDestination: '',
+    selectedDestinations: [] as string[],
     bedrooms: [] as string[],
     bathrooms: [] as string[],
     minPrice: '',
@@ -592,6 +676,12 @@ export default function Properties() {
       hasUrlFilters = true;
     }
 
+    // Destinations (múltiples, desde el Quote Wizard)
+    if (params.get('destinations')) {
+      urlFilters.selectedDestinations = params.get('destinations')!.split(',').filter(Boolean);
+      hasUrlFilters = true;
+    }
+
     // Bedrooms (puede ser "3,4,5")
     if (params.get('bedrooms')) {
       urlFilters.bedrooms = params.get('bedrooms')!.split(',').filter(Boolean);
@@ -660,64 +750,6 @@ export default function Properties() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // ← Solo ejecutar UNA VEZ al montar
-
-  // ── Reaccionar a fromQuote=true (puede llegar después del montaje inicial) ──
-  // Cuando el usuario termina el wizard y navega a /properties?fromQuote=true,
-  // el componente puede ya estar montado (no se re-monta), por eso necesitamos
-  // un efecto reactivo a searchParams en vez de solo el useEffect de mount.
-  useEffect(() => {
-    if (searchParams.get('fromQuote') !== 'true') return;
-
-    const destination = searchParams.get('destination') || '';
-    const bedroomsParam = searchParams.get('bedrooms');
-    const guestsParam = searchParams.get('guests');
-    const checkIn = searchParams.get('checkIn') || '';
-    const checkOut = searchParams.get('checkOut') || '';
-    const maxPrice = searchParams.get('maxPrice') || '';
-
-    const quoteFilters = {
-      query: '',
-      selectedDestination: destination,
-      bedrooms: bedroomsParam ? bedroomsParam.split(',').filter(Boolean) : [] as string[],
-      bathrooms: [] as string[],
-      minPrice: '',
-      maxPrice,
-      checkIn,
-      checkOut,
-      selectedBadges: [] as string[],
-      guests: guestsParam ? parseInt(guestsParam, 10) : 0,
-      sortBy: 'rank' as const,
-    };
-
-    console.log('🎯 Aplicando filtros del Quote Wizard:', quoteFilters);
-
-    // Disparar la UX de búsqueda y aplicar filtros
-    startSearchUx();
-    setFilters(quoteFilters);
-    setAppliedFilters(quoteFilters);
-    setCurrentPage(1);
-    setAvailabilityCursor(0);
-    setItems([]);
-    setAvailabilitySession(null);
-    setPage1Filled(false);
-    setAutoFillDone(false);
-    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-
-    // Limpiar fromQuote y demás params de la URL sin causar re-render innecesario
-    const cleanParams = new URLSearchParams(searchParams);
-    cleanParams.delete('fromQuote');
-    cleanParams.delete('destination');
-    cleanParams.delete('destinations');
-    cleanParams.delete('bedrooms');
-    cleanParams.delete('guests');
-    cleanParams.delete('checkIn');
-    cleanParams.delete('checkOut');
-    cleanParams.delete('maxPrice');
-    cleanParams.delete('flexibleRange');
-    setSearchParams(cleanParams, { replace: true });
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
 
   useEffect(() => {
     if (!RECAPTCHA_SITE_KEY) return;
@@ -883,7 +915,12 @@ useEffect(() => {
           qs.set('q', appliedFilters.query.trim());
         }
 
-        if (appliedFilters.selectedDestination) {
+        if (appliedFilters.selectedDestinations && appliedFilters.selectedDestinations.length > 1) {
+          // Múltiples destinos: pasar destinations (comma-separated) para el OR en el backend
+          qs.set('destinations', appliedFilters.selectedDestinations.join(','));
+          // También pasar el primero como destination para compatibilidad con el header
+          qs.set('destination', appliedFilters.selectedDestinations[0]);
+        } else if (appliedFilters.selectedDestination) {
           qs.set('destination', appliedFilters.selectedDestination);
         }
 

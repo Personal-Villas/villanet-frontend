@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useQuotePreload, type PreloadFilters } from '../context/QuotePreloadContext';
 import ReactDOM from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
@@ -230,6 +231,7 @@ export function NewQuoteModal() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const isOpen = searchParams.get('quoteFlow') === 'true';
+  const { triggerPreload } = useQuotePreload();
 
   // -1 = intro screen, 0-4 = steps 1-5
   const [screen, setScreen] = useState<-1 | 0 | 1 | 2 | 3 | 4>(-1);
@@ -262,6 +264,60 @@ export function NewQuoteModal() {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [close]);
+
+  // Preload en background cada vez que el usuario avanza un step
+  // Solo disparar a partir del step 1 (cuando ya hay algo útil que filtrar)
+  useEffect(() => {
+    if (!isOpen || screen < 0) return;
+
+    const DEST_CODE_TO_NAME_PRELOAD: Record<string, string> = {
+      'AI': 'Anguilla', 'BS': 'Bahamas', 'BB': 'Barbados',
+      'VG': 'British Virgin Islands', 'DO-CC': 'Cap Cana, Dominican Republic',
+      'DO-CDC': 'Casa de Campo, Dominican Republic', 'DO-PC': 'Punta Cana, Dominican Republic',
+      'KY': 'Cayman Islands', 'JM': 'Jamaica', 'STBARTS': 'St. Barts',
+      'MF': 'St. Martin / St. Maarten', 'TC': 'Turks & Caicos',
+      'MX-PVR': 'Puerto Vallarta, Mexico', 'MX-PTM': 'Punta Mita, Mexico',
+      'MX-RMY': 'Riviera Maya, Mexico', 'MX-ZIH': 'Zihuatanejo, Mexico',
+    };
+
+    const preloadFilters: PreloadFilters = {};
+
+    // Budget
+    if (data.budget < 100_000) preloadFilters.maxPrice = data.budget;
+
+    // Guests (desde step 2)
+    if (screen >= 1) {
+      const total = data.adults + data.children + data.infants;
+      if (total > 0) preloadFilters.guests = total;
+    }
+
+    // Destination (desde step 3)
+    if (screen >= 2 && data.destinations.length > 0 && !data.destinations.includes('OPEN')) {
+      const mapped = DEST_CODE_TO_NAME_PRELOAD[data.destinations[0]];
+      if (mapped) preloadFilters.destination = mapped;
+    }
+
+    // Dates (desde step 4)
+    if (screen >= 3) {
+      if (data.datesFlexible && data.flexibleRange) {
+        const parsed = parseFlexibleRange(data.flexibleRange);
+        if (parsed) {
+          preloadFilters.checkIn  = parsed.checkIn;
+          preloadFilters.checkOut = parsed.checkOut;
+        }
+      } else if (data.checkIn && data.checkOut) {
+        preloadFilters.checkIn  = data.checkIn;
+        preloadFilters.checkOut = data.checkOut;
+      }
+    }
+
+    // Bedrooms (step 5)
+    if (screen >= 4 && data.bedrooms) {
+      preloadFilters.bedrooms = data.bedrooms;
+    }
+
+    triggerPreload(preloadFilters);
+  }, [isOpen, screen, data, triggerPreload]);
 
   const goNext = () => {
     if (screen === -1) setScreen(0);
