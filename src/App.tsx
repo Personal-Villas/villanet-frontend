@@ -53,9 +53,11 @@ function AppRoutes() {
       <Route path="/advisor-signup" element={<AdvisorSignup />} />
       <Route path="/property-manager-signup" element={<PropertyManagerSignup />} />
       <Route path="/trust-framework" element={<TrustFramework />} />
-      <Route path="/terms-of-service" element={<TermsOfService />} /> 
+      <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/properties" element={<Properties />} />
+      <Route path="/properties/create-quote" element={<Navigate to="/properties?quoteFlow=true" replace />} />
+
       {/* ✅ Rutas de autenticación */}
       <Route path="/login" element={<Login auth={auth} />} />
       <Route path="/signup" element={<Signup auth={auth} />} />
@@ -63,28 +65,28 @@ function AppRoutes() {
       <Route path="/early-access" element={<EarlyAccess />} />
 
       {/* ✅ Property Detail - REQUIERE LOGIN para ver detalles */}
-      <Route 
-        path="/property/:id" 
+      <Route
+        path="/property/:id"
         element={
-          auth.user 
-            ? <PropertyDetail /> 
+          auth.user
+            ? <PropertyDetail />
             : <Navigate to="/login" state={{ from: window.location.pathname, authRequired: true }} />
         }
       />
 
       {/* ✅ Admin panel - Solo para admin autenticado */}
-      <Route 
-        path="/admin" 
+      <Route
+        path="/admin"
         element={
-          auth.user?.role === 'admin' 
-            ? <DashboardAdmin auth={auth} /> 
+          auth.user?.role === 'admin'
+            ? <DashboardAdmin auth={auth} />
             : <Navigate to="/" />
         }
       />
 
       {/* ✅ PMC inbox - Solo para pmc/admin autenticado */}
-      <Route 
-        path="/pmc" 
+      <Route
+        path="/pmc"
         element={
           auth.user && ['pmc', 'admin'].includes(auth.user.role)
             ? <PMCInbox />
@@ -93,14 +95,14 @@ function AppRoutes() {
       />
 
       {/* ✅ Redirecciones inteligentes según rol */}
-      <Route 
-        path="/dashboard" 
+      <Route
+        path="/dashboard"
         element={
           auth.user?.role === 'admin'
             ? <Navigate to="/admin" replace />
             : auth.user?.role === 'pmc'
-            ? <Navigate to="/pmc" replace />
-            : <Navigate to="/properties" replace />
+              ? <Navigate to="/pmc" replace />
+              : <Navigate to="/properties" replace />
         }
       />
 
@@ -113,15 +115,15 @@ function AppRoutes() {
 export default function App() {
   return (
     <ToastProvider>
-    <AuthProvider> 
-      <CartProvider>
-      <GoogleMapsProvider>
-      <BrowserRouter>
-        <AppRoutes /> 
-      </BrowserRouter>
-      </GoogleMapsProvider>
-      </CartProvider>
-    </AuthProvider>
+      <AuthProvider>
+        <CartProvider>
+          <GoogleMapsProvider>
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </GoogleMapsProvider>
+        </CartProvider>
+      </AuthProvider>
     </ToastProvider>
   );
 }

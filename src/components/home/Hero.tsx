@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 export const Hero: React.FC = () => {
   const navigate = useNavigate();
-  
+
   return (
     <section id="top" className="relative w-full">
       {/* Fondo "hero" */}
@@ -33,6 +33,12 @@ export const Hero: React.FC = () => {
               </button>
               <button onClick={() => navigate('/property-manager-signup')} className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-white border border-gray-300 text-gray-900 hover:bg-gray-50 text-base px-8 py-6 font-medium">
                 Apply as a Verified PM
+              </button>
+              <button
+                onClick={() => navigate('/properties?quoteFlow=true')}
+                className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-black text-white hover:bg-gray-800 text-base px-8 py-6 font-medium"
+              >
+                Create a New Quote
               </button>
             </div>
           </div>

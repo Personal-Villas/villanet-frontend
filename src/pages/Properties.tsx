@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { api, publicApi } from '../api/api';
 import AuthModal from '../components/AuthModal';
@@ -17,6 +17,7 @@ import { SearchLoader } from '../components/SearchLoader';
 import ExpansionButton from '../components/ExpansionButton';
 import ExpansionModal from '../components/ExpansionModal';
 import { initPerformanceMetrics } from '../services/imageUtils';
+import { NewQuoteModal } from '../components/NewQuoteModal';
 
 
 type Listing = {
@@ -132,6 +133,7 @@ const MIN_LOADER_MS = 3000; // 400–600ms (elige 520ms estable)
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Estados para filtros
   const [filters, setFilters] = useState({
@@ -658,6 +660,64 @@ export default function Properties() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // ← Solo ejecutar UNA VEZ al montar
+
+  // ── Reaccionar a fromQuote=true (puede llegar después del montaje inicial) ──
+  // Cuando el usuario termina el wizard y navega a /properties?fromQuote=true,
+  // el componente puede ya estar montado (no se re-monta), por eso necesitamos
+  // un efecto reactivo a searchParams en vez de solo el useEffect de mount.
+  useEffect(() => {
+    if (searchParams.get('fromQuote') !== 'true') return;
+
+    const destination = searchParams.get('destination') || '';
+    const bedroomsParam = searchParams.get('bedrooms');
+    const guestsParam = searchParams.get('guests');
+    const checkIn = searchParams.get('checkIn') || '';
+    const checkOut = searchParams.get('checkOut') || '';
+    const maxPrice = searchParams.get('maxPrice') || '';
+
+    const quoteFilters = {
+      query: '',
+      selectedDestination: destination,
+      bedrooms: bedroomsParam ? bedroomsParam.split(',').filter(Boolean) : [] as string[],
+      bathrooms: [] as string[],
+      minPrice: '',
+      maxPrice,
+      checkIn,
+      checkOut,
+      selectedBadges: [] as string[],
+      guests: guestsParam ? parseInt(guestsParam, 10) : 0,
+      sortBy: 'rank' as const,
+    };
+
+    console.log('🎯 Aplicando filtros del Quote Wizard:', quoteFilters);
+
+    // Disparar la UX de búsqueda y aplicar filtros
+    startSearchUx();
+    setFilters(quoteFilters);
+    setAppliedFilters(quoteFilters);
+    setCurrentPage(1);
+    setAvailabilityCursor(0);
+    setItems([]);
+    setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
+    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+
+    // Limpiar fromQuote y demás params de la URL sin causar re-render innecesario
+    const cleanParams = new URLSearchParams(searchParams);
+    cleanParams.delete('fromQuote');
+    cleanParams.delete('destination');
+    cleanParams.delete('destinations');
+    cleanParams.delete('bedrooms');
+    cleanParams.delete('guests');
+    cleanParams.delete('checkIn');
+    cleanParams.delete('checkOut');
+    cleanParams.delete('maxPrice');
+    cleanParams.delete('flexibleRange');
+    setSearchParams(cleanParams, { replace: true });
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     if (!RECAPTCHA_SITE_KEY) return;
@@ -1391,6 +1451,8 @@ useEffect(() => {
             currentResultsCount={total}
           />
         )}
+
+        <NewQuoteModal />
       </div>
     </>
   );
