@@ -1,9 +1,11 @@
 export function ListingGridSkeleton({
   count = 12,
   variant = 'grid',
+  className,
 }: {
   count?: number;
   variant?: 'grid' | 'card';
+  className?: string;
 }) {
   const Card = () => (
     <div className="border border-border rounded-lg overflow-hidden bg-card">
@@ -45,12 +47,12 @@ export function ListingGridSkeleton({
     </div>
   );
 
-  // ✅ “card”: unitario (para slots)
+  // ✅ "card": unitario (para slots)
   if (variant === 'card') return <Card />;
 
-  // ✅ “grid”: para estado skeleton completo (12 cards)
+  // ✅ "grid": para estado skeleton completo (12 cards)
   return (
-    <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${className ?? 'pt-10 md:pt-[260px]'}`}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i}>
           <Card />

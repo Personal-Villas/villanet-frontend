@@ -11,6 +11,7 @@ import { useCart } from '../context/CartContext';
 import CartSidebar from '../components/CartSidebar';
 import CartModal from '../components/CartModal';
 import { ListingCardSkeleton } from '../ui/ListingCardSkeleton';
+import { ListingGridSkeleton } from '../ui/ListingGridSkeleton';
 import { PropertyCard } from '../components/PropertyCard';
 import { PaginationControls } from '../components/PaginationControls';
 import { SearchLoader } from '../components/SearchLoader';
@@ -127,7 +128,7 @@ const Info = ({ className }: { className?: string }) => (
 
 // 🔥 UX progressive loading
 type UxPhase = 'idle' | 'loader' | 'skeleton' | 'results';
-const MIN_LOADER_MS = 3000; // 400–600ms (elige 520ms estable)
+const MIN_LOADER_MS = 1500; // Suficiente para tapar la espera del primer request (~3.7s)
 
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
@@ -1149,7 +1150,15 @@ useEffect(() => {
     );
   }
 
-  const renderList = currentPage === 1 ? slots : items;
+  // Mostrar 12 skeletons mientras no haya items reales:
+  // - durante 'loader' siempre
+  // - durante 'skeleton' sin items aún
+  // - en cualquier fase activa donde items fue limpiado (gap de batching de React)
+  const EMPTY_SLOTS = Array.from({ length: 12 }, (): null => null);
+  const noItemsYet = items.length === 0 && uxPhase !== 'idle';
+  const renderList = (uxPhase === 'loader' || noItemsYet)
+    ? EMPTY_SLOTS
+    : currentPage === 1 ? slots : items;
 
   const showNextButton = hasAvailabilityFilter
     ? items.length === ITEMS_PER_PAGE || currentPage < totalPages
@@ -1231,8 +1240,10 @@ useEffect(() => {
         />
 
         <main className="w-full px-4 md:px-8">
+          {/* SearchLoader como overlay encima del grid — no oculta el skeleton */}
           {uxPhase === 'loader' && (<SearchLoader progress={progress} />)}
-          <div className={`pt-10 lg:pt-[290px] md:pt-[360px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${uxPhase === 'loader' ? 'hidden' : 'grid'}`}>
+
+          <div className="pt-10 lg:pt-[290px] md:pt-[360px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {renderList.map((item, idx) => {
               if (!item) {
                 return <ListingCardSkeleton key={`sk-${idx}`} />;

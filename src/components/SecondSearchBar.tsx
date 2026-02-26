@@ -532,6 +532,16 @@ const GuestyCalendar = ({
     day > selected.from &&
     day < selected.to;
 
+  const MIN_NIGHTS = 2;
+
+  // Calcula si un día sería un checkout válido (mínimo MIN_NIGHTS noches después del checkIn)
+  const isValidCheckout = (day: Date): boolean => {
+    if (!selected?.from || selected.to) return true;
+    const minCheckout = new Date(selected.from);
+    minCheckout.setDate(minCheckout.getDate() + MIN_NIGHTS);
+    return day >= minCheckout;
+  };
+
   // Click en día
   const handleDayClick = (day: Date) => {
     if (isBeforeToday(day)) return;
@@ -539,10 +549,16 @@ const GuestyCalendar = ({
     setCurrentMonth(new Date(day.getFullYear(), day.getMonth(), 1));
 
     if (!selected?.from || selected.to) {
+      // Seleccionando check-in
       onSelect({ from: day, to: undefined });
     } else if (day < selected.from) {
-      onSelect({ from: day, to: selected.from });
+      // Click antes del check-in → nuevo check-in
+      onSelect({ from: day, to: undefined });
     } else if (day.getTime() === selected.from.getTime()) {
+      // Click en el mismo día → limpiar
+      onSelect({ from: day, to: undefined });
+    } else if (!isValidCheckout(day)) {
+      // Checkout demasiado cercano → reubicar check-in al día clickeado
       onSelect({ from: day, to: undefined });
     } else {
       onSelect({ from: selected.from, to: day });
@@ -647,9 +663,17 @@ const GuestyCalendar = ({
                           return <td key={dayIndex} className="guesty-cell" />;
                         }
 
+                        // Deshabilitar días que no cumplen el mínimo de noches
+                        const tooCloseForCheckout =
+                          !!selected?.from &&
+                          !selected.to &&
+                          !isValidCheckout(day) &&
+                          day > selected.from;
+
                         const isDisabled =
                           day.getMonth() !== monthData.month ||
-                          isBeforeToday(day);
+                          isBeforeToday(day) ||
+                          tooCloseForCheckout;
 
                         let cellClass = 'guesty-cell';
                         if (isDayRangeMiddle(day)) cellClass += ' guesty-cell-range-middle';
