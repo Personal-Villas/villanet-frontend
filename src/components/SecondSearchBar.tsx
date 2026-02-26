@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
-  Bath,
+  //Bath,
   Calendar,
   DollarSign,
   Shield,
@@ -13,6 +13,7 @@ import {
   Ship,
   Footprints,
   Hotel,
+  Bed,
   Flag,
   Dumbbell,
   Film,
@@ -24,7 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import CartButton from "../components/CartButton";
+import CartButton from "./CartButton";
 
 /**
  * Badge real del CRUD.
@@ -50,7 +51,7 @@ type PropertiesHeaderCompactProps = {
   destinations: string[];
   selectedDestination: string;
   onSelectDestination: (destination: string) => void;
-  
+
   badges: CrudBadge[];
   selectedBadges: string[];
   onBadgeToggle: (badgeSlug: string) => void;
@@ -63,9 +64,8 @@ type PropertiesHeaderCompactProps = {
   bedrooms: string[];
   setBedrooms: (value: string[]) => void;
 
-  // ✅ AGREGADOS: Bathrooms
-  bathrooms: string[];
-  setBathrooms: (value: string[]) => void;
+  //bathrooms: string[];
+  //setBathrooms: (value: string[]) => void;
 
   // ✅ AGREGADOS: Price range
   minPrice: string;
@@ -78,7 +78,6 @@ type PropertiesHeaderCompactProps = {
   setGuests?: (value: number) => void;
 
   onClearAllFilters?: () => void;
-  onEditQuote?: () => void;
   cartCount?: number;
   onCartClick?: () => void;
 };
@@ -266,7 +265,7 @@ const deriveInitialBedroomsCount = (bedrooms: string[]): number => {
 };
 
 // ✅ Helper para bathrooms
-const deriveInitialBathroomsCount = (bathrooms: string[]): number => {
+/*const deriveInitialBathroomsCount = (bathrooms: string[]): number => {
   if (!bathrooms || bathrooms.length === 0) return 0;
   if (bathrooms.includes("12+")) return 12;
   const numeric = bathrooms
@@ -274,7 +273,7 @@ const deriveInitialBathroomsCount = (bathrooms: string[]): number => {
     .filter((n) => !Number.isNaN(n));
   if (numeric.length === 0) return 0;
   return numeric[0];
-};
+};*/
 
 // ESTILOS GUESTY PERSONALIZADOS - EXACTOS
 const guestyCalendarStyles = `
@@ -705,12 +704,10 @@ export default function PropertiesHeaderCompact({
   setCheckIn,
   checkOut,
   setCheckOut,
-  bedrooms = [],
+  bedrooms,
   setBedrooms,
-  // ✅ AGREGADOS: Bathrooms
-  bathrooms = [],
-  setBathrooms,
-  // ✅ AGREGADOS: Price range
+  //bathrooms,
+  //setBathrooms,
   minPrice,
   setMinPrice,
   maxPrice,
@@ -718,7 +715,6 @@ export default function PropertiesHeaderCompact({
   guests = 0,
   setGuests,
   onClearAllFilters,
-  onEditQuote,
   cartCount,
   onCartClick,
 }: PropertiesHeaderCompactProps) {
@@ -728,8 +724,7 @@ export default function PropertiesHeaderCompact({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGuestSelector, setShowGuestSelector] = useState(false);
   const [showBedroomsSelector, setShowBedroomsSelector] = useState(false);
-  // ✅ State para modales adicionales
-  const [showBathroomsSelector, setShowBathroomsSelector] = useState(false);
+  //const [showBathroomsSelector, setShowBathroomsSelector] = useState(false);
   const [showPriceSelector, setShowPriceSelector] = useState(false);
 
   const [uiError, setUiError] = useState<string | null>(null);
@@ -737,8 +732,7 @@ export default function PropertiesHeaderCompact({
   const datePickerRef = useRef<HTMLDivElement>(null);
   const guestSelectorRef = useRef<HTMLDivElement>(null);
   const bedroomsSelectorRef = useRef<HTMLDivElement>(null);
-  // ✅ Refs para los nuevos selectores
-  const bathroomsSelectorRef = useRef<HTMLDivElement>(null);
+  //const bathroomsSelectorRef = useRef<HTMLDivElement>(null);
   const priceSelectorRef = useRef<HTMLDivElement>(null);
 
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
@@ -752,11 +746,11 @@ export default function PropertiesHeaderCompact({
         `${bedrooms[0]} Bedrooms`;
 
   // ✅ Labels para bathrooms y price
-  const bathroomsLabel =
+  /*const bathroomsLabel =
     bathrooms.length === 0 ? "Bathrooms" :
       bathrooms.includes("12+") ? "12+ Bathrooms" :
         `${bathrooms[0]} Bathrooms`;
-
+*/
   const priceLabel =
     !minPrice && !maxPrice ? "Price" :
       minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
@@ -839,10 +833,10 @@ export default function PropertiesHeaderCompact({
   };
 
   // ✅ Handlers para los nuevos selectores
-  const handleApplyBathrooms = () => {
+  /*const handleApplyBathrooms = () => {
     setShowBathroomsSelector(false);
     onApplyFilters?.();
-  };
+  };*/
 
   const handleApplyPrice = () => {
     setShowPriceSelector(false);
@@ -929,12 +923,12 @@ export default function PropertiesHeaderCompact({
         setShowBedroomsSelector(false);
       }
       // ✅ Click fuera para nuevos selectores
-      if (
+      /*if (
         bathroomsSelectorRef.current &&
         !bathroomsSelectorRef.current.contains(event.target as Node)
       ) {
         setShowBathroomsSelector(false);
-      }
+      }*/
       if (
         priceSelectorRef.current &&
         !priceSelectorRef.current.contains(event.target as Node)
@@ -1027,7 +1021,9 @@ export default function PropertiesHeaderCompact({
     return (
       <button
         key={dest}
-        onClick={() => onSelectDestination(isSelected ? "" : dest)}
+        onClick={() => {
+          onSelectDestination(dest === selectedDestination ? "" : dest);
+        }}
         role="button"
         aria-pressed={isSelected}
         aria-label={`Filter by ${dest}, ${isSelected ? "active" : "inactive"}`}
@@ -1048,7 +1044,7 @@ export default function PropertiesHeaderCompact({
     !!checkIn ||
     !!checkOut ||
     bedrooms.length > 0 ||
-    bathrooms.length > 0 ||
+    //bathrooms.length > 0 ||
     !!minPrice ||
     !!maxPrice ||
     selectedBadges.length > 0 ||
@@ -1059,7 +1055,7 @@ export default function PropertiesHeaderCompact({
     (selectedDestination ? 1 : 0) +
     (checkIn || checkOut ? 1 : 0) +
     (bedrooms.length > 0 ? 1 : 0) +
-    (bathrooms.length > 0 ? 1 : 0) +
+    //(bathrooms.length > 0 ? 1 : 0) +
     (minPrice || maxPrice ? 1 : 0) +
     selectedBadges.length +
     (sortBy !== "rank" ? 1 : 0);
@@ -1214,7 +1210,7 @@ export default function PropertiesHeaderCompact({
   };
 
   // ✅ Bathrooms Selector para desktop
-  const BathroomsSelectorDesktop = () => {
+ /* const BathroomsSelectorDesktop = () => {
     const current = deriveInitialBathroomsCount(bathrooms);
     return (
       <div
@@ -1263,7 +1259,7 @@ export default function PropertiesHeaderCompact({
         </div>
       </div>
     );
-  };
+  };*/
 
   // ✅ Price Selector para desktop
   const PriceSelectorDesktop = () => (
@@ -1332,38 +1328,14 @@ export default function PropertiesHeaderCompact({
     <>
       {/* DESKTOP */}
       <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
-        <div className="py-3">
-          <div className="container mx-auto px-6">
-
-            {/* Row 1: title + sort + cart */}
-            <div className="flex items-center justify-between gap-4 mb-2">
+        <div className="h-[72px]">
+          <div className="container mx-auto px-6 h-full flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm flex-wrap">
               <h1 className="text-xl font-semibold text-foreground">
                 {itemsCount} Villas in {location}
               </h1>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <select
-                  value={sortBy}
-                  onChange={(e) => {
-                    setSortBy(e.target.value);
-                  }}
-                  className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="rank">Sort: Villa Rank (High → Low)</option>
-                  <option value="price_low">Price (Low → High)</option>
-                  <option value="price_high">Price (High → Low)</option>
-                  <option value="bedrooms">Bedrooms (Most → Least)</option>
-                </select>
-                <CartButton
-                  count={cartCount}
-                  onClick={onCartClick}
-                  variant="default"
-                  showLabel={true}
-                />
-              </div>
-            </div>
+              <span className="text-muted-foreground">•</span>
 
-            {/* Row 2: filter pills */}
-            <div className="flex items-center gap-2 text-sm flex-wrap">
               <div className="relative">
                 <button
                   type="button"
@@ -1371,7 +1343,7 @@ export default function PropertiesHeaderCompact({
                     setShowDatePicker(!showDatePicker);
                     setShowGuestSelector(false);
                     setShowBedroomsSelector(false);
-                    setShowBathroomsSelector(false);
+                    //setShowBathroomsSelector(false);
                     setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
@@ -1391,7 +1363,7 @@ export default function PropertiesHeaderCompact({
                     setShowGuestSelector(!showGuestSelector);
                     setShowDatePicker(false);
                     setShowBedroomsSelector(false);
-                    setShowBathroomsSelector(false);
+                    //setShowBathroomsSelector(false);
                     setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
@@ -1411,60 +1383,85 @@ export default function PropertiesHeaderCompact({
                     setShowBedroomsSelector(!showBedroomsSelector);
                     setShowGuestSelector(false);
                     setShowDatePicker(false);
-                    setShowBathroomsSelector(false);
+                    //setShowBathroomsSelector(false);
                     setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Hotel className="w-4 h-4" />
+                  <Bed className="w-4 h-4" />
                   <span>{bedroomsLabel}</span>
                 </button>
                 {showBedroomsSelector && <BedroomsSelectorDesktop />}
               </div>
 
-              <>
-                <span className="text-muted-foreground">•</span>
+              {
+                <>
+                  {/*
+                  <span className="text-muted-foreground">•</span>
 
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowBathroomsSelector(!showBathroomsSelector);
-                      setShowGuestSelector(false);
-                      setShowDatePicker(false);
-                      setShowBedroomsSelector(false);
-                      setShowPriceSelector(false);
-                    }}
-                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Bath className="w-4 h-4" />
-                    <span>{bathroomsLabel}</span>
-                  </button>
-                  {showBathroomsSelector && <BathroomsSelectorDesktop />}
-                </div>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowBathroomsSelector(!showBathroomsSelector);
+                        setShowGuestSelector(false);
+                        setShowDatePicker(false);
+                        setShowBedroomsSelector(false);
+                        setShowPriceSelector(false);
+                      }}
+                      className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Bath className="w-4 h-4" />
+                      <span>{bathroomsLabel}</span>
+                    </button>
+                    {showBathroomsSelector && <BathroomsSelectorDesktop />}
+                  </div>
 
-                <span className="text-muted-foreground">•</span>
-
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPriceSelector(!showPriceSelector);
-                      setShowGuestSelector(false);
-                      setShowDatePicker(false);
-                      setShowBedroomsSelector(false);
-                      setShowBathroomsSelector(false);
-                    }}
-                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <DollarSign className="w-4 h-4" />
-                    <span>{priceLabel}</span>
-                  </button>
-                  {showPriceSelector && <PriceSelectorDesktop />}
-                </div>
-              </>
+                  <span className="text-muted-foreground">•</span>
+                  */}
+<span className="text-muted-foreground">•</span>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPriceSelector(!showPriceSelector);
+                        setShowGuestSelector(false);
+                        setShowDatePicker(false);
+                        setShowBedroomsSelector(false);
+                        //setShowBathroomsSelector(false);
+                      }}
+                      className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      <span>{priceLabel}</span>
+                    </button>
+                    {showPriceSelector && <PriceSelectorDesktop />}
+                  </div>
+                </>
+              }
             </div>
 
+            <div className="flex items-center gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                }}
+                className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="rank">Sort: Villa Rank (High → Low)</option>
+                <option value="price_low">Price (Low → High)</option>
+                <option value="price_high">Price (High → Low)</option>
+                <option value="bedrooms">Bedrooms (Most → Least)</option>
+              </select>
+
+              <CartButton
+                count={cartCount}
+                onClick={onCartClick}
+                variant="default"
+                showLabel={true}
+              />
+            </div>
           </div>
         </div>
 
@@ -1479,20 +1476,6 @@ export default function PropertiesHeaderCompact({
                   Include location(s) for your search
                 </p>
 
-              <div className="flex items-center gap-2">
-                {onEditQuote && (
-                  <button
-                    onClick={onEditQuote}
-                    className="px-3 py-1 text-sm border border-neutral-900 bg-neutral-900 text-white rounded-md hover:bg-neutral-700 transition-colors font-medium whitespace-nowrap flex items-center gap-1.5"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                    Edit Quote Criteria
-                  </button>
-                )}
-
                 {hasActiveFilters && onClearAllFilters && (
                   <button
                     onClick={() => {
@@ -1500,10 +1483,12 @@ export default function PropertiesHeaderCompact({
                       setShowDatePicker(false);
                       setShowGuestSelector(false);
                       setShowBedroomsSelector(false);
-                      setShowBathroomsSelector(false);
+                      //setShowBathroomsSelector(false);
                       setShowPriceSelector(false);
                       setUiError(null);
                       setLocalGuestsForModal(1);
+
+                      // ✅ Solo esto. NO llames onApplyFilters acá.
                       onClearAllFilters?.();
                     }}
                     className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
@@ -1511,7 +1496,6 @@ export default function PropertiesHeaderCompact({
                     Clear Filters
                   </button>
                 )}
-              </div>
               </div>
 
               {caribbean.length > 0 && (
@@ -1870,8 +1854,10 @@ export default function PropertiesHeaderCompact({
               </div>
             </div>
 
+             
             {
               <>
+              {/*
                 <div>
                   <label className="block text-sm font-medium mb-2">Bathrooms</label>
                   <div className="flex items-center justify-between p-4 border border-input rounded-lg">
@@ -1912,7 +1898,7 @@ export default function PropertiesHeaderCompact({
                     </div>
                   </div>
                 </div>
-
+                */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Price Range (per night)</label>
                   <div className="space-y-2">
