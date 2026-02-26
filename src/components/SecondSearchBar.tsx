@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
-  Bath,
+  //Bath,
   Calendar,
   DollarSign,
   Shield,
@@ -13,6 +13,7 @@ import {
   Ship,
   Footprints,
   Hotel,
+  Bed,
   Flag,
   Dumbbell,
   Film,
@@ -63,9 +64,8 @@ type PropertiesHeaderCompactProps = {
   bedrooms: string[];
   setBedrooms: (value: string[]) => void;
 
-  // ✅ AGREGADOS: Bathrooms
-  bathrooms: string[];
-  setBathrooms: (value: string[]) => void;
+  //bathrooms: string[];
+  //setBathrooms: (value: string[]) => void;
 
   // ✅ AGREGADOS: Price range
   minPrice: string;
@@ -265,7 +265,7 @@ const deriveInitialBedroomsCount = (bedrooms: string[]): number => {
 };
 
 // ✅ Helper para bathrooms
-const deriveInitialBathroomsCount = (bathrooms: string[]): number => {
+/*const deriveInitialBathroomsCount = (bathrooms: string[]): number => {
   if (!bathrooms || bathrooms.length === 0) return 0;
   if (bathrooms.includes("12+")) return 12;
   const numeric = bathrooms
@@ -273,7 +273,7 @@ const deriveInitialBathroomsCount = (bathrooms: string[]): number => {
     .filter((n) => !Number.isNaN(n));
   if (numeric.length === 0) return 0;
   return numeric[0];
-};
+};*/
 
 // ESTILOS GUESTY PERSONALIZADOS - EXACTOS
 const guestyCalendarStyles = `
@@ -706,10 +706,8 @@ export default function PropertiesHeaderCompact({
   setCheckOut,
   bedrooms,
   setBedrooms,
-  // ✅ AGREGADOS: Bathrooms
-  bathrooms,
-  setBathrooms,
-  // ✅ AGREGADOS: Price range
+  //bathrooms,
+  //setBathrooms,
   minPrice,
   setMinPrice,
   maxPrice,
@@ -726,8 +724,7 @@ export default function PropertiesHeaderCompact({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGuestSelector, setShowGuestSelector] = useState(false);
   const [showBedroomsSelector, setShowBedroomsSelector] = useState(false);
-  // ✅ State para modales adicionales
-  const [showBathroomsSelector, setShowBathroomsSelector] = useState(false);
+  //const [showBathroomsSelector, setShowBathroomsSelector] = useState(false);
   const [showPriceSelector, setShowPriceSelector] = useState(false);
 
   const [uiError, setUiError] = useState<string | null>(null);
@@ -735,8 +732,7 @@ export default function PropertiesHeaderCompact({
   const datePickerRef = useRef<HTMLDivElement>(null);
   const guestSelectorRef = useRef<HTMLDivElement>(null);
   const bedroomsSelectorRef = useRef<HTMLDivElement>(null);
-  // ✅ Refs para los nuevos selectores
-  const bathroomsSelectorRef = useRef<HTMLDivElement>(null);
+  //const bathroomsSelectorRef = useRef<HTMLDivElement>(null);
   const priceSelectorRef = useRef<HTMLDivElement>(null);
 
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
@@ -750,11 +746,11 @@ export default function PropertiesHeaderCompact({
         `${bedrooms[0]} Bedrooms`;
 
   // ✅ Labels para bathrooms y price
-  const bathroomsLabel =
+  /*const bathroomsLabel =
     bathrooms.length === 0 ? "Bathrooms" :
       bathrooms.includes("12+") ? "12+ Bathrooms" :
         `${bathrooms[0]} Bathrooms`;
-
+*/
   const priceLabel =
     !minPrice && !maxPrice ? "Price" :
       minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
@@ -837,10 +833,10 @@ export default function PropertiesHeaderCompact({
   };
 
   // ✅ Handlers para los nuevos selectores
-  const handleApplyBathrooms = () => {
+  /*const handleApplyBathrooms = () => {
     setShowBathroomsSelector(false);
     onApplyFilters?.();
-  };
+  };*/
 
   const handleApplyPrice = () => {
     setShowPriceSelector(false);
@@ -927,12 +923,12 @@ export default function PropertiesHeaderCompact({
         setShowBedroomsSelector(false);
       }
       // ✅ Click fuera para nuevos selectores
-      if (
+      /*if (
         bathroomsSelectorRef.current &&
         !bathroomsSelectorRef.current.contains(event.target as Node)
       ) {
         setShowBathroomsSelector(false);
-      }
+      }*/
       if (
         priceSelectorRef.current &&
         !priceSelectorRef.current.contains(event.target as Node)
@@ -1048,7 +1044,7 @@ export default function PropertiesHeaderCompact({
     !!checkIn ||
     !!checkOut ||
     bedrooms.length > 0 ||
-    bathrooms.length > 0 ||
+    //bathrooms.length > 0 ||
     !!minPrice ||
     !!maxPrice ||
     selectedBadges.length > 0 ||
@@ -1059,7 +1055,7 @@ export default function PropertiesHeaderCompact({
     (selectedDestination ? 1 : 0) +
     (checkIn || checkOut ? 1 : 0) +
     (bedrooms.length > 0 ? 1 : 0) +
-    (bathrooms.length > 0 ? 1 : 0) +
+    //(bathrooms.length > 0 ? 1 : 0) +
     (minPrice || maxPrice ? 1 : 0) +
     selectedBadges.length +
     (sortBy !== "rank" ? 1 : 0);
@@ -1214,7 +1210,7 @@ export default function PropertiesHeaderCompact({
   };
 
   // ✅ Bathrooms Selector para desktop
-  const BathroomsSelectorDesktop = () => {
+ /* const BathroomsSelectorDesktop = () => {
     const current = deriveInitialBathroomsCount(bathrooms);
     return (
       <div
@@ -1263,7 +1259,7 @@ export default function PropertiesHeaderCompact({
         </div>
       </div>
     );
-  };
+  };*/
 
   // ✅ Price Selector para desktop
   const PriceSelectorDesktop = () => (
@@ -1347,7 +1343,7 @@ export default function PropertiesHeaderCompact({
                     setShowDatePicker(!showDatePicker);
                     setShowGuestSelector(false);
                     setShowBedroomsSelector(false);
-                    setShowBathroomsSelector(false);
+                    //setShowBathroomsSelector(false);
                     setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
@@ -1367,7 +1363,7 @@ export default function PropertiesHeaderCompact({
                     setShowGuestSelector(!showGuestSelector);
                     setShowDatePicker(false);
                     setShowBedroomsSelector(false);
-                    setShowBathroomsSelector(false);
+                    //setShowBathroomsSelector(false);
                     setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
@@ -1387,12 +1383,12 @@ export default function PropertiesHeaderCompact({
                     setShowBedroomsSelector(!showBedroomsSelector);
                     setShowGuestSelector(false);
                     setShowDatePicker(false);
-                    setShowBathroomsSelector(false);
+                    //setShowBathroomsSelector(false);
                     setShowPriceSelector(false);
                   }}
                   className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Hotel className="w-4 h-4" />
+                  <Bed className="w-4 h-4" />
                   <span>{bedroomsLabel}</span>
                 </button>
                 {showBedroomsSelector && <BedroomsSelectorDesktop />}
@@ -1400,6 +1396,7 @@ export default function PropertiesHeaderCompact({
 
               {
                 <>
+                  {/*
                   <span className="text-muted-foreground">•</span>
 
                   <div className="relative">
@@ -1421,7 +1418,8 @@ export default function PropertiesHeaderCompact({
                   </div>
 
                   <span className="text-muted-foreground">•</span>
-
+                  */}
+<span className="text-muted-foreground">•</span>
                   <div className="relative">
                     <button
                       type="button"
@@ -1430,7 +1428,7 @@ export default function PropertiesHeaderCompact({
                         setShowGuestSelector(false);
                         setShowDatePicker(false);
                         setShowBedroomsSelector(false);
-                        setShowBathroomsSelector(false);
+                        //setShowBathroomsSelector(false);
                       }}
                       className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
                     >
@@ -1485,7 +1483,7 @@ export default function PropertiesHeaderCompact({
                       setShowDatePicker(false);
                       setShowGuestSelector(false);
                       setShowBedroomsSelector(false);
-                      setShowBathroomsSelector(false);
+                      //setShowBathroomsSelector(false);
                       setShowPriceSelector(false);
                       setUiError(null);
                       setLocalGuestsForModal(1);
@@ -1856,8 +1854,10 @@ export default function PropertiesHeaderCompact({
               </div>
             </div>
 
+             
             {
               <>
+              {/*
                 <div>
                   <label className="block text-sm font-medium mb-2">Bathrooms</label>
                   <div className="flex items-center justify-between p-4 border border-input rounded-lg">
@@ -1898,7 +1898,7 @@ export default function PropertiesHeaderCompact({
                     </div>
                   </div>
                 </div>
-
+                */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Price Range (per night)</label>
                   <div className="space-y-2">

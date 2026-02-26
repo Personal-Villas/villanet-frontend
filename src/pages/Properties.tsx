@@ -833,9 +833,9 @@ useEffect(() => {
         }
 
         // ✅ Bathrooms - FALTABA APLICAR
-        if (appliedFilters.bathrooms.length > 0) {
-          qs.set('bathrooms', appliedFilters.bathrooms.join(','));
-        }
+        //if (appliedFilters.bathrooms.length > 0) {
+          //qs.set('bathrooms', appliedFilters.bathrooms.join(','));
+        //}
 
         // ✅ Price Range - CORREGIR VALIDACIÓN
         if (appliedFilters.minPrice && appliedFilters.minPrice.trim()) {
@@ -920,8 +920,15 @@ useEffect(() => {
                 ? null
                 : Number(item.priceUSD);
 
+            const rawName = item.name || '';
+            const cleanedName = rawName.replace(
+                  /(\s*[-–—]?\s*\d+(\.\d+)?\s*BR)\s*$/i,
+                  ''
+                ).trim();
+              
             return {
               ...item,
+              name: cleanedName,   
               priceUSD: Number.isFinite(priceUSD as any) ? priceUSD : null,
               id: item.id || `temp-${Math.random().toString(36).slice(2)}`,
               images_json: images,
@@ -1206,7 +1213,7 @@ useEffect(() => {
           setCheckOut={(checkOut) => setFilters(prev => ({ ...prev, checkOut }))}
           bedrooms={filters.bedrooms}
           setBedrooms={(bedrooms) => setFilters(prev => ({ ...prev, bedrooms }))}
-          bathrooms={filters.bathrooms}
+          //bathrooms={filters.bathrooms}
           setBathrooms={(bathrooms) => setFilters(prev => ({ ...prev, bathrooms }))}
           minPrice={filters.minPrice}
           setMinPrice={(minPrice) => setFilters(prev => ({ ...prev, minPrice }))}

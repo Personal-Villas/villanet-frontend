@@ -145,8 +145,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                         <Bath className="w-4 h-4" />
                         <span>{item.bathrooms ?? '–'} BA</span>
                     </div>
-                    <span className="hidden md:inline">•</span>
-                    <div className="flex items-center gap-1 whitespace-nowrap">
+                    <span className="hidden">•</span>
+                    <div className=" items-center gap-1 whitespace-nowrap hidden">
                         <DollarSign className="w-4 h-4" />
                         <span>From {formatMoney(item.priceUSD)}/nt</span>
                     </div>
@@ -156,7 +156,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 <div className="mb-4 text-xs space-y-2">
                     <div className="flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-                        <span className="text-muted-foreground truncate">{item.propertyManager}</span>
+                        <span className="text-muted-foreground truncate">Villa Net Verified</span>
                     </div>
                 </div>
 
