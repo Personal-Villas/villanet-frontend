@@ -12,13 +12,22 @@ interface QuoteCalculatorProps {
   defaultCommission?: number;
 }
 
+interface FeeItem {
+  title: string;
+  amount: number;
+  type: string;
+}
+
 interface QuoteServerData {
   currency: string;
   nights: number;
   base: number;
   cleaning: number;
   taxes: number;
-  otherFees: number;
+  feesTotal: number;
+  feeBreakdown: FeeItem[];
+  // El total de Guesty ES el precio final — sin comisión adicional
+  guestyTotal: number;
 }
 
 // Helper para redondeo a 2 decimales (igual que backend)
@@ -36,7 +45,7 @@ export default function QuoteCalculator({
   const [quoteServer, setQuoteServer] = useState<QuoteServerData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const COMMISSION_PCT = 10;
+  // Commission is embedded in Guesty's Service Fee — no additional % applied
   // Debounce para evitar spam a Guesty
   const debouncedParams = useDebouncedValue(
     { listingId, checkIn, checkOut, guests },
@@ -79,27 +88,29 @@ export default function QuoteCalculator({
           checkIn: ci,
           checkOut: co,
           guests: g,
-          commissionPct: COMMISSION_PCT
+          commissionPct: 0, // La comisión ya está embebida en el Service Fee de Guesty
         });
 
         if (response.ok) {
 
           // --- EVENTO Cotización Creada ---
-          // Se dispara cuando el servidor responde con éxito con los precios finales
           trackEvent('quote_created', {
             listing_id: lid,
-            total_price: response.totalGross || (response.breakdown?.base + response.breakdown?.cleaning + response.breakdown?.taxes),
+            total_price: response.breakdown?.totalGross,
             currency: response.currency,
-            nights: response.nights
+            nights: response.nights,
           });
 
           setQuoteServer({
             currency: response.currency,
             nights: response.nights,
             base: response.breakdown.base,
-            cleaning: response.breakdown.cleaning,
+            cleaning: response.breakdown.cleaning || 0,
             taxes: response.breakdown.taxes,
-            otherFees: response.breakdown.otherFees || 0
+            feesTotal: response.breakdown.feesTotal || 0,
+            feeBreakdown: response.breakdown.feeBreakdown || [],
+            // total viene del backend — mismo cálculo que usa sendQuoteEmail
+            guestyTotal: response.breakdown.total,
           });
         } else {
           setError('Unable to calculate quote');
@@ -120,15 +131,8 @@ export default function QuoteCalculator({
     debouncedParams.guests
   ]);
 
-  // Cálculos locales (instantáneos cuando cambia commissionPct)
-  const computed = quoteServer
-    ? (() => {
-      const subtotal = quoteServer.base + quoteServer.cleaning + quoteServer.taxes;
-      const commission = money2(subtotal * (COMMISSION_PCT / 100));
-      const totalGross = money2(subtotal + commission);
-      return { subtotal, commission, totalGross };
-    })()
-    : null;
+  // Los valores de comisión y total vienen directamente del backend (fuente de verdad)
+  // No recalculamos localmente para garantizar coincidencia exacta con Guesty
 
   // ✅ Estado cuando faltan fechas (NO es loading, es "esperando input")
   if (!hasValidDates || !hasValidGuests) {
@@ -228,90 +232,90 @@ export default function QuoteCalculator({
       {/* Breakdown */}
       <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Base Rate</span>
+          <span className="text-gray-600">Base Rate ({quoteServer.nights} {quoteServer.nights === 1 ? 'night' : 'nights'})</span>
           <span className="font-medium text-gray-900">
             {formatMoney(quoteServer.base)}
           </span>
         </div>
 
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Cleaning Fee</span>
-          <span className="font-medium text-gray-900">
-            {formatMoney(quoteServer.cleaning)}
-          </span>
-        </div>
-
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Taxes & Fees</span>
-          <span className="font-medium text-gray-900">
-            {formatMoney(quoteServer.taxes)}
-          </span>
-        </div>
-
-        {quoteServer.otherFees > 0 && (
+        {quoteServer.cleaning > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Other Fees</span>
+            <span className="text-gray-600">Cleaning Fee</span>
             <span className="font-medium text-gray-900">
-              {formatMoney(quoteServer.otherFees)}
+              {formatMoney(quoteServer.cleaning)}
+            </span>
+          </div>
+        )}
+
+        {/* Fees individuales del feeBreakdown */}
+        {quoteServer.feeBreakdown.length > 0
+          ? quoteServer.feeBreakdown.filter(f => f.amount > 0).map((fee, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <span className="text-gray-600">{fee.title}</span>
+                <span className="font-medium text-gray-900">{formatMoney(fee.amount)}</span>
+              </div>
+            ))
+          : quoteServer.feesTotal > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Fees</span>
+                <span className="font-medium text-gray-900">{formatMoney(quoteServer.feesTotal)}</span>
+              </div>
+            )
+        }
+
+        {quoteServer.taxes > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Taxes</span>
+            <span className="font-medium text-gray-900">
+              {formatMoney(quoteServer.taxes)}
             </span>
           </div>
         )}
       </div>
 
-      {/* Commission (Fixed) */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <TrendingUp className="w-4 h-4" />
-            Advisor Commission
-          </label>
-
-          <div className="text-sm font-semibold text-gray-900">
-            {COMMISSION_PCT}%
+      {/* Your Earnings — resaltar el Service Fee como comisión del advisor */}
+      {(() => {
+        const serviceFee = quoteServer.feeBreakdown.find(f =>
+          f.title.toLowerCase().includes('service')
+        );
+        if (!serviceFee || serviceFee.amount <= 0) return null;
+        return (
+          <div className="flex justify-between items-center mb-4 py-3 px-4 bg-blue-50 rounded-lg border border-blue-200">
+            <span className="text-sm font-medium text-blue-900 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Your Commission (Service Fee)
+            </span>
+            <span className="text-base font-bold text-blue-900">
+              {formatMoney(serviceFee.amount)}
+            </span>
           </div>
-        </div>
+        );
+      })()}
 
-        <div className="text-xs text-gray-500">
-          Commission is fixed and included in the total.
-        </div>
-      </div>
-
-      {/* Commission Amount */}
-      {computed && computed.commission > 0 && (
-        <div className="flex justify-between items-center mb-4 py-3 px-4 bg-blue-50 rounded-lg border border-blue-200">
-          <span className="text-sm font-medium text-blue-900">
-            Your Commission ({COMMISSION_PCT}%)
-          </span>
-          <span className="text-base font-bold text-blue-900">
-            {formatMoney(computed.commission)}
-          </span>
-        </div>
-      )}
-
-      {/* Total */}
+      {/* Total — igual al total de Guesty, sin cargo adicional */}
       <div className="flex justify-between items-center pt-6 border-t border-gray-200">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <DollarSign className="w-5 h-5 text-gray-700" />
             <span className="text-sm font-semibold text-gray-900">
-              Total Gross Price
+              Total Price
             </span>
           </div>
           <p className="text-xs text-gray-500">
-            Including all fees & commission
+            All fees & taxes included
           </p>
         </div>
         <div className="text-right">
           <div className="text-2xl font-bold text-gray-900">
-            {computed && formatMoney(computed.totalGross)}
+            {formatMoney(quoteServer.guestyTotal)}
           </div>
         </div>
       </div>
 
-      {/* Formula Note */}
+      {/* Nota */}
       <div className="mt-4 pt-4 border-t border-gray-100">
         <p className="text-xs text-gray-500 text-center">
-          Base + Cleaning + Taxes + Advisor Commission = Total Gross
+          Your commission is included in the Service Fee above
         </p>
       </div>
     </div>
