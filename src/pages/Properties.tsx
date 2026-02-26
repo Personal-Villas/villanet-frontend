@@ -11,6 +11,7 @@ import { useCart } from '../context/CartContext';
 import CartSidebar from '../components/CartSidebar';
 import CartModal from '../components/CartModal';
 import { ListingCardSkeleton } from '../ui/ListingCardSkeleton';
+import { ListingGridSkeleton } from '../ui/ListingGridSkeleton';
 import { PropertyCard } from '../components/PropertyCard';
 import { PaginationControls } from '../components/PaginationControls';
 import { SearchLoader } from '../components/SearchLoader';
@@ -127,7 +128,7 @@ const Info = ({ className }: { className?: string }) => (
 
 // 🔥 UX progressive loading
 type UxPhase = 'idle' | 'loader' | 'skeleton' | 'results';
-const MIN_LOADER_MS = 3000
+const MIN_LOADER_MS = 1500; // Suficiente para tapar la espera del primer request (~3.7s)
 
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
@@ -177,7 +178,6 @@ export default function Properties() {
   const [uxPhase, setUxPhase] = useState<UxPhase>('idle');
   const [progress, setProgress] = useState(0);
   const searchStartRef = useRef<number>(0);
-  const uxPhaseRef = useRef<UxPhase>('idle'); // ref para leer uxPhase sin dependencia reactiva
 
   // 🔥 "slots" para render fijo (12 cards siempre). null = skeleton
   const [slots, setSlots] = useState<(Listing | null)[]>(
@@ -189,14 +189,11 @@ export default function Properties() {
 
   // helper: arranca loader intencional + progreso simulado
   const uxCleanupRef = useRef<null | (() => void)>(null);
-  // Señal para mostrar skeletons inmediatamente al cambiar filtros
-  const filterChangedRef = useRef<boolean>(false);
 
   const startSearchUx = useCallback(() => {
     uxCleanupRef.current?.(); // limpia timers previos
 
     searchStartRef.current = Date.now();
-    uxPhaseRef.current = 'loader';
     setUxPhase('loader');
     setProgress(10);
 
@@ -420,7 +417,6 @@ export default function Properties() {
   }, [closeAuthModal]);
 
   const handleApplyFilters = useCallback(() => {
-    filterChangedRef.current = true;
     startSearchUx();
 
     setAppliedFilters(filters);
@@ -436,7 +432,6 @@ export default function Properties() {
   }, [filters, startSearchUx]);
 
   const handleClearAllFilters = useCallback(() => {
-    filterChangedRef.current = true;
     startSearchUx();
 
     const resetFilters = {
@@ -468,8 +463,6 @@ export default function Properties() {
   }, [startSearchUx]);
 
   const applyFiltersImmediately = useCallback((newFilters: typeof filters) => {
-    console.log('🔵 [UX] applyFiltersImmediately → destination:', newFilters.selectedDestination, '| badges:', newFilters.selectedBadges);
-    filterChangedRef.current = true;
     setFilters(newFilters);
     startSearchUx();
     setAppliedFilters(newFilters);
@@ -731,46 +724,49 @@ export default function Properties() {
     }
   }, [currentPage]);
 
-// 🔥 Reemplazo progresivo: slots → cards reales
-// IMPORTANTE: uxPhase NO está en las dependencias — se lee via uxPhaseRef
-// para evitar el ciclo: startSearchUx→'loader'→efecto corre→setea 'results'→loader desaparece
+// 🔥 Reemplazo progresivo: slots (skeleton) -> cards reales
 useEffect(() => {
-  const phase = uxPhaseRef.current;
+  // solo primera página: acá está el "premium feel"
+  if (currentPage !== 1) return;
 
-  // Si el loader está activo, no interferir — el fetch tiene el control
-  // El fetch transicionará a 'results' cuando lleguen datos
-  if (phase === 'loader' || phase === 'skeleton') return;
+  // si todavía no arrancó ninguna búsqueda, no hagas nada
+  if (uxPhase === 'idle') return;
 
-  // Sin items
-  if (!items.length) {
-    if (!loading && phase !== 'idle') {
-      uxPhaseRef.current = 'results';
-      setUxPhase('results');
-      setProgress(100);
-      setSlots([]);
-    }
+  // Si la carga terminó y no hay items, mostrar resultados (aunque vacíos)
+  if (!loading && items.length === 0) {
+    setUxPhase('results');
+    setProgress(100);
+    setSlots([]);
     return;
   }
 
-  // Hay items → mostrar
-  uxPhaseRef.current = 'results';
+  // si no hay items aún, mantenemos skeleton (slots null)
+  if (!items.length) return;
+
+  // cuando llegan los primeros datos, mostramos resultados (pero revelando 1x1)
   setUxPhase('results');
+
+  // completamos progreso al final visual
   setProgress(100);
 
-  const finalSlotCount = Math.min(items.length, ITEMS_PER_PAGE);
-  const slotsNeeded = loading ? ITEMS_PER_PAGE : finalSlotCount;
+  // ✅ CORRECCIÓN: Ajustar slots al tamaño real de items
+  const finalSlotCount = items.length < ITEMS_PER_PAGE ? items.length : ITEMS_PER_PAGE;
 
+  // Revelado progresivo SIN mover layout:
   setSlots(prev => {
-    if (prev.length === slotsNeeded) return prev;
-    return Array.from({ length: slotsNeeded }, (_, i) => prev[i] ?? null);
+    // Si ya tenemos el tamaño correcto de slots, mantenerlos
+    if (prev.length === finalSlotCount) return prev;
+    // Sino, crear array del tamaño correcto con nulls
+    return Array.from({ length: finalSlotCount }, () => null);
   });
 
   const timers: number[] = [];
+
   for (let i = 0; i < finalSlotCount; i++) {
     timers.push(
       window.setTimeout(() => {
         setSlots(prev => {
-          if (prev[i] != null) return prev;
+          if (prev[i] != null) return prev; // ya está
           const next = [...prev];
           next[i] = items[i];
           return next;
@@ -780,7 +776,7 @@ useEffect(() => {
   }
 
   return () => timers.forEach(t => window.clearTimeout(t));
-}, [items, loading]); // ← uxPhase NO está aquí, se lee via uxPhaseRef
+}, [items, currentPage, uxPhase, loading]);
 
   // ✅ Fetch principal - se ejecuta cuando cambian filtros O página
   useEffect(() => {
@@ -792,21 +788,14 @@ useEffect(() => {
     // 🔥 Usar ref en vez del state directamente
     const sessionToUse = availabilitySessionRef.current;
 
-    // Capturar ANTES del async — si el efecto se re-ejecuta, el valor ya está fijo
-    const isNewSearch = filterChangedRef.current || items.length === 0;
-    console.log('🟡 [Fetch] useEffect run → filterChangedRef:', filterChangedRef.current, '| items.length:', items.length, '| isNewSearch:', isNewSearch, '| cursor:', availabilityCursor, '| dest:', appliedFilters.selectedDestination);
-    if (isNewSearch) filterChangedRef.current = false; // consumir antes del async
-
     (async () => {
 
       setLoading(true);
       setError(null);
 
-      // Activar loader en búsquedas nuevas (filtro cambiado), no en autoFill continuations
-      if (isNewSearch) {
+      if (items.length === 0) {
         uxCleanupRef.current?.();
         searchStartRef.current = Date.now();
-        uxPhaseRef.current = 'loader';
         setUxPhase('loader');
         setProgress(10);
 
@@ -825,10 +814,7 @@ useEffect(() => {
       const wait = Math.max(0, MIN_LOADER_MS - elapsed);
 
       phaseTimer = window.setTimeout(() => {
-        if (uxPhaseRef.current === 'loader') {
-          uxPhaseRef.current = 'skeleton';
-          setUxPhase('skeleton');
-        }
+        setUxPhase(prev => (prev === 'loader' ? 'skeleton' : prev));
       }, wait);
 
       try {
@@ -1047,13 +1033,6 @@ useEffect(() => {
 
           setRetryCount(0);
 
-          // Transicionar explícitamente loader/skeleton → results cuando llegan datos
-          if (['loader','skeleton','idle'].includes(uxPhaseRef.current)) {
-            uxPhaseRef.current = 'results';
-            setUxPhase('results');
-          }
-          setProgress(100);
-
           console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items, total items: ${items.length + normalized.length}`);
           console.log(`📊 Availability mode: ${hasAvailabilityFilter}, session: ${data.availabilitySession?.slice(0, 12)}...`);
           console.log(`📝 Partial: ${data.partial}, HasMore: ${data.hasMore}, NextCursor: ${data.nextCursor}`);
@@ -1173,13 +1152,13 @@ useEffect(() => {
 
   // Mostrar 12 skeletons mientras no haya items reales:
   // - durante 'loader' siempre
-  // Skeletons durante carga inicial (idle), loader, skeleton, y gap de React batching
+  // - durante 'skeleton' sin items aún
+  // - en cualquier fase activa donde items fue limpiado (gap de batching de React)
   const EMPTY_SLOTS = Array.from({ length: 12 }, (): null => null);
-  // Durante loader/skeleton: siempre skeletons (cubre items viejos en memoria)
-  const showSkeletons = uxPhase === 'loader' || uxPhase === 'skeleton' || (uxPhase === 'idle' && items.length === 0);
-  // slots se usa para el revelado progresivo; si todos son null aún, usar EMPTY_SLOTS
-  const slotsAreEmpty = slots.length > 0 && slots.every(s => s === null);
-  const renderList = (showSkeletons || slotsAreEmpty) ? EMPTY_SLOTS : slots;
+  const noItemsYet = items.length === 0 && uxPhase !== 'idle';
+  const renderList = (uxPhase === 'loader' || noItemsYet)
+    ? EMPTY_SLOTS
+    : currentPage === 1 ? slots : items;
 
   const showNextButton = hasAvailabilityFilter
     ? items.length === ITEMS_PER_PAGE || currentPage < totalPages
@@ -1261,34 +1240,6 @@ useEffect(() => {
         />
 
         <main className="w-full px-4 md:px-8">
-          {/* Shimmer styles */}
-          <style>{`
-            @keyframes shimmer {
-              0%   { transform: translateX(-100%); }
-              100% { transform: translateX(100%); }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              .skeleton-shimmer::after { animation: none !important; }
-            }
-            .skeleton-shimmer {
-              position: relative;
-              overflow: hidden;
-              background-color: #e8e8e8 !important;
-            }
-            .skeleton-shimmer::after {
-              content: '';
-              position: absolute;
-              inset: 0;
-              background: linear-gradient(
-                90deg,
-                transparent 0%,
-                rgba(255,255,255,0.6) 50%,
-                transparent 100%
-              );
-              animation: shimmer 1.5s ease-in-out infinite;
-            }
-          `}</style>
-
           {/* SearchLoader como overlay encima del grid — no oculta el skeleton */}
           {uxPhase === 'loader' && (<SearchLoader progress={progress} />)}
 
@@ -1318,49 +1269,33 @@ useEffect(() => {
             })}
           </div>
 
-          {/* Empty state — búsqueda terminó sin resultados, solo ExpansionButton */}
-          {uxPhase === 'results' && items.length === 0 && (
-            <div className="pt-10 lg:pt-[290px] md:pt-[360px] flex flex-col items-center justify-center">
-              <ExpansionButton
-                resultsCount={0}
-                onClick={() => setShowExpansionModal(true)}
-              />
-            </div>
-          )}
+          {/* Botón de expansión cuando hay pocos resultados */}
+          <ExpansionButton
+            resultsCount={total}
+            onClick={() => {
+              setShowExpansionModal(true);
 
-          {/* Botón de expansión y paginación — solo cuando hay resultados reales */}
-          {uxPhase === 'results' && items.length > 0 && <>
-            <ExpansionButton
-              resultsCount={total}
-              onClick={() => {
-                setShowExpansionModal(true);
+              // Tracking GTM
+              if (window.dataLayer) {
+                window.dataLayer.push({
+                  event: 'expansion_button_clicked',
+                  results_count: total,
+                  location: appliedFilters.selectedDestination || appliedFilters.query,
+                });
+              }
+            }}
+          />
 
-                // Tracking GTM
-                if (window.dataLayer) {
-                  window.dataLayer.push({
-                    event: 'expansion_button_clicked',
-                    results_count: total,
-                    location: appliedFilters.selectedDestination || appliedFilters.query,
-                  });
-                }
-              }}
-            />
-
-            <PaginationControls
-              currentPage={currentPage}
-              totalPages={totalPages}
-              hasAvailabilityFilter={hasAvailabilityFilter}
-              showNextButton={showNextButton}
-              onPageChange={(newPage: number) => {
-                filterChangedRef.current = true;
-                startSearchUx();
-                setItems([]);
-                setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-                setCurrentPage(newPage);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
-          </>}
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            hasAvailabilityFilter={hasAvailabilityFilter}
+            showNextButton={showNextButton}
+            onPageChange={(newPage: number) => {
+              setCurrentPage(newPage);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
         </main>
 
         <CartSidebar />
