@@ -1214,7 +1214,7 @@ useEffect(() => {
           bedrooms={filters.bedrooms}
           setBedrooms={(bedrooms) => setFilters(prev => ({ ...prev, bedrooms }))}
           //bathrooms={filters.bathrooms}
-          setBathrooms={(bathrooms) => setFilters(prev => ({ ...prev, bathrooms }))}
+          //setBathrooms={(bathrooms) => setFilters(prev => ({ ...prev, bathrooms }))}
           minPrice={filters.minPrice}
           setMinPrice={(minPrice) => setFilters(prev => ({ ...prev, minPrice }))}
           maxPrice={filters.maxPrice}
