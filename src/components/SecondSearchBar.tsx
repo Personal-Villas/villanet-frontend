@@ -1328,11 +1328,12 @@ export default function PropertiesHeaderCompact({
     <>
       {/* DESKTOP */}
       <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
-        <div className="h-[72px]">
+        <div className="h-[80px]">
           <div className="container mx-auto px-6 h-full flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm flex-wrap">
-              <h1 className="text-xl font-semibold text-foreground">
-                {itemsCount} Villas in {location}
+              <h1 className="text-xl font-semibold text-foreground flex items-baseline gap-1 min-w-0">
+                <span className="whitespace-nowrap">{itemsCount} Villas in</span>
+                <span className="truncate max-w-[260px]" title={location}>{location}</span>
               </h1>
               <span className="text-muted-foreground">•</span>
 

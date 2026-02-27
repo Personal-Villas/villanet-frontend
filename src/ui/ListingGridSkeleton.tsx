@@ -1,61 +1,102 @@
-export function ListingGridSkeleton({
-  count = 12,
-  variant = 'grid',
-}: {
-  count?: number;
-  variant?: 'grid' | 'card';
-}) {
-  const Card = () => (
-    <div className="border border-border rounded-lg overflow-hidden bg-card">
-      {/* Image */}
-      <div className="relative aspect-[4/3] bg-muted animate-pulse">
-        {/* Top badges placeholders (mismo lugar que tu card real) */}
-        <div className="absolute top-3 left-3 right-3 flex justify-between gap-2">
-          <div className="h-6 w-28 rounded-full bg-muted/80 border border-border" />
-          <div className="h-6 w-12 rounded-full bg-muted/80 border border-border" />
-        </div>
+// Estilos del shimmer — definidos una sola vez aquí, compartidos por todas las cards
+const SHIMMER_STYLES = `
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer { animation: none !important; }
+  }
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      #ebebeb 25%,
+      #d6d6d6 50%,
+      #ebebeb 75%
+    );
+    background-size: 800px 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+  @media (prefers-color-scheme: dark) {
+    .skeleton-shimmer {
+      background: linear-gradient(
+        90deg,
+        #ebebeb 25%,
+        #d6d6d6 50%,
+        #ebebeb 75%
+      );
+      background-size: 800px 100%;
+    }
+  }
+`;
 
-        {/* Counter placeholder */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 h-5 w-16 rounded-full bg-muted/80" />
+function SkeletonCard() {
+  return (
+    <div
+      className="border border-border rounded-lg overflow-hidden bg-card"
+      role="status"
+      aria-label="Loading property..."
+      aria-busy="true"
+    >
+      {/* Image — aspect-ratio reserva el espacio para evitar reflow (CA3) */}
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <div className="skeleton-shimmer absolute inset-0" />
       </div>
 
-      {/* Body */}
       <div className="p-4 space-y-3">
-        <div className="h-5 w-2/3 bg-muted animate-pulse rounded" />
-        <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
+        <div className="skeleton-shimmer h-5 w-2/3 rounded" />
+        <div className="skeleton-shimmer h-4 w-1/2 rounded" />
+
+        <div className="flex gap-3 pt-1">
+          <div className="skeleton-shimmer h-4 w-12 rounded" />
+          <div className="skeleton-shimmer h-4 w-12 rounded" />
+          <div className="skeleton-shimmer h-4 w-20 rounded" />
+        </div>
 
         <div className="pt-2 border-t border-border" />
 
-        <div className="flex gap-3">
-          <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-          <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-          <div className="h-4 w-24 bg-muted animate-pulse rounded" />
-        </div>
+        <div className="skeleton-shimmer h-4 w-1/3 rounded" />
 
-        {/* Trust row */}
-        <div className="h-4 w-2/3 bg-muted animate-pulse rounded" />
-
-        {/* Buttons row (3 botones como tu card real) */}
         <div className="flex gap-2 pt-1">
-          <div className="h-9 flex-1 bg-muted animate-pulse rounded-md" />
-          <div className="h-9 w-28 bg-muted animate-pulse rounded-md" />
-          <div className="h-9 w-24 bg-muted animate-pulse rounded-md" />
+          <div className="skeleton-shimmer h-9 flex-1 rounded-md" />
+          <div className="skeleton-shimmer h-9 w-24 rounded-md" />
+          <div className="skeleton-shimmer h-9 w-20 rounded-md" />
         </div>
       </div>
     </div>
   );
+}
 
-  // ✅ “card”: unitario (para slots)
-  if (variant === 'card') return <Card />;
+export function ListingGridSkeleton({
+  count = 12,
+  variant = 'grid',
+  className,
+}: {
+  count?: number;
+  variant?: 'grid' | 'card';
+  className?: string;
+}) {
+  if (variant === 'card') {
+    return (
+      <>
+        <style>{SHIMMER_STYLES}</style>
+        <SkeletonCard />
+      </>
+    );
+  }
 
-  // ✅ “grid”: para estado skeleton completo (12 cards)
   return (
-    <div className="pt-10 md:pt-[260px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i}>
-          <Card />
-        </div>
-      ))}
-    </div>
+    <>
+      <style>{SHIMMER_STYLES}</style>
+      <div
+        className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${className ?? 'pt-10 md:pt-[260px]'}`}
+        aria-label={`Loading ${count} properties...`}
+        aria-busy="true"
+      >
+        {Array.from({ length: count }).map((_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </div>
+    </>
   );
 }
