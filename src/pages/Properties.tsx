@@ -17,6 +17,7 @@ import { SearchLoader } from '../components/SearchLoader';
 import ExpansionButton from '../components/ExpansionButton';
 import ExpansionModal from '../components/ExpansionModal';
 import { initPerformanceMetrics } from '../services/imageUtils';
+import { normalizePropertyName } from '../utils/normalizePropertyName';
 
 
 type Listing = {
@@ -127,7 +128,7 @@ const Info = ({ className }: { className?: string }) => (
 
 // 🔥 UX progressive loading
 type UxPhase = 'idle' | 'loader' | 'skeleton' | 'results';
-const MIN_LOADER_MS = 3000
+const MIN_LOADER_MS = 1200; // Loader visible mínimo 1.2s
 
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
@@ -936,11 +937,8 @@ useEffect(() => {
                 : Number(item.priceUSD);
 
             const rawName = item.name || '';
-            const cleanedName = rawName.replace(
-                  /(\s*[-–—]?\s*\d+(\.\d+)?\s*BR)\s*$/i,
-                  ''
-                ).trim();
-              
+            const cleanedName = normalizePropertyName(rawName);
+            
             return {
               ...item,
               name: cleanedName,   
