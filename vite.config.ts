@@ -12,7 +12,8 @@ export default defineConfig({
     allowedHosts: [
       'thevillanet.com',
       'www.thevillanet.com',
-      'villanet-frontend.onrender.com'
+      'villanet-frontend.onrender.com',
+      'villanet-frontend-dev.onrender.com'
     ]
   }
 })
