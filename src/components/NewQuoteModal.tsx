@@ -3,156 +3,85 @@ import { useQuotePreload, type PreloadFilters } from '../context/QuotePreloadCon
 import ReactDOM from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { QuoteLoader } from './QuoteLoader';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface QuoteData {
   budget: number;
+  budgetFlexible: boolean; // show options up to 20% above budget
   adults: number;
   children: number;
   infants: number;
-  destinations: string[];
-  datesFlexible: boolean;
+  destination: string;
   checkIn: string;
   checkOut: string;
-  flexibleRange: string;
   bedrooms: number | null;
 }
 
 const INITIAL: QuoteData = {
   budget: 15000,
+  budgetFlexible: false,
   adults: 2,
   children: 0,
   infants: 0,
-  destinations: [],
-  datesFlexible: false,
+  destination: '',
   checkIn: '',
   checkOut: '',
-  flexibleRange: '',
   bedrooms: null,
 };
 
 // ── Destinations data ─────────────────────────────────────────────────────────
-// Cada destino tiene: code (único, para lógica), label (2-3 chars para el chip), name (display)
-const CARIBBEAN: { code: string; label: string; name: string }[] = [
-  { code: 'AI',    label: 'AI',  name: 'Anguilla' },
-  { code: 'BS',    label: 'BS',  name: 'Bahamas' },
-  { code: 'BB',    label: 'BB',  name: 'Barbados' },
-  { code: 'VG',    label: 'VG',  name: 'British Virgin Islands' },
-  { code: 'DO-CC', label: 'DO',  name: 'Cap Cana, Dominican Republic' },
-  { code: 'DO-CDC',label: 'DO',  name: 'Casa de Campo, Dominican Republic' },
-  { code: 'KY',    label: 'KY',  name: 'Cayman Islands' },
-  { code: 'JM',    label: 'JM',  name: 'Jamaica' },
-  { code: 'DO-PC', label: 'DO',  name: 'Punta Cana, Dominican Republic' },
-  { code: 'STBARTS',label: 'FR', name: 'St. Barts' },
-  { code: 'MF',    label: 'MF',  name: 'St. Martin / St. Maarten' },
-  { code: 'TC',    label: 'TC',  name: 'Turks & Caicos' },
+const CARIBBEAN: { code: string; name: string }[] = [
+  { code: 'STBARTS',  name: 'St. Barthélemy (St. Barts)' },
+  { code: 'TC',       name: 'Turks & Caicos' },
+  { code: 'MF',       name: 'St. Martin / St. Maarten' },
+  { code: 'BB',       name: 'Barbados' },
+  { code: 'JM',       name: 'Jamaica' },
+  { code: 'VG',       name: 'British Virgin Islands' },
+  { code: 'DO-CDC',   name: 'Casa de Campo, Dominican Republic' },
+  { code: 'DO-PC',    name: 'Punta Cana, Dominican Republic' },
+  { code: 'DO-CC',    name: 'Cap Cana, Dominican Republic' },
+  { code: 'KY',       name: 'Cayman Islands' },
+  { code: 'BS',       name: 'Bahamas' },
+  { code: 'AI',       name: 'Anguilla' },
 ];
 
-const CARIBBEAN_SOON: { code: string; label: string; name: string }[] = [
-  { code: 'AG',   label: 'AG', name: 'Antigua' },
-  { code: 'DM',   label: 'DM', name: 'Dominica' },
-  { code: 'GD',   label: 'GD', name: 'Grenada' },
-  { code: 'NEVIS',label: 'KN', name: 'Nevis' },
-  { code: 'PR',   label: 'PR', name: 'Puerto Rico' },
-  { code: 'KITTS',label: 'KN', name: 'St. Kitts' },
-  { code: 'LC',   label: 'LC', name: 'St. Lucia' },
+const MEXICO: { code: string; name: string }[] = [
+  { code: 'MX-PTM',  name: 'Punta Mita, Mexico' },
+  { code: 'MX-PVR',  name: 'Puerto Vallarta, Mexico' },
+  { code: 'MX-RMY',  name: 'Riviera Maya, Mexico' },
 ];
 
-const MEXICO: { code: string; label: string; name: string }[] = [
-  { code: 'MX-PVR', label: 'MX', name: 'Puerto Vallarta' },
-  { code: 'MX-PTM', label: 'MX', name: 'Punta Mita' },
-  { code: 'MX-RMY', label: 'MX', name: 'Riviera Maya' },
-  { code: 'MX-ZIH', label: 'MX', name: 'Zihuatanejo' },
-];
+// Código → nombre para el API / Properties
+const DEST_CODE_TO_NAME: Record<string, string> = {
+  'AI':      'Anguilla',
+  'BS':      'Bahamas',
+  'BB':      'Barbados',
+  'VG':      'British Virgin Islands',
+  'DO-CC':   'Cap Cana, Dominican Republic',
+  'DO-CDC':  'Casa de Campo, Dominican Republic',
+  'DO-PC':   'Punta Cana, Dominican Republic',
+  'KY':      'Cayman Islands',
+  'JM':      'Jamaica',
+  'STBARTS': 'St. Barts',
+  'MF':      'St. Martin / St. Maarten',
+  'TC':      'Turks & Caicos',
+  'MX-PVR':  'Puerto Vallarta, Mexico',
+  'MX-PTM':  'Punta Mita, Mexico',
+  'MX-RMY':  'Riviera Maya, Mexico',
+  'MX-ZIH':  'Zihuatanejo, Mexico',
+};
 
-const MEXICO_SOON: { code: string; label: string; name: string }[] = [
-  { code: 'MX-CAB', label: 'MX', name: 'Los Cabos' },
-  { code: 'MX-MZT', label: 'MX', name: 'Mazatlán' },
-  { code: 'MX-HUA', label: 'MX', name: 'Huatulco' },
-  { code: 'MX-IXT', label: 'MX', name: 'Ixtapa' },
-];
+const BEDROOM_OPTIONS = [3, 4, 5, 6, 7, 8, 9];
 
-const CENTRAL_AMERICA_SOON: { code: string; label: string; name: string }[] = [
-  { code: 'BZ', label: 'BZ', name: 'Belize' },
-  { code: 'CR', label: 'CR', name: 'Costa Rica' },
-  { code: 'HN', label: 'HN', name: 'Honduras (Roatan)' },
-  { code: 'PA', label: 'PA', name: 'Panama' },
-];
-
-const EUROPE_SOON: { code: string; label: string; name: string }[] = [
-  { code: 'EU-HR', label: 'HR', name: 'Croatia' },
-  { code: 'EU-GB', label: 'GB', name: 'England' },
-  { code: 'EU-FR', label: 'FR', name: 'France' },
-  { code: 'EU-GR', label: 'GR', name: 'Greece' },
-  { code: 'EU-IT', label: 'IT', name: 'Italy' },
-  { code: 'EU-PT', label: 'PT', name: 'Portugal' },
-  { code: 'EU-SCT',label: 'GB', name: 'Scotland' },
-  { code: 'EU-ES', label: 'ES', name: 'Spain' },
-  { code: 'EU-CH', label: 'CH', name: 'Switzerland' },
-];
-
-const BEDROOM_OPTIONS = [3, 4, 5, 6, 7, 8, '9+'];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-/**
- * Convierte texto de mes flexible a un rango de fechas concreto { checkIn, checkOut }.
- * Soporta: "April 2026", "Apr 2026", "April - May 2026", "April to May 2026".
- * Devuelve null si no puede parsear.
- */
-function parseFlexibleRange(range: string): { checkIn: string; checkOut: string } | null {
-  const trimmed = range.trim();
-  if (!trimmed) return null;
-
-  const MONTHS: Record<string, number> = {
-    january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-    july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
-    jan: 1, feb: 2, mar: 3, apr: 4, jun: 6, jul: 7, aug: 8,
-    sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
-  };
-
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const lastDay = (year: number, month: number) => new Date(year, month, 0).getDate();
-
-  // Rango: "April - May 2026" o "April to May 2026"
-  const rangeMatch = trimmed.match(/^([a-z]+)\s*(?:-|to)\s*([a-z]+)\s+(\d{4})$/i);
-  if (rangeMatch) {
-    const m1 = MONTHS[rangeMatch[1].toLowerCase()];
-    const m2 = MONTHS[rangeMatch[2].toLowerCase()];
-    const year = parseInt(rangeMatch[3]);
-    if (m1 && m2 && year) {
-      return {
-        checkIn: `${year}-${pad(m1)}-01`,
-        checkOut: `${year}-${pad(m2)}-${pad(lastDay(year, m2))}`,
-      };
-    }
-  }
-
-  // Mes simple: "April 2026"
-  const singleMatch = trimmed.match(/^([a-z]+)\s+(\d{4})$/i);
-  if (singleMatch) {
-    const m = MONTHS[singleMatch[1].toLowerCase()];
-    const year = parseInt(singleMatch[2]);
-    if (m && year) {
-      return {
-        checkIn: `${year}-${pad(m)}-01`,
-        checkOut: `${year}-${pad(m)}-${pad(lastDay(year, m))}`,
-      };
-    }
-  }
-
-  return null;
-}
-
+// ── Budget helpers ────────────────────────────────────────────────────────────
 const formatBudget = (n: number) =>
-  n >= 100000
-    ? '$100,000+'
-    : `$${n.toLocaleString()}`;
+  n >= 100000 ? '$100,000+' : `$${n.toLocaleString()}`;
 
-const BUDGET_MIN = 1000;
+const BUDGET_MIN = 3000;
 const BUDGET_MAX = 100000;
 
 function budgetToSlider(value: number): number {
-  // Logarithmic scale
   const minLog = Math.log(BUDGET_MIN);
   const maxLog = Math.log(BUDGET_MAX);
   return ((Math.log(Math.min(value, BUDGET_MAX)) - minLog) / (maxLog - minLog)) * 100;
@@ -162,11 +91,134 @@ function sliderToBudget(pct: number): number {
   const minLog = Math.log(BUDGET_MIN);
   const maxLog = Math.log(BUDGET_MAX);
   const raw = Math.exp(minLog + (pct / 100) * (maxLog - minLog));
-  // Snap to nice increments
-  if (raw < 5000) return Math.round(raw / 500) * 500;
+  if (raw < 5000)  return Math.round(raw / 500) * 500;
   if (raw < 20000) return Math.round(raw / 1000) * 1000;
   if (raw < 50000) return Math.round(raw / 2500) * 2500;
   return Math.round(raw / 5000) * 5000;
+}
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function toDateStr(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+// ── Calendar Component ────────────────────────────────────────────────────────
+function Calendar({
+  checkIn,
+  checkOut,
+  onSelect,
+}: {
+  checkIn: string;
+  checkOut: string;
+  onSelect: (date: string) => void;
+}) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-based
+
+  const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const MONTH_NAMES = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December',
+  ];
+  const DAY_HEADERS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  };
+
+  const cells: (number | null)[] = [
+    ...Array(firstDayOfWeek).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div className="bg-white border border-neutral-200 rounded-2xl p-4 w-full max-w-[340px]">
+      {/* Month nav */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={prevMonth}
+          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <span className="text-sm font-semibold text-neutral-900">
+          {MONTH_NAMES[viewMonth]} {viewYear}
+        </span>
+        <button
+          onClick={nextMonth}
+          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-neutral-100 transition-colors"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-7 mb-1">
+        {DAY_HEADERS.map(d => (
+          <div key={d} className="text-[11px] text-neutral-400 text-center font-medium py-1">{d}</div>
+        ))}
+      </div>
+
+      {/* Days */}
+      <div className="grid grid-cols-7 gap-y-0.5">
+        {cells.map((day, idx) => {
+          if (!day) return <div key={idx} />;
+          const dateStr = toDateStr(viewYear, viewMonth, day);
+          const isPast = dateStr < todayStr;
+          const isToday = dateStr === todayStr;
+          const isStart = dateStr === checkIn;
+          const isEnd = dateStr === checkOut;
+          const inRange = checkIn && checkOut && dateStr > checkIn && dateStr < checkOut;
+
+          let cellClass = 'relative h-8 w-full text-[13px] font-medium transition-colors ';
+          if (isPast) {
+            cellClass += 'text-neutral-300 cursor-not-allowed ';
+          } else if (isStart || isEnd) {
+            cellClass += 'bg-neutral-900 text-white rounded-full ';
+          } else if (inRange) {
+            cellClass += 'bg-neutral-100 text-neutral-800 rounded-none ';
+          } else if (isToday) {
+            cellClass += 'text-neutral-500 font-bold hover:bg-neutral-100 rounded-full cursor-pointer ';
+          } else {
+            cellClass += 'text-neutral-800 hover:bg-neutral-100 rounded-full cursor-pointer ';
+          }
+
+          return (
+            <button
+              key={idx}
+              onClick={() => !isPast && onSelect(dateStr)}
+              disabled={isPast}
+              className={cellClass}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ── Progress bar ──────────────────────────────────────────────────────────────
@@ -188,6 +240,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 function Counter({
   label,
   sublabel,
+  note,
   value,
   onDec,
   onInc,
@@ -195,18 +248,20 @@ function Counter({
 }: {
   label: string;
   sublabel?: string;
+  note?: string;
   value: number;
   onDec: () => void;
   onInc: () => void;
   min?: number;
 }) {
   return (
-    <div className="flex items-center justify-between py-4 border-b border-neutral-100 last:border-0">
+    <div className="flex items-start justify-between py-5 border-b border-neutral-100 last:border-0">
       <div>
         <p className="text-base font-medium text-neutral-900">{label}</p>
         {sublabel && <p className="text-sm text-neutral-400 mt-0.5">{sublabel}</p>}
+        {note && <p className="text-xs text-neutral-400 mt-1 italic">{note}</p>}
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 mt-1">
         <button
           onClick={onDec}
           disabled={value <= min}
@@ -226,6 +281,32 @@ function Counter({
   );
 }
 
+// ── Toggle ────────────────────────────────────────────────────────────────────
+function Toggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      className="flex items-center gap-3 group"
+      type="button"
+    >
+      <div className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${checked ? 'bg-neutral-900' : 'bg-neutral-200'}`}>
+        <span
+          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+        />
+      </div>
+      <span className="text-sm text-neutral-600 group-hover:text-neutral-900 transition-colors text-left">{label}</span>
+    </button>
+  );
+}
+
 // ── Main Modal ────────────────────────────────────────────────────────────────
 export function NewQuoteModal() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -233,9 +314,24 @@ export function NewQuoteModal() {
   const isOpen = searchParams.get('quoteFlow') === 'true';
   const { triggerPreload } = useQuotePreload();
 
-  // -1 = intro screen, 0-4 = steps 1-5
+  // Step order:
+  //   screen -1 = intro
+  //   screen  0 = Step 1/5 Dates
+  //   screen  1 = Step 2/5 Budget
+  //   screen  2 = Step 3/5 Guests
+  //   screen  3 = Step 4/5 Bedrooms
+  //   screen  4 = Step 5/5 Destinations
   const [screen, setScreen] = useState<-1 | 0 | 1 | 2 | 3 | 4>(-1);
   const [data, setData] = useState<QuoteData>(INITIAL);
+
+  // Loader shown after "Generate Quote" while Properties loads
+  const [showLoader, setShowLoader] = useState(false);
+  // Pending navigation URL — we navigate once the loader finishes
+  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+
+  // Calendar state
+  const [calendarTarget, setCalendarTarget] = useState<'checkIn' | 'checkOut'>('checkIn');
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const TOTAL_STEPS = 5;
 
@@ -245,9 +341,10 @@ export function NewQuoteModal() {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
-      // Reset on close
       setScreen(-1);
       setData(INITIAL);
+      setShowCalendar(false);
+      setCalendarTarget('checkIn');
     }
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
@@ -265,63 +362,57 @@ export function NewQuoteModal() {
     return () => document.removeEventListener('keydown', handler);
   }, [close]);
 
-  // Preload en background cada vez que el usuario avanza un step
-  // Solo disparar a partir del step 1 (cuando ya hay algo útil que filtrar)
+  // Background preload — fires whenever user advances a step
   useEffect(() => {
     if (!isOpen || screen < 0) return;
 
-    const DEST_CODE_TO_NAME_PRELOAD: Record<string, string> = {
-      'AI': 'Anguilla', 'BS': 'Bahamas', 'BB': 'Barbados',
-      'VG': 'British Virgin Islands', 'DO-CC': 'Cap Cana, Dominican Republic',
-      'DO-CDC': 'Casa de Campo, Dominican Republic', 'DO-PC': 'Punta Cana, Dominican Republic',
-      'KY': 'Cayman Islands', 'JM': 'Jamaica', 'STBARTS': 'St. Barts',
-      'MF': 'St. Martin / St. Maarten', 'TC': 'Turks & Caicos',
-      'MX-PVR': 'Puerto Vallarta, Mexico', 'MX-PTM': 'Punta Mita, Mexico',
-      'MX-RMY': 'Riviera Maya, Mexico', 'MX-ZIH': 'Zihuatanejo, Mexico',
-    };
-
     const preloadFilters: PreloadFilters = {};
 
-    // Budget
-    if (data.budget < 100_000) preloadFilters.maxPrice = data.budget;
+    // Dates available from step 0 onward
+    if (data.checkIn && data.checkOut) {
+      preloadFilters.checkIn  = data.checkIn;
+      preloadFilters.checkOut = data.checkOut;
+    }
 
-    // Guests (desde step 2)
-    if (screen >= 1) {
-      const total = data.adults + data.children + data.infants;
+    // Budget from step 1 — divide by nights to get per-night price
+    if (screen >= 1 && data.budget < 100_000) {
+      const totalBudget = data.budgetFlexible
+        ? Math.round(data.budget * 1.2)
+        : data.budget;
+      const nights = (data.checkIn && data.checkOut)
+        ? Math.round(
+            (new Date(data.checkOut).getTime() - new Date(data.checkIn).getTime())
+            / 86400000
+          )
+        : 0;
+      preloadFilters.maxPrice = nights > 0
+        ? Math.round(totalBudget / nights)
+        : totalBudget;
+    }
+
+    // Guests from step 2 — infants do NOT count
+    if (screen >= 2) {
+      const total = data.adults + data.children;
       if (total > 0) preloadFilters.guests = total;
     }
 
-    // Destination (desde step 3)
-    if (screen >= 2 && data.destinations.length > 0 && !data.destinations.includes('OPEN')) {
-      const mapped = DEST_CODE_TO_NAME_PRELOAD[data.destinations[0]];
-      if (mapped) preloadFilters.destination = mapped;
-    }
-
-    // Dates (desde step 4)
-    if (screen >= 3) {
-      if (data.datesFlexible && data.flexibleRange) {
-        const parsed = parseFlexibleRange(data.flexibleRange);
-        if (parsed) {
-          preloadFilters.checkIn  = parsed.checkIn;
-          preloadFilters.checkOut = parsed.checkOut;
-        }
-      } else if (data.checkIn && data.checkOut) {
-        preloadFilters.checkIn  = data.checkIn;
-        preloadFilters.checkOut = data.checkOut;
-      }
-    }
-
-    // Bedrooms (step 5)
-    if (screen >= 4 && data.bedrooms) {
+    // Bedrooms from step 3
+    if (screen >= 3 && data.bedrooms) {
       preloadFilters.bedrooms = data.bedrooms;
+    }
+
+    // Destinations from step 4 — single selection
+    if (screen >= 4 && data.destination) {
+      const mapped = DEST_CODE_TO_NAME[data.destination];
+      if (mapped) preloadFilters.destination = mapped;
     }
 
     triggerPreload(preloadFilters);
   }, [isOpen, screen, data, triggerPreload]);
 
   const goNext = () => {
-    if (screen === -1) setScreen(0);
-    else if (screen < 4) setScreen((s) => (s + 1) as any);
+    if (screen === -1) { setScreen(0); return; }
+    if (screen < 4) setScreen((s) => (s + 1) as any);
     else handleFinish();
   };
 
@@ -330,83 +421,101 @@ export function NewQuoteModal() {
     else if (screen > 0) setScreen((s) => (s - 1) as any);
   };
 
-  const handleFinish = () => {
-    const DEST_CODE_TO_NAME: Record<string, string> = {
-      'AI':      'Anguilla',
-      'BS':      'Bahamas',
-      'BB':      'Barbados',
-      'VG':      'British Virgin Islands',
-      'DO-CC':   'Cap Cana, Dominican Republic',
-      'DO-CDC':  'Casa de Campo, Dominican Republic',
-      'DO-PC':   'Punta Cana, Dominican Republic',
-      'KY':      'Cayman Islands',
-      'JM':      'Jamaica',
-      'STBARTS': 'St. Barts',
-      'MF':      'St. Martin / St. Maarten',
-      'TC':      'Turks & Caicos',
-      'MX-PVR':  'Puerto Vallarta, Mexico',
-      'MX-PTM':  'Punta Mita, Mexico',
-      'MX-RMY':  'Riviera Maya, Mexico',
-      'MX-ZIH':  'Zihuatanejo, Mexico',
-    };
+  // Calendar selection logic
+  const handleCalendarSelect = (dateStr: string) => {
+    if (calendarTarget === 'checkIn') {
+      if (data.checkOut && dateStr >= data.checkOut) {
+        setData(d => ({ ...d, checkIn: dateStr, checkOut: '' }));
+      } else {
+        setData(d => ({ ...d, checkIn: dateStr }));
+      }
+      setCalendarTarget('checkOut');
+    } else {
+      if (dateStr <= data.checkIn) {
+        // Clicked before checkIn → restart
+        setData(d => ({ ...d, checkIn: dateStr, checkOut: '' }));
+        setCalendarTarget('checkOut');
+      } else {
+        setData(d => ({ ...d, checkOut: dateStr }));
+        setShowCalendar(false);
+        setCalendarTarget('checkIn');
+      }
+    }
+  };
 
+  const handleFinish = () => {
     const params = new URLSearchParams();
 
-    // Budget → maxPrice (ignorar si está en el tope de $100k+)
+    // Nights from selected dates
+    const nights = (data.checkIn && data.checkOut)
+      ? Math.round(
+          (new Date(data.checkOut).getTime() - new Date(data.checkIn).getTime())
+          / 86400000
+        )
+      : 0;
+
+    // Budget: user enters TOTAL stay budget — backend filters by price_usd (per night)
     if (data.budget && data.budget < 100000) {
-      params.set('maxPrice', String(data.budget));
+      const totalBudget = data.budgetFlexible
+        ? Math.round(data.budget * 1.2)
+        : data.budget;
+      const perNightBudget = nights > 0
+        ? Math.round(totalBudget / nights)
+        : totalBudget;
+      params.set('maxPrice', String(perNightBudget));
     }
 
     // Bedrooms
-    if (data.bedrooms) {
-      params.set('bedrooms', String(data.bedrooms));
+    if (data.bedrooms) params.set('bedrooms', String(data.bedrooms));
+
+    // Destination — single selection
+    if (data.destination) {
+      const destName = DEST_CODE_TO_NAME[data.destination];
+      if (destName) params.set('destination', destName);
     }
 
-    // Destinations: mapear códigos a nombres que entiende Properties
-    // Si es "Open to Suggestions" no se aplica filtro de destino → se muestran todas las propiedades
-    if (data.destinations.length && !data.destinations.includes('OPEN')) {
-      const mappedNames = data.destinations
-        .map(code => DEST_CODE_TO_NAME[code])
-        .filter(Boolean);
-      if (mappedNames.length >= 1) {
-        params.set('destination', mappedNames[0]);
-      }
-    }
+    // Dates
+    if (data.checkIn)  params.set('checkIn',  data.checkIn);
+    if (data.checkOut) params.set('checkOut', data.checkOut);
 
-    // Fechas: si son flexibles convertir el texto a rango concreto YYYY-MM-DD
-    if (data.datesFlexible && data.flexibleRange) {
-      const parsed = parseFlexibleRange(data.flexibleRange);
-      if (parsed) {
-        params.set('checkIn', parsed.checkIn);
-        params.set('checkOut', parsed.checkOut);
-        params.set('flexibleRange', data.flexibleRange);
-      }
-    } else {
-      if (data.checkIn) params.set('checkIn', data.checkIn);
-      if (data.checkOut) params.set('checkOut', data.checkOut);
-    }
-
-    // Guests
-    const totalGuests = data.adults + data.children + data.infants;
+    // Guests — infants do NOT count toward occupancy
+    const totalGuests = data.adults + data.children;
     if (totalGuests > 0) params.set('guests', String(totalGuests));
 
-    // Flag para que Properties aplique estos filtros reactivamente
     params.set('fromQuote', 'true');
 
-    navigate(`/properties?${params.toString()}`);
+    // Show loader, then navigate once it completes
+    const url = `/properties?${params.toString()}`;
+    setPendingUrl(url);
+    setShowLoader(true);
   };
 
-  const canContinue = () => {
-    if (screen === 2) return data.destinations.length > 0;
-    if (screen === 3 && !data.datesFlexible) return !!(data.checkIn && data.checkOut);
+  const handleLoaderDone = useCallback(() => {
+    if (pendingUrl) {
+      navigate(pendingUrl);
+    }
+    setShowLoader(false);
+    setPendingUrl(null);
+  }, [pendingUrl, navigate]);
+
+  const canContinue = (): boolean => {
+    if (screen === 0) return !!(data.checkIn && data.checkOut); // Dates required
+    if (screen === 4) return data.destination !== '';            // One dest selected
     return true;
   };
 
   if (!isOpen) return null;
 
+  // Show full-screen loader (portal) while navigating to Properties
+  if (showLoader) {
+    return ReactDOM.createPortal(
+      <QuoteLoader onDone={handleLoaderDone} minDuration={2800} />,
+      document.body
+    );
+  }
+
   const modalContent = (
     <div className="fixed inset-0 z-[100]" style={{ fontFamily: 'inherit' }}>
-      {/* Full-screen white overlay */}
       <div className="absolute inset-0 bg-white flex flex-col">
 
         {/* Header */}
@@ -422,7 +531,7 @@ export function NewQuoteModal() {
           </button>
         </div>
 
-        {/* Progress bar (only during steps) */}
+        {/* Progress bar top */}
         {screen >= 0 && (
           <div className="px-6 md:px-10 pt-3">
             <ProgressBar step={screen + 1} total={TOTAL_STEPS} />
@@ -445,7 +554,11 @@ export function NewQuoteModal() {
                   START
                 </button>
                 <button
-                  onClick={close}
+                  onClick={() => {
+                    localStorage.removeItem('searchFilters');
+                    close();
+                    navigate('/properties');
+                  }}
                   className="mt-4 text-sm text-neutral-400 hover:text-neutral-700 transition-colors underline underline-offset-2"
                 >
                   Browse All Villas
@@ -453,8 +566,79 @@ export function NewQuoteModal() {
               </div>
             )}
 
-            {/* ── STEP 1: Budget ─────────────────────────────────────────── */}
+            {/* ── STEP 1/5: Dates ───────────────────────────────────────── */}
             {screen === 0 && (
+              <div className="flex flex-col justify-center min-h-[55vh]">
+                <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-2">When are they traveling?</h2>
+                <p className="text-neutral-400 text-sm mb-8">We use travel dates to calculate accurate total stay pricing.</p>
+
+                {/* Date fields */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Check-in</label>
+                    <button
+                      onClick={() => { setCalendarTarget('checkIn'); setShowCalendar(true); }}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm text-left transition-colors ${
+                        data.checkIn
+                          ? 'border-neutral-900 text-neutral-900 font-medium'
+                          : 'border-neutral-200 text-neutral-400'
+                      }`}
+                    >
+                      {data.checkIn ? formatDateDisplay(data.checkIn) : 'Select date'}
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">Check-out</label>
+                    <button
+                      onClick={() => {
+                        if (!data.checkIn) {
+                          setCalendarTarget('checkIn');
+                        } else {
+                          setCalendarTarget('checkOut');
+                        }
+                        setShowCalendar(true);
+                      }}
+                      className={`w-full px-4 py-3 border rounded-xl text-sm text-left transition-colors ${
+                        data.checkOut
+                          ? 'border-neutral-900 text-neutral-900 font-medium'
+                          : 'border-neutral-200 text-neutral-400'
+                      }`}
+                    >
+                      {data.checkOut ? formatDateDisplay(data.checkOut) : 'Select date'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Calendar picker */}
+                {showCalendar && (
+                  <div>
+                    <p className="text-xs text-neutral-500 mb-3">
+                      {calendarTarget === 'checkIn' ? 'Select check-in date' : 'Select check-out date'}
+                    </p>
+                    <Calendar
+                      checkIn={data.checkIn}
+                      checkOut={data.checkOut}
+                      onSelect={handleCalendarSelect}
+                    />
+                  </div>
+                )}
+
+                {/* Stay duration summary */}
+                {data.checkIn && data.checkOut && (
+                  <p className="mt-5 text-sm text-neutral-500">
+                    {(() => {
+                      const d1 = new Date(data.checkIn + 'T00:00:00');
+                      const d2 = new Date(data.checkOut + 'T00:00:00');
+                      const nights = Math.round((d2.getTime() - d1.getTime()) / 86400000);
+                      return `${nights} night${nights !== 1 ? 's' : ''} · ${formatDateDisplay(data.checkIn)} – ${formatDateDisplay(data.checkOut)}`;
+                    })()}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ── STEP 2/5: Budget ──────────────────────────────────────── */}
+            {screen === 1 && (
               <div className="flex flex-col justify-center min-h-[55vh]">
                 <div className="flex items-center gap-2 mb-2">
                   <h2 className="text-2xl md:text-3xl font-bold text-neutral-900">
@@ -468,7 +652,6 @@ export function NewQuoteModal() {
                   <span className="text-5xl font-bold text-neutral-900">{formatBudget(data.budget)}</span>
                 </div>
 
-                {/* Slider */}
                 <div className="mb-6">
                   <input
                     type="range"
@@ -481,12 +664,12 @@ export function NewQuoteModal() {
                     style={{ height: 4 }}
                   />
                   <div className="flex justify-between text-xs text-neutral-400 mt-2">
-                    <span>$1,000</span>
+                    <span>$3,000</span>
                     <span>$100,000+</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mb-6">
                   <span className="text-sm text-neutral-500 whitespace-nowrap">Or enter amount:</span>
                   <input
                     type="number"
@@ -500,18 +683,25 @@ export function NewQuoteModal() {
                     className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900"
                   />
                 </div>
+
+                <Toggle
+                  checked={data.budgetFlexible}
+                  onChange={v => setData(d => ({ ...d, budgetFlexible: v }))}
+                  label="Show options up to 20% above budget"
+                />
               </div>
             )}
 
-            {/* ── STEP 2: Guests ─────────────────────────────────────────── */}
-            {screen === 1 && (
+            {/* ── STEP 3/5: Guests ──────────────────────────────────────── */}
+            {screen === 2 && (
               <div className="flex flex-col justify-center min-h-[55vh]">
-                <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-10">How many guests?</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-10">How many guests will be traveling?</h2>
 
                 <div className="border border-neutral-100 rounded-2xl px-6 divide-y divide-neutral-100">
                   <Counter
                     label="Adults"
                     sublabel="Ages 13+"
+                    note="We recommend one bedroom per couple for optimal comfort."
                     value={data.adults}
                     min={1}
                     onDec={() => setData(d => ({ ...d, adults: Math.max(1, d.adults - 1) }))}
@@ -533,16 +723,53 @@ export function NewQuoteModal() {
                   />
                 </div>
 
-                <div className="mt-4 px-2 py-3 bg-neutral-50 rounded-xl text-center">
+                <p className="text-xs text-neutral-400 text-center mt-3 italic">
+                  Infants do not count toward occupancy limits.
+                </p>
+
+                <div className="mt-3 px-4 py-3 bg-neutral-50 rounded-xl text-center">
                   <span className="text-sm text-neutral-600">
-                    Total guests: <strong className="text-neutral-900">{data.adults + data.children + data.infants}</strong>
+                    Total occupancy:{' '}
+                    <strong className="text-neutral-900">{data.adults + data.children} guests</strong>
+                    {data.infants > 0 && (
+                      <span className="text-neutral-400">
+                        {' '}+ {data.infants} infant{data.infants > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 3: Destinations ───────────────────────────────────── */}
-            {screen === 2 && (
+            {/* ── STEP 4/5: Bedrooms ────────────────────────────────────── */}
+            {screen === 3 && (
+              <div className="flex flex-col justify-center min-h-[55vh]">
+                <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-8">Bedroom configuration required?</h2>
+
+                <div className="flex flex-wrap gap-3">
+                  {BEDROOM_OPTIONS.map(opt => {
+                    const selected = data.bedrooms === opt;
+                    const label = opt === 9 ? '9+' : `${opt}+`;
+                    return (
+                      <button
+                        key={opt}
+                        onClick={() => setData(d => ({ ...d, bedrooms: selected ? null : opt }))}
+                        className={`w-16 h-16 rounded-2xl border-2 text-base font-semibold transition-all ${
+                          selected
+                            ? 'border-neutral-900 bg-neutral-900 text-white'
+                            : 'border-neutral-200 text-neutral-700 hover:border-neutral-400'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP 5/5: Destinations ────────────────────────────────── */}
+            {screen === 4 && (
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-2">Where are they considering?</h2>
                 <p className="text-neutral-400 text-sm mb-8">Select a destination.</p>
@@ -554,31 +781,24 @@ export function NewQuoteModal() {
                     <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Caribbean</p>
                     <div className="grid grid-cols-2 gap-2">
                       {CARIBBEAN.map(dest => {
-                        const selected = data.destinations.includes(dest.code);
+                        const selected = data.destination === dest.code;
                         return (
                           <button
                             key={dest.code}
-                            onClick={() => setData(d => ({ ...d, destinations: selected ? [] : [dest.code] }))}
-                            className={`flex items-center gap-2 px-4 py-3 border rounded-xl text-sm text-left transition-all ${
+                            onClick={() => setData(d => ({
+                              ...d,
+                              destination: selected ? '' : dest.code,
+                            }))}
+                            className={`flex items-center px-4 py-3 border rounded-xl text-sm text-left transition-all ${
                               selected
                                 ? 'border-neutral-900 bg-neutral-900 text-white font-medium'
                                 : 'border-neutral-200 text-neutral-700 hover:border-neutral-400'
                             }`}
                           >
-                            <span className="text-xs font-bold opacity-50 w-6 flex-shrink-0">{dest.label}</span>
-                            <span>{dest.name}</span>
+                            {dest.name}
                           </button>
                         );
                       })}
-                      {CARIBBEAN_SOON.map(dest => (
-                        <button key={dest.code} disabled className="flex items-center gap-2 px-4 py-3 border border-neutral-100 rounded-xl text-sm text-left opacity-40 cursor-not-allowed">
-                          <span className="text-xs font-bold opacity-50 w-6 flex-shrink-0">{dest.label}</span>
-                          <div>
-                            <span className="block text-neutral-500">{dest.name}</span>
-                            <span className="block text-[10px] text-neutral-400">Coming soon</span>
-                          </div>
-                        </button>
-                      ))}
                     </div>
                   </div>
 
@@ -587,197 +807,44 @@ export function NewQuoteModal() {
                     <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Mexico</p>
                     <div className="grid grid-cols-2 gap-2">
                       {MEXICO.map(dest => {
-                        const selected = data.destinations.includes(dest.code);
+                        const selected = data.destination === dest.code;
                         return (
                           <button
                             key={dest.code}
-                            onClick={() => setData(d => ({ ...d, destinations: selected ? [] : [dest.code] }))}
-                            className={`flex items-center gap-2 px-4 py-3 border rounded-xl text-sm text-left transition-all ${
+                            onClick={() => setData(d => ({
+                              ...d,
+                              destination: selected ? '' : dest.code,
+                            }))}
+                            className={`flex items-center px-4 py-3 border rounded-xl text-sm text-left transition-all ${
                               selected
                                 ? 'border-neutral-900 bg-neutral-900 text-white font-medium'
                                 : 'border-neutral-200 text-neutral-700 hover:border-neutral-400'
                             }`}
                           >
-                            <span className="text-xs font-bold opacity-50 w-6 flex-shrink-0">MX</span>
-                            <span>{dest.name}</span>
+                            {dest.name}
                           </button>
                         );
                       })}
-                      {MEXICO_SOON.map(dest => (
-                        <button key={dest.code} disabled className="flex items-center gap-2 px-4 py-3 border border-neutral-100 rounded-xl text-sm text-left opacity-40 cursor-not-allowed">
-                          <span className="text-xs font-bold opacity-50 w-6 flex-shrink-0">MX</span>
-                          <div>
-                            <span className="block text-neutral-500">{dest.name}</span>
-                            <span className="block text-[10px] text-neutral-400">Coming soon</span>
-                          </div>
-                        </button>
-                      ))}
                     </div>
                   </div>
 
-                  {/* ── Central America ── */}
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Central America</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {CENTRAL_AMERICA_SOON.map(dest => (
-                        <button key={dest.code} disabled className="flex items-center gap-2 px-4 py-3 border border-neutral-100 rounded-xl text-sm text-left opacity-40 cursor-not-allowed">
-                          <span className="text-xs font-bold opacity-50 w-6 flex-shrink-0">{dest.label}</span>
-                          <div>
-                            <span className="block text-neutral-500">{dest.name}</span>
-                            <span className="block text-[10px] text-neutral-400">Coming soon</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                  {/* ── Looking outside ── */}
+                  <div className="pt-2 border-t border-neutral-100 text-center">
+                    <p className="text-sm text-neutral-400">Looking outside these destinations?</p>
+                    <p className="text-sm font-medium text-neutral-900 mt-0.5">→ Speak with our team</p>
                   </div>
-
-                  {/* ── Europe ── */}
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Europe</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {EUROPE_SOON.map(dest => (
-                        <button key={dest.code} disabled className="flex items-center gap-2 px-4 py-3 border border-neutral-100 rounded-xl text-sm text-left opacity-40 cursor-not-allowed">
-                          <span className="text-xs font-bold opacity-50 w-6 flex-shrink-0">{dest.label}</span>
-                          <div>
-                            <span className="block text-neutral-500">{dest.name}</span>
-                            <span className="block text-[10px] text-neutral-400">Coming soon</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* ── South America ── */}
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-1">South America</p>
-                    <p className="text-xs text-neutral-400 mb-3 italic">Limited offerings</p>
-                    <p className="text-xs text-neutral-400 mb-3">Contact us for options in this region.</p>
-                  </div>
-
-                  {/* ── Open to Suggestions ── */}
-                  <button
-                    onClick={() => setData(d => ({
-                      ...d,
-                      destinations: d.destinations.includes('OPEN') ? [] : ['OPEN'],
-                    }))}
-                    className={`w-full flex items-center gap-3 px-4 py-4 border-2 rounded-xl text-sm text-left transition-all ${
-                      data.destinations.includes('OPEN')
-                        ? 'border-neutral-900 bg-neutral-900 text-white font-medium'
-                        : 'border-neutral-200 text-neutral-700 hover:border-neutral-400'
-                    }`}
-                  >
-                    <span className="text-xl">🌐</span>
-                    <span className="font-medium">Open to Suggestions</span>
-                  </button>
 
                 </div>
-              </div>
-            )}
 
-            {/* ── STEP 4: Dates ──────────────────────────────────────────── */}
-            {screen === 3 && (
-              <div className="flex flex-col justify-center min-h-[55vh]">
-                <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-8">What are the travel dates?</h2>
-
-                {/* Flexible toggle */}
-                <div className="flex items-center gap-3 mb-8">
-                  <button
-                    onClick={() => setData(d => ({ ...d, datesFlexible: !d.datesFlexible }))}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${data.datesFlexible ? 'bg-neutral-900' : 'bg-neutral-200'}`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${data.datesFlexible ? 'translate-x-5' : 'translate-x-0'}`}
-                    />
-                  </button>
-                  <span className="text-sm text-neutral-600">Dates are flexible</span>
-                </div>
-
-                {data.datesFlexible ? (
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">Preferred month or range</label>
-                    <input
-                      type="text"
-                      value={data.flexibleRange}
-                      onChange={e => setData(d => ({ ...d, flexibleRange: e.target.value }))}
-                      placeholder="e.g. April 2026 or April - May 2026"
-                      className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none transition-colors ${
-                        data.flexibleRange
-                          ? parseFlexibleRange(data.flexibleRange)
-                            ? 'border-green-500 focus:border-green-500'
-                            : 'border-red-300 focus:border-red-400'
-                          : 'border-neutral-900'
-                      }`}
-                    />
-                    {data.flexibleRange && (() => {
-                      const parsed = parseFlexibleRange(data.flexibleRange);
-                      if (parsed) {
-                        const fmt = (d: string) =>
-                          new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                        return (
-                          <p className="mt-2 text-xs text-green-600 font-medium">
-                            ✓ Will search {fmt(parsed.checkIn)} – {fmt(parsed.checkOut)}
-                          </p>
-                        );
-                      }
-                      return (
-                        <p className="mt-2 text-xs text-neutral-400">
-                          Try "April 2026" or "April - May 2026"
-                        </p>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">Check-in</label>
-                      <input
-                        type="date"
-                        value={data.checkIn}
-                        onChange={e => setData(d => ({ ...d, checkIn: e.target.value }))}
-                        placeholder="Select date"
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-neutral-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">Check-out</label>
-                      <input
-                        type="date"
-                        value={data.checkOut}
-                        min={data.checkIn || undefined}
-                        onChange={e => setData(d => ({ ...d, checkOut: e.target.value }))}
-                        placeholder="Select date"
-                        className="w-full px-4 py-3 border border-neutral-200 rounded-xl text-sm focus:outline-none focus:border-neutral-900"
-                      />
-                    </div>
+                {/* Selected destination summary */}
+                {data.destination && (
+                  <div className="mt-6 px-4 py-3 bg-neutral-50 rounded-xl">
+                    <p className="text-xs text-neutral-500 mb-1 uppercase tracking-wider font-medium">Selected</p>
+                    <p className="text-sm text-neutral-900 font-medium">
+                      {[...CARIBBEAN, ...MEXICO].find(d => d.code === data.destination)?.name || data.destination}
+                    </p>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* ── STEP 5: Bedrooms ───────────────────────────────────────── */}
-            {screen === 4 && (
-              <div className="flex flex-col justify-center min-h-[55vh]">
-                <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-8">Minimum bedrooms required?</h2>
-
-                <div className="flex flex-wrap gap-3">
-                  {BEDROOM_OPTIONS.map(opt => {
-                    const val = opt === '9+' ? 9 : opt as number;
-                    const selected = data.bedrooms === val;
-                    return (
-                      <button
-                        key={opt}
-                        onClick={() => setData(d => ({ ...d, bedrooms: selected ? null : val }))}
-                        className={`w-16 h-16 rounded-2xl border-2 text-lg font-semibold transition-all ${
-                          selected
-                            ? 'border-neutral-900 bg-neutral-900 text-white'
-                            : 'border-neutral-200 text-neutral-700 hover:border-neutral-400'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
               </div>
             )}
 
@@ -815,7 +882,6 @@ export function NewQuoteModal() {
             )}
           </div>
 
-          {/* Progress bar bottom */}
           {screen >= 0 && (
             <div className="max-w-lg mx-auto mt-3">
               <ProgressBar step={screen + 1} total={TOTAL_STEPS} />

@@ -134,6 +134,11 @@ const MIN_LOADER_MS = 3000; // 400–600ms (elige 520ms estable)
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Navigate back to the quote wizard
+  const handleEditQuote = useCallback(() => {
+    navigate('/properties?quoteFlow=true');
+  }, [navigate]);
   const [searchParams, setSearchParams] = useSearchParams();
   const { consumePreload } = useQuotePreload();
 
@@ -141,7 +146,6 @@ export default function Properties() {
   const [filters, setFilters] = useState({
     query: '',
     selectedDestination: '',
-    selectedDestinations: [] as string[], // múltiples destinos del Quote Wizard
     bedrooms: [] as string[],
     bathrooms: [] as string[],
     minPrice: '',
@@ -163,10 +167,6 @@ export default function Properties() {
     if (searchParams.get('fromQuote') !== 'true') return;
 
     const destination = searchParams.get('destination') || '';
-    const destinationsRaw = searchParams.get('destinations') || '';
-    const selectedDestinations = destinationsRaw
-      ? destinationsRaw.split(',').filter(Boolean)
-      : [];
     const bedroomsParam = searchParams.get('bedrooms');
     const guestsParam = searchParams.get('guests');
     const checkIn = searchParams.get('checkIn') || '';
@@ -176,7 +176,6 @@ export default function Properties() {
     const quoteFilters = {
       query: '',
       selectedDestination: destination,
-      selectedDestinations,
       bedrooms: bedroomsParam ? bedroomsParam.split(',').filter(Boolean) : [] as string[],
       bathrooms: [] as string[],
       minPrice: '',
@@ -403,7 +402,9 @@ export default function Properties() {
     closeCartModal
   } = useCart();
 
-  const currentLocationLabel = debouncedQuery.trim() || appliedFilters.selectedDestination || 'Top Villa Destinations';
+  const currentLocationLabel = debouncedQuery.trim()
+    || appliedFilters.selectedDestination
+    || 'Top Villa Destinations';
 
   const openAuthModal = useCallback(() => {
     setShowAuthModal(true);
@@ -520,7 +521,6 @@ export default function Properties() {
     const resetFilters = {
       query: '',
       selectedDestination: '',
-      selectedDestinations: [] as string[],
       bedrooms: [] as string[],
       bathrooms: [] as string[],
       minPrice: '',
@@ -575,7 +575,8 @@ export default function Properties() {
 
     applyFiltersImmediately({
       ...filters,
-      selectedDestination: newDestination
+      selectedDestination: newDestination,
+      // Clear multi-select when using single-select chip
     });
   }, [filters, applyFiltersImmediately]);
 
@@ -593,7 +594,6 @@ export default function Properties() {
   const DEFAULT_FILTERS = {
     query: '',
     selectedDestination: '',
-    selectedDestinations: [] as string[],
     bedrooms: [] as string[],
     bathrooms: [] as string[],
     minPrice: '',
@@ -673,12 +673,6 @@ export default function Properties() {
     // Destination
     if (params.get('destination')) {
       urlFilters.selectedDestination = params.get('destination') || '';
-      hasUrlFilters = true;
-    }
-
-    // Destinations (múltiples, desde el Quote Wizard)
-    if (params.get('destinations')) {
-      urlFilters.selectedDestinations = params.get('destinations')!.split(',').filter(Boolean);
       hasUrlFilters = true;
     }
 
@@ -915,12 +909,7 @@ useEffect(() => {
           qs.set('q', appliedFilters.query.trim());
         }
 
-        if (appliedFilters.selectedDestinations && appliedFilters.selectedDestinations.length > 1) {
-          // Múltiples destinos: pasar destinations (comma-separated) para el OR en el backend
-          qs.set('destinations', appliedFilters.selectedDestinations.join(','));
-          // También pasar el primero como destination para compatibilidad con el header
-          qs.set('destination', appliedFilters.selectedDestinations[0]);
-        } else if (appliedFilters.selectedDestination) {
+        if (appliedFilters.selectedDestination) {
           qs.set('destination', appliedFilters.selectedDestination);
         }
 
@@ -1318,6 +1307,7 @@ useEffect(() => {
           guests={filters.guests}
           setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
           onApplyFilters={handleApplyFilters}
+          onEditQuote={handleEditQuote}
         />
 
         <main className="w-full px-4 md:px-8">

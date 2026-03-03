@@ -24,7 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import CartButton from "./CartButton";
+import CartButton from "../components/CartButton";
 
 /**
  * Badge real del CRUD.
@@ -50,7 +50,7 @@ type PropertiesHeaderCompactProps = {
   destinations: string[];
   selectedDestination: string;
   onSelectDestination: (destination: string) => void;
-
+  
   badges: CrudBadge[];
   selectedBadges: string[];
   onBadgeToggle: (badgeSlug: string) => void;
@@ -78,6 +78,7 @@ type PropertiesHeaderCompactProps = {
   setGuests?: (value: number) => void;
 
   onClearAllFilters?: () => void;
+  onEditQuote?: () => void;
   cartCount?: number;
   onCartClick?: () => void;
 };
@@ -704,10 +705,10 @@ export default function PropertiesHeaderCompact({
   setCheckIn,
   checkOut,
   setCheckOut,
-  bedrooms,
+  bedrooms = [],
   setBedrooms,
   // ✅ AGREGADOS: Bathrooms
-  bathrooms,
+  bathrooms = [],
   setBathrooms,
   // ✅ AGREGADOS: Price range
   minPrice,
@@ -717,6 +718,7 @@ export default function PropertiesHeaderCompact({
   guests = 0,
   setGuests,
   onClearAllFilters,
+  onEditQuote,
   cartCount,
   onCartClick,
 }: PropertiesHeaderCompactProps) {
@@ -1025,9 +1027,7 @@ export default function PropertiesHeaderCompact({
     return (
       <button
         key={dest}
-        onClick={() => {
-          onSelectDestination(dest === selectedDestination ? "" : dest);
-        }}
+        onClick={() => onSelectDestination(isSelected ? "" : dest)}
         role="button"
         aria-pressed={isSelected}
         aria-label={`Filter by ${dest}, ${isSelected ? "active" : "inactive"}`}
@@ -1478,6 +1478,20 @@ export default function PropertiesHeaderCompact({
                   Include location(s) for your search
                 </p>
 
+              <div className="flex items-center gap-2">
+                {onEditQuote && (
+                  <button
+                    onClick={onEditQuote}
+                    className="px-3 py-1 text-sm border border-neutral-900 bg-neutral-900 text-white rounded-md hover:bg-neutral-700 transition-colors font-medium whitespace-nowrap flex items-center gap-1.5"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                    Edit Quote Criteria
+                  </button>
+                )}
+
                 {hasActiveFilters && onClearAllFilters && (
                   <button
                     onClick={() => {
@@ -1489,8 +1503,6 @@ export default function PropertiesHeaderCompact({
                       setShowPriceSelector(false);
                       setUiError(null);
                       setLocalGuestsForModal(1);
-
-                      // ✅ Solo esto. NO llames onApplyFilters acá.
                       onClearAllFilters?.();
                     }}
                     className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
@@ -1498,6 +1510,7 @@ export default function PropertiesHeaderCompact({
                     Clear Filters
                   </button>
                 )}
+              </div>
               </div>
 
               {caribbean.length > 0 && (
