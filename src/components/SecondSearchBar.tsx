@@ -1332,14 +1332,38 @@ export default function PropertiesHeaderCompact({
     <>
       {/* DESKTOP */}
       <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
-        <div className="h-[72px]">
-          <div className="container mx-auto px-6 h-full flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm flex-wrap">
+        <div className="py-3">
+          <div className="container mx-auto px-6">
+
+            {/* Row 1: title + sort + cart */}
+            <div className="flex items-center justify-between gap-4 mb-2">
               <h1 className="text-xl font-semibold text-foreground">
                 {itemsCount} Villas in {location}
               </h1>
-              <span className="text-muted-foreground">•</span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                  }}
+                  className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="rank">Sort: Villa Rank (High → Low)</option>
+                  <option value="price_low">Price (Low → High)</option>
+                  <option value="price_high">Price (High → Low)</option>
+                  <option value="bedrooms">Bedrooms (Most → Least)</option>
+                </select>
+                <CartButton
+                  count={cartCount}
+                  onClick={onCartClick}
+                  variant="default"
+                  showLabel={true}
+                />
+              </div>
+            </div>
 
+            {/* Row 2: filter pills */}
+            <div className="flex items-center gap-2 text-sm flex-wrap">
               <div className="relative">
                 <button
                   type="button"
@@ -1398,72 +1422,49 @@ export default function PropertiesHeaderCompact({
                 {showBedroomsSelector && <BedroomsSelectorDesktop />}
               </div>
 
-              {
-                <>
-                  <span className="text-muted-foreground">•</span>
+              <>
+                <span className="text-muted-foreground">•</span>
 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowBathroomsSelector(!showBathroomsSelector);
-                        setShowGuestSelector(false);
-                        setShowDatePicker(false);
-                        setShowBedroomsSelector(false);
-                        setShowPriceSelector(false);
-                      }}
-                      className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <Bath className="w-4 h-4" />
-                      <span>{bathroomsLabel}</span>
-                    </button>
-                    {showBathroomsSelector && <BathroomsSelectorDesktop />}
-                  </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBathroomsSelector(!showBathroomsSelector);
+                      setShowGuestSelector(false);
+                      setShowDatePicker(false);
+                      setShowBedroomsSelector(false);
+                      setShowPriceSelector(false);
+                    }}
+                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Bath className="w-4 h-4" />
+                    <span>{bathroomsLabel}</span>
+                  </button>
+                  {showBathroomsSelector && <BathroomsSelectorDesktop />}
+                </div>
 
-                  <span className="text-muted-foreground">•</span>
+                <span className="text-muted-foreground">•</span>
 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPriceSelector(!showPriceSelector);
-                        setShowGuestSelector(false);
-                        setShowDatePicker(false);
-                        setShowBedroomsSelector(false);
-                        setShowBathroomsSelector(false);
-                      }}
-                      className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <DollarSign className="w-4 h-4" />
-                      <span>{priceLabel}</span>
-                    </button>
-                    {showPriceSelector && <PriceSelectorDesktop />}
-                  </div>
-                </>
-              }
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPriceSelector(!showPriceSelector);
+                      setShowGuestSelector(false);
+                      setShowDatePicker(false);
+                      setShowBedroomsSelector(false);
+                      setShowBathroomsSelector(false);
+                    }}
+                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span>{priceLabel}</span>
+                  </button>
+                  {showPriceSelector && <PriceSelectorDesktop />}
+                </div>
+              </>
             </div>
 
-            <div className="flex items-center gap-2">
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  setSortBy(e.target.value);
-                }}
-                className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="rank">Sort: Villa Rank (High → Low)</option>
-                <option value="price_low">Price (Low → High)</option>
-                <option value="price_high">Price (High → Low)</option>
-                <option value="bedrooms">Bedrooms (Most → Least)</option>
-              </select>
-
-              <CartButton
-                count={cartCount}
-                onClick={onCartClick}
-                variant="default"
-                showLabel={true}
-              />
-            </div>
           </div>
         </div>
 
