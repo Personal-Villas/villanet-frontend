@@ -308,7 +308,7 @@ function Toggle({
 }
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
-export function NewQuoteModal() {
+export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const isOpen = searchParams.get('quoteFlow') === 'true';
@@ -556,8 +556,8 @@ export function NewQuoteModal() {
                 <button
                   onClick={() => {
                     localStorage.removeItem('searchFilters');
+                    onBrowseAll?.();
                     close();
-                    navigate('/properties');
                   }}
                   className="mt-4 text-sm text-neutral-400 hover:text-neutral-700 transition-colors underline underline-offset-2"
                 >

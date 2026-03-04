@@ -159,6 +159,22 @@ export default function Properties() {
 
   const [appliedFilters, setAppliedFilters] = useState(filters);
 
+  // ── Auto-open NewQuoteModal when entering /properties ──────────────────────
+  // Trigger the modal automatically unless the user is coming from the quote
+  // wizard (fromQuote=true) or has already explicitly closed it this session.
+  useEffect(() => {
+    const isFromQuote = searchParams.get('fromQuote') === 'true';
+    const isQuoteFlowAlready = searchParams.get('quoteFlow') === 'true';
+
+    if (!isFromQuote && !isQuoteFlowAlready) {
+      const next = new URLSearchParams(searchParams);
+      next.set('quoteFlow', 'true');
+      setSearchParams(next, { replace: true });
+    }
+  // Only run on initial mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Reaccionar a fromQuote=true (puede llegar después del montaje inicial) ──
   // Cuando el usuario termina el wizard y navega a /properties?fromQuote=true,
   // el componente puede ya estar montado (no se re-monta), por eso necesitamos
@@ -1479,7 +1495,7 @@ useEffect(() => {
           />
         )}
 
-        <NewQuoteModal />
+        <NewQuoteModal onBrowseAll={handleClearAllFilters} />
       </div>
     </>
   );
