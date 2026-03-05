@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { api, publicApi } from '../api/api';
 import AuthModal from '../components/AuthModal';
@@ -18,6 +18,7 @@ import ExpansionButton from '../components/ExpansionButton';
 import ExpansionModal from '../components/ExpansionModal';
 import { initPerformanceMetrics } from '../services/imageUtils';
 import { normalizePropertyName } from '../utils/normalizePropertyName';
+import { NewQuoteModal } from '../components/NewQuoteModal';
 
 
 type Listing = {
@@ -133,6 +134,73 @@ const MIN_LOADER_MS = 1200; // Loader visible mínimo 1.2s
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Navigate back to quote wizard
+  const handleEditQuote = useCallback(() => {
+    navigate('/properties?quoteFlow=true');
+  }, [navigate]);
+
+  // ── Auto-open NewQuoteModal al entrar en /properties ─────────────────────
+  // Solo corre al montar. Si no hay fromQuote ni quoteFlow, abre el modal.
+  useEffect(() => {
+    const isFromQuote = searchParams.get('fromQuote') === 'true';
+    const isQuoteFlowAlready = searchParams.get('quoteFlow') === 'true';
+
+    if (!isFromQuote && !isQuoteFlowAlready) {
+      const next = new URLSearchParams(searchParams);
+      next.set('quoteFlow', 'true');
+      setSearchParams(next, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Aplicar filtros cuando viene fromQuote=true ───────────────────────────
+  // El wizard navega a /properties?fromQuote=true&destination=...&checkIn=...
+  // Este efecto lee esos params, los aplica a los filtros y limpia la URL.
+  useEffect(() => {
+    if (searchParams.get('fromQuote') !== 'true') return;
+
+    const destination = searchParams.get('destination') || '';
+    const bedroomsParam = searchParams.get('bedrooms');
+    const guestsParam = searchParams.get('guests');
+    const checkIn = searchParams.get('checkIn') || '';
+    const checkOut = searchParams.get('checkOut') || '';
+    const maxPrice = searchParams.get('maxPrice') || '';
+
+    const quoteFilters = {
+      query: '',
+      selectedDestination: destination,
+      bedrooms: bedroomsParam ? bedroomsParam.split(',').filter(Boolean) : [] as string[],
+      bathrooms: [] as string[],
+      minPrice: '',
+      maxPrice,
+      checkIn,
+      checkOut,
+      selectedBadges: [] as string[],
+      guests: guestsParam ? parseInt(guestsParam, 10) : 0,
+      sortBy: 'rank' as const,
+    };
+
+    filterChangedRef.current = true;
+    setFilters(quoteFilters);
+    setAppliedFilters(quoteFilters);
+    setCurrentPage(1);
+    setAvailabilityCursor(0);
+    setItems([]);
+    setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
+
+    // Limpiar params del wizard de la URL
+    const cleanParams = new URLSearchParams(searchParams);
+    ['fromQuote', 'destination', 'destinations', 'bedrooms', 'guests',
+     'checkIn', 'checkOut', 'maxPrice', 'flexibleRange'].forEach(k => cleanParams.delete(k));
+    setSearchParams(cleanParams, { replace: true });
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
 
   // Estados para filtros
   const [filters, setFilters] = useState({
@@ -1256,6 +1324,7 @@ useEffect(() => {
           guests={filters.guests}
           setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
           onApplyFilters={handleApplyFilters}
+          onEditQuote={handleEditQuote}
         />
 
         <main className="w-full px-4 md:px-8">
@@ -1472,6 +1541,8 @@ useEffect(() => {
             currentResultsCount={total}
           />
         )}
+
+        <NewQuoteModal onBrowseAll={handleClearAllFilters} />
       </div>
     </>
   );

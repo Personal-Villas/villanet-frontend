@@ -78,6 +78,7 @@ type PropertiesHeaderCompactProps = {
   setGuests?: (value: number) => void;
 
   onClearAllFilters?: () => void;
+  onEditQuote?: () => void;
   cartCount?: number;
   onCartClick?: () => void;
 };
@@ -739,6 +740,7 @@ export default function PropertiesHeaderCompact({
   guests = 0,
   setGuests,
   onClearAllFilters,
+  onEditQuote,
   cartCount,
   onCartClick,
 }: PropertiesHeaderCompactProps) {
@@ -1501,26 +1503,34 @@ export default function PropertiesHeaderCompact({
                   Include location(s) for your search
                 </p>
 
-                {hasActiveFilters && onClearAllFilters && (
-                  <button
-                    onClick={() => {
-                      setShowAllBadges(false);
-                      setShowDatePicker(false);
-                      setShowGuestSelector(false);
-                      setShowBedroomsSelector(false);
-                      //setShowBathroomsSelector(false);
-                      setShowPriceSelector(false);
-                      setUiError(null);
-                      setLocalGuestsForModal(1);
-
-                      // ✅ Solo esto. NO llames onApplyFilters acá.
-                      onClearAllFilters?.();
-                    }}
-                    className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
-                  >
-                    Clear Filters
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {onEditQuote && (
+                    <button
+                      onClick={onEditQuote}
+                      className="px-3 py-1 text-sm border border-neutral-900 bg-neutral-900 text-white rounded-md hover:bg-neutral-700 transition-colors font-medium whitespace-nowrap"
+                    >
+                      ✎ Edit Quote Criteria
+                    </button>
+                  )}
+                  {hasActiveFilters && onClearAllFilters && (
+                    <button
+                      onClick={() => {
+                        setShowAllBadges(false);
+                        setShowDatePicker(false);
+                        setShowGuestSelector(false);
+                        setShowBedroomsSelector(false);
+                        //setShowBathroomsSelector(false);
+                        setShowPriceSelector(false);
+                        setUiError(null);
+                        setLocalGuestsForModal(1);
+                        onClearAllFilters?.();
+                      }}
+                      className="px-3 py-1 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium whitespace-nowrap"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
               </div>
 
               {caribbean.length > 0 && (

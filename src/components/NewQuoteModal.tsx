@@ -3,7 +3,6 @@ import { useQuotePreload, type PreloadFilters } from '../context/QuotePreloadCon
 import ReactDOM from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
-import { SearchLoader } from './SearchLoader';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface QuoteData {
@@ -325,11 +324,6 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
   const [data, setData] = useState<QuoteData>(INITIAL);
 
   // Loader shown after "Generate Quote" while Properties loads
-  const [showLoader, setShowLoader] = useState(false);
-  // Pending navigation URL — we navigate once the loader finishes
-  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
-  // Simulated progress for SearchLoader (0–100)
-  const [loaderProgress, setLoaderProgress] = useState(0);
 
   // Calendar state
   const [calendarTarget, setCalendarTarget] = useState<'checkIn' | 'checkOut'>('checkIn');
@@ -486,34 +480,10 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
     params.set('fromQuote', 'true');
 
-    // Show loader, then navigate once it completes
+    // Navigate directly to Properties with quote params
     const url = `/properties?${params.toString()}`;
-    setPendingUrl(url);
-    setLoaderProgress(0);
-    setShowLoader(true);
+    navigate(url);
   };
-
-  const handleLoaderDone = useCallback(() => {
-    if (pendingUrl) {
-      navigate(pendingUrl);
-    }
-    setShowLoader(false);
-    setPendingUrl(null);
-    setLoaderProgress(0);
-  }, [pendingUrl, navigate]);
-
-  // Simulate progress over minDuration (2800ms) when loader is shown
-  useEffect(() => {
-    if (!showLoader) return;
-    setLoaderProgress(10);
-    const t1 = setTimeout(() => setLoaderProgress(35),  400);
-    const t2 = setTimeout(() => setLoaderProgress(60),  900);
-    const t3 = setTimeout(() => setLoaderProgress(80),  1600);
-    const t4 = setTimeout(() => setLoaderProgress(95),  2200);
-    const t5 = setTimeout(() => { setLoaderProgress(100); handleLoaderDone(); }, 2800);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLoader]);
 
   const canContinue = (): boolean => {
     if (screen === 0) return !!(data.checkIn && data.checkOut); // Dates required
@@ -523,13 +493,6 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
   if (!isOpen) return null;
 
-  // Show full-screen loader (portal) while navigating to Properties
-  if (showLoader) {
-    return ReactDOM.createPortal(
-      <SearchLoader progress={loaderProgress} />,
-      document.body
-    );
-  }
 
   const modalContent = (
     <div className="fixed inset-0 z-[100]" style={{ fontFamily: 'inherit' }}>
