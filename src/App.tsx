@@ -20,6 +20,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { CartProvider } from './context/CartContext';
 import EarlyAccess from './pages/EarlyAccess';
 import { ToastProvider } from '@radix-ui/react-toast';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import { GoogleMapsProvider } from './providers/GoogleMapsProvider';
 import { QuotePreloadProvider } from './context/QuotePreloadContext';
 
@@ -115,18 +116,20 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <QuotePreloadProvider>
-          <CartProvider>
-            <GoogleMapsProvider>
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </GoogleMapsProvider>
-          </CartProvider>
-        </QuotePreloadProvider>
-      </AuthProvider>
-    </ToastProvider>
+    <Tooltip.Provider delayDuration={200}>
+      <ToastProvider>
+        <AuthProvider>
+          <QuotePreloadProvider>
+            <CartProvider>
+              <GoogleMapsProvider>
+                <BrowserRouter>
+                  <AppRoutes />
+                </BrowserRouter>
+              </GoogleMapsProvider>
+            </CartProvider>
+          </QuotePreloadProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </Tooltip.Provider>
   );
 }

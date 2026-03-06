@@ -3,6 +3,7 @@ import { useQuotePreload, type PreloadFilters } from '../context/QuotePreloadCon
 import ReactDOM from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import * as Tooltip from '@radix-ui/react-tooltip';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface QuoteData {
@@ -223,14 +224,11 @@ function Calendar({
 // ── Progress bar ──────────────────────────────────────────────────────────────
 function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
-    <div className="flex gap-1 w-full">
-      {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className="h-0.5 flex-1 rounded-full transition-all duration-300"
-          style={{ background: i < step ? '#111' : '#e5e5e5' }}
-        />
-      ))}
+    <div className="w-full h-1 bg-neutral-200 rounded-full overflow-hidden">
+      <div
+        className="h-full bg-neutral-900 transition-all duration-300 rounded-full"
+        style={{ width: `${(step / total) * 100}%` }}
+      />
     </div>
   );
 }
@@ -511,20 +509,13 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
           </button>
         </div>
 
-        {/* Progress bar top */}
-        {screen >= 0 && (
-          <div className="px-6 md:px-10 pt-3">
-            <ProgressBar step={screen + 1} total={TOTAL_STEPS} />
-          </div>
-        )}
-
         {/* Content */}
-        <div className="flex-1 overflow-y-auto flex flex-col items-center px-6 md:px-10 py-12">
+        <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 md:px-10 py-12">
           <div className="w-full max-w-lg">
 
             {/* ── INTRO ─────────────────────────────────────────────────── */}
             {screen === -1 && (
-              <div className="flex flex-col items-center justify-center min-h-[55vh] text-center">
+              <div className="flex flex-col items-center justify-center  text-center">
                 <h1 className="text-3xl md:text-4xl font-bold text-neutral-900 mb-3">New Quote</h1>
                 <p className="text-neutral-400 mb-10">We'll ask a few quick questions to allocate the right villas.</p>
                 <button
@@ -548,7 +539,7 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
             {/* ── STEP 1/5: Dates ───────────────────────────────────────── */}
             {screen === 0 && (
-              <div className="flex flex-col justify-center min-h-[55vh]">
+              <div className="flex flex-col justify-center ">
                 <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-2">When are they traveling?</h2>
                 <p className="text-neutral-400 text-sm mb-8">We use travel dates to calculate accurate total stay pricing.</p>
 
@@ -619,12 +610,32 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
             {/* ── STEP 2/5: Budget ──────────────────────────────────────── */}
             {screen === 1 && (
-              <div className="flex flex-col justify-center min-h-[55vh]">
+              <div className="flex flex-col justify-center ">
                 <div className="flex items-center gap-2 mb-2">
                   <h2 className="text-2xl md:text-3xl font-bold text-neutral-900">
                     What is your client's total stay budget?
                   </h2>
-                  <button className="w-6 h-6 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-400 text-xs hover:border-neutral-400 flex-shrink-0">?</button>
+                  <Tooltip.Root>
+                    <Tooltip.Trigger asChild>
+                      <button
+                        className="w-6 h-6 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-400 text-xs hover:border-neutral-400 transition-colors flex-shrink-0"
+                        aria-label="Budget information"
+                      >?</button>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content
+                        side="top"
+                        align="center"
+                        sideOffset={6}
+                        className="z-[200] w-64 bg-white border border-neutral-200 rounded-lg shadow-md px-3 py-2"
+                      >
+                        <p className="text-xs text-neutral-700 text-left leading-relaxed">
+                          Total budget for accommodations and staffing for their stay.
+                        </p>
+                        <Tooltip.Arrow className="fill-white" style={{ filter: 'drop-shadow(0 1px 1px rgb(0 0 0 / 0.1))' }} />
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
                 </div>
                 <p className="text-neutral-400 text-sm mb-10">Total stay amount, not nightly rate.</p>
 
@@ -674,7 +685,7 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
             {/* ── STEP 3/5: Guests ──────────────────────────────────────── */}
             {screen === 2 && (
-              <div className="flex flex-col justify-center min-h-[55vh]">
+              <div className="flex flex-col justify-center ">
                 <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-10">How many guests will be traveling?</h2>
 
                 <div className="border border-neutral-100 rounded-2xl px-6 divide-y divide-neutral-100">
@@ -723,7 +734,7 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
             {/* ── STEP 4/5: Bedrooms ────────────────────────────────────── */}
             {screen === 3 && (
-              <div className="flex flex-col justify-center min-h-[55vh]">
+              <div className="flex flex-col justify-center ">
                 <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-8">Bedroom configuration required?</h2>
 
                 <div className="flex flex-wrap gap-3">
@@ -832,7 +843,8 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
         </div>
 
         {/* Footer nav */}
-        <div className="border-t border-neutral-100 px-6 md:px-10 py-4">
+        <div className="border-t border-neutral-100">
+          <div className="px-6 md:px-10 py-4">
           <div className="max-w-lg mx-auto flex items-center justify-between">
             {screen !== -1 ? (
               <button
@@ -863,10 +875,11 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
           </div>
 
           {screen >= 0 && (
-            <div className="max-w-lg mx-auto mt-3">
+            <div className="max-w-lg mx-auto pt-3">
               <ProgressBar step={screen + 1} total={TOTAL_STEPS} />
             </div>
           )}
+          </div>
         </div>
 
       </div>
