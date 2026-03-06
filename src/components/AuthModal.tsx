@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import imageLoginDefault from '../assets/images/villanet-login.jpg';
+import imageLoginWebp from '../assets/images/villanet-login.webp';
 //import googleIcon from '../assets/images/google.png';
 //import appleIcon from '../assets/images/apple.png';
 //import facebookIcon from '../assets/images/facebook.png';
@@ -19,6 +20,7 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess: (user: any) => void;
   imageLogin?: string;
+  imageLoginWebp?: string;
 }
 
 interface ApiResponse {
@@ -31,6 +33,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onSuccess,
   imageLogin,
+  imageLoginWebp: imageLoginWebpProp,
 }) => {
   const [mode, setMode] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState<string>('');
@@ -46,6 +49,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const bgImage = imageLogin ?? imageLoginDefault;
+  const bgImageWebp = imageLoginWebpProp ?? imageLoginWebp;
 
   useEffect(() => {
     if (mode === 'code' && inputRefs.current[0]) {
@@ -193,10 +197,14 @@ const AuthModal: React.FC<AuthModalProps> = ({
         {/* Imagen / background en mobile con fade y texto superpuesto */}
         <div className="sm:hidden w-full flex-shrink-0">
           <div className="w-full h-[50vh] relative overflow-hidden">
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${bgImage})` }}
-            />
+            <picture className="absolute inset-0">
+              <source srcSet={bgImageWebp} type="image/webp" />
+              <img
+                src={bgImage}
+                alt="Villanet login background"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </picture>
             {/* Gradiente que desvanece la imagen hacia blanco */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/30 to-white" />
 
@@ -439,10 +447,16 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Columna derecha - imagen desktop */}
         <div className="hidden sm:block sm:w-7/12 relative p-2">
-          <div
-            className="w-full h-[650px] bg-cover bg-center rounded-3xl shadow-lg"
-            style={{ backgroundImage: `url(${bgImage})` }}
-          />
+          <div className="w-full h-[650px] rounded-3xl shadow-lg overflow-hidden relative">
+            <picture>
+              <source srcSet={bgImageWebp} type="image/webp" />
+              <img
+                src={bgImage}
+                alt="Villanet login"
+                className="w-full h-full object-cover"
+              />
+            </picture>
+          </div>
         </div>
       </div>
     </div>
