@@ -1,9 +1,11 @@
 import React from "react";
 import { Award, CircleCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuthContext } from "../../auth/AuthContext";
 
 export const Hero: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthContext();
 
   return (
     <section id="top" className="relative w-full">
@@ -28,18 +30,26 @@ export const Hero: React.FC = () => {
               scoring framework.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={() => navigate('/advisor-signup')} className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-black text-white hover:bg-gray-800 text-base px-8 py-6 font-medium">
-                Join the Advisor Network
-              </button>
-              <button onClick={() => navigate('/property-manager-signup')} className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-white border border-gray-300 text-gray-900 hover:bg-gray-50 text-base px-8 py-6 font-medium">
-                Apply as a Verified PM
-              </button>
               <button
-                onClick={() => navigate('/properties?quoteFlow=true')}
+                onClick={() => navigate('/advisor-signup')}
                 className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-black text-white hover:bg-gray-800 text-base px-8 py-6 font-medium"
               >
-                Create a New Quote
+                Join the Advisor Network
               </button>
+              <button
+                onClick={() => navigate('/property-manager-signup')}
+                className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-white border border-gray-300 text-gray-900 hover:bg-gray-50 text-base px-8 py-6 font-medium"
+              >
+                Apply as a Verified PM
+              </button>
+              {isAuthenticated && (
+                <button
+                  onClick={() => navigate('/properties?quoteFlow=true')}
+                  className="inline-flex items-center justify-center gap-2 h-11 rounded-md bg-black text-white hover:bg-gray-800 text-base px-8 py-6 font-medium"
+                >
+                  Create a New Quote
+                </button>
+              )}
             </div>
           </div>
 
@@ -143,7 +153,7 @@ const PhoneMockup: React.FC = () => {
                     <span className="text-xs font-medium text-gray-900">
                       Coastal Properties Co.
                     </span>
-                    <span className="bg-[#F8F8F8] text-[#6B7280] text-[12px] px-2.5 py-1 rounded-lg font-normal border border-[#E5E5E5]">
+                    <span className="bg-[#F8F8F8] text-[#6B7280] text-[12px] px-2.5 py-1 rounded-lg font-medium border border-[#E5E5E5]">
                       Verified
                     </span>
                   </div>
@@ -161,6 +171,7 @@ const PhoneMockup: React.FC = () => {
                   </span>
                 </div>
               </div>
+
             </div>
           </div>
         </div>
