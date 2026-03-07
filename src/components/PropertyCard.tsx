@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     ChevronLeft,
     ChevronRight,
@@ -9,8 +9,7 @@ import {
     Bath,
     DollarSign
 } from 'lucide-react';
-import LazyImage from './LazyImage';
-import { isAboveFold } from '../services/imageUtils';
+import { cloudinaryTransform } from '../utils/imageTransform';
 
 interface PropertyCardProps {
     item: any;
@@ -43,12 +42,28 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 }) => {
     const images = item.images_json?.length > 0 ? item.images_json : [item.heroImage];
 
-    // Las primeras 4 cards son above-the-fold en desktop (grilla de 4 columnas)
-    // y las primeras 2 en mobile. Priorizar 4 cubre ambos casos.
-    const heroHasPriority = isAboveFold(cardIndex);
+    // Solo la card #1 (cardIndex === 0) es candidata LCP — carga eager con fetchpriority high.
+    // El resto carga lazy para no competir con el LCP por ancho de banda.
+    const isLcpCandidate = cardIndex === 0;
+
+    // Precargar imágenes del carrusel (posiciones 2 y 3) solo cuando el usuario
+    // hace hover sobre la card, no al montar. Evita descargas innecesarias al cargar la página.
+    const [carouselPreloaded, setCarouselPreloaded] = useState(false);
+
+    const handleMouseEnter = () => {
+        if (carouselPreloaded || images.length <= 1) return;
+        images.slice(1).forEach((url: string) => {
+            const img = new Image();
+            img.src = cloudinaryTransform(url, 'card');
+        });
+        setCarouselPreloaded(true);
+    };
 
     return (
-        <div className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1 mt-10">
+        <div
+            className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1 mt-10"
+            onMouseEnter={handleMouseEnter}
+        >
 
             {/* --- CARRUSEL DE IMÁGENES --- */}
             <div className="relative aspect-[4/3] overflow-hidden bg-muted">
@@ -60,18 +75,24 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                         >
                             {images.map((image: string, imgIdx: number) => (
                                 <div key={imgIdx} className="w-full h-full flex-shrink-0" style={{ minWidth: '100%' }}>
-                                    <LazyImage
-                                        src={image}
+                                    <img
+                                        src={cloudinaryTransform(
+                                            image,
+                                            isLcpCandidate && imgIdx === 0 ? 'hero' : 'card'
+                                        )}
                                         alt={`${item.name} - Image ${imgIdx + 1}`}
-                                        aspectRatio="4/3"
-                                        className="w-full h-full object-cover"
+                                        width={800}
+                                        height={600}
                                         /**
-                                         * priority solo en la imagen del héroe (imgIdx === 0)
-                                         * de las primeras 4 cards (heroHasPriority).
+                                         * LCP candidate (card #1, imagen #1): eager + fetchpriority high + decoding sync.
+                                         * Resto de imágenes (carrusel o cards below-fold): lazy + decoding async.
                                          * Las imágenes del carrusel (imgIdx > 0) siempre lazy,
-                                         * incluso en cards above-the-fold, porque no son visibles inicialmente.
+                                         * incluso en la card #1, porque no son visibles inicialmente.
                                          */
-                                        priority={heroHasPriority && imgIdx === 0}
+                                        loading={isLcpCandidate && imgIdx === 0 ? 'eager' : 'lazy'}
+                                        fetchPriority={isLcpCandidate && imgIdx === 0 ? 'high' : 'auto'}
+                                        decoding={isLcpCandidate && imgIdx === 0 ? 'sync' : 'async'}
+                                        className="w-full h-full object-cover"
                                     />
                                 </div>
                             ))}
