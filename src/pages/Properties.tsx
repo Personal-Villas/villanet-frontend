@@ -142,12 +142,14 @@ export default function Properties() {
   }, [navigate]);
 
   // ── Auto-open NewQuoteModal al entrar en /properties ─────────────────────
-  // Solo corre al montar. Si no hay fromQuote ni quoteFlow, abre el modal.
+  // Solo corre al montar. Pone quoteFlow=true para abrir el modal, salvo que:
+  // - ya haya quoteFlow en la URL (true o false — false lo manda PropertyDetail)
+  // - venga fromQuote=true (wizard completado, los filtros se aplican aparte)
   useEffect(() => {
+    const quoteFlow = searchParams.get('quoteFlow');
     const isFromQuote = searchParams.get('fromQuote') === 'true';
-    const isQuoteFlowAlready = searchParams.get('quoteFlow') === 'true';
 
-    if (!isFromQuote && !isQuoteFlowAlready) {
+    if (!isFromQuote && quoteFlow === null) {
       const next = new URLSearchParams(searchParams);
       next.set('quoteFlow', 'true');
       setSearchParams(next, { replace: true });
@@ -162,6 +164,9 @@ export default function Properties() {
     if (searchParams.get('fromQuote') !== 'true') return;
 
     const destination = searchParams.get('destination') || '';
+    // Support both single `destination` (legacy) and multi `destinations` (wizard multi-select)
+    const destinationsParam = searchParams.get('destinations') || '';
+    const resolvedDestination = destinationsParam || destination;
     const bedroomsParam = searchParams.get('bedrooms');
     const guestsParam = searchParams.get('guests');
     const checkIn = searchParams.get('checkIn') || '';
@@ -170,7 +175,7 @@ export default function Properties() {
 
     const quoteFilters = {
       query: '',
-      selectedDestination: destination,
+      selectedDestination: resolvedDestination,
       bedrooms: bedroomsParam ? bedroomsParam.split(',').filter(Boolean) : [] as string[],
       bathrooms: [] as string[],
       minPrice: '',
@@ -563,11 +568,11 @@ export default function Properties() {
   }, [filters, applyFiltersImmediately]);
 
   const handleDestinationChange = useCallback((destination: string) => {
-    const newDestination = destination === filters.selectedDestination ? '' : destination;
-
+    // SecondSearchBar now passes the full updated CSV string (e.g. "Jamaica,St. Barts")
+    // We just apply it directly — toggle logic is handled inside SecondSearchBar
     applyFiltersImmediately({
       ...filters,
-      selectedDestination: newDestination
+      selectedDestination: destination
     });
   }, [filters, applyFiltersImmediately]);
 
@@ -907,8 +912,14 @@ useEffect(() => {
           qs.set('q', appliedFilters.query.trim());
         }
 
+        // Support both single destination and comma-separated multi-destination
         if (appliedFilters.selectedDestination) {
-          qs.set('destination', appliedFilters.selectedDestination);
+          const dests = appliedFilters.selectedDestination.split('|').map(s => s.trim()).filter(Boolean);
+          if (dests.length > 1) {
+            qs.set('destinations', dests.join('|'));
+          } else {
+            qs.set('destination', appliedFilters.selectedDestination);
+          }
         }
 
         // ✅ Bedrooms

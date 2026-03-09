@@ -762,6 +762,8 @@ export default function PropertiesHeaderCompact({
   const priceSelectorRef = useRef<HTMLDivElement>(null);
 
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
+  const [localMinPrice, setLocalMinPrice] = useState(minPrice);
+  const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice);
 
   const guestsLabel = guests && guests > 0 ? `${guests} Guests` : 'Guests';
   const datesLabel = formatDates(checkIn, checkOut);
@@ -865,6 +867,8 @@ export default function PropertiesHeaderCompact({
   };*/
 
   const handleApplyPrice = () => {
+    setMinPrice(localMinPrice);
+    setMaxPrice(localMaxPrice);
     setShowPriceSelector(false);
     onApplyFilters?.();
   };
@@ -925,6 +929,20 @@ export default function PropertiesHeaderCompact({
       setLocalGuestsForModal(guests && guests > 0 ? guests : 1);
     }
   }, [showMobileFilters, guests]);
+
+  // Sync local price state when popover opens or when parent resets prices (e.g. Clear All)
+  useEffect(() => {
+    if (showPriceSelector) {
+      setLocalMinPrice(minPrice);
+      setLocalMaxPrice(maxPrice);
+    }
+  }, [showPriceSelector]);
+
+  // Keep local price in sync when parent clears prices externally
+  useEffect(() => {
+    setLocalMinPrice(minPrice);
+    setLocalMaxPrice(maxPrice);
+  }, [minPrice, maxPrice]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1042,14 +1060,27 @@ export default function PropertiesHeaderCompact({
   };
 
   const renderDestinationButton = (dest: string) => {
-    const isSelected = selectedDestination === dest;
+    // selectedDestination may be a CSV of multiple destinations (e.g. "Jamaica,St. Barts")
+    const selectedList = selectedDestination
+      ? selectedDestination.split('|').map(s => s.trim()).filter(Boolean)
+      : [];
+    const isSelected = selectedList.includes(dest);
+
+    const handleClick = () => {
+      let next: string[];
+      if (isSelected) {
+        next = selectedList.filter(d => d !== dest);
+      } else {
+        next = [...selectedList, dest];
+      }
+      // Pass back as pipe-separated string (empty string = no filter)
+      onSelectDestination(next.join('|'));
+    };
 
     return (
       <button
         key={dest}
-        onClick={() => {
-          onSelectDestination(dest === selectedDestination ? "" : dest);
-        }}
+        onClick={handleClick}
         role="button"
         aria-pressed={isSelected}
         aria-label={`Filter by ${dest}, ${isSelected ? "active" : "inactive"}`}
@@ -1064,9 +1095,13 @@ export default function PropertiesHeaderCompact({
     );
   };
 
+  const selectedDestinationList = selectedDestination
+    ? selectedDestination.split('|').map(s => s.trim()).filter(Boolean)
+    : [];
+
   const hasActiveFilters =
     query?.trim().length > 0 ||
-    !!selectedDestination ||
+    selectedDestinationList.length > 0 ||
     !!checkIn ||
     !!checkOut ||
     bedrooms.length > 0 ||
@@ -1078,7 +1113,7 @@ export default function PropertiesHeaderCompact({
 
   const activeFiltersCount =
     (query?.trim().length > 0 ? 1 : 0) +
-    (selectedDestination ? 1 : 0) +
+    (selectedDestinationList.length > 0 ? 1 : 0) +
     (checkIn || checkOut ? 1 : 0) +
     (bedrooms.length > 0 ? 1 : 0) +
     //(bathrooms.length > 0 ? 1 : 0) +
@@ -1288,7 +1323,7 @@ export default function PropertiesHeaderCompact({
   };*/
 
   // ✅ Price Selector para desktop
-  const PriceSelectorDesktop = () => (
+  const PriceSelectorDesktop = (
     <div
       ref={priceSelectorRef}
       className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-5 w-80"
@@ -1299,28 +1334,29 @@ export default function PropertiesHeaderCompact({
           <label className="text-xs text-muted-foreground mb-1 block">Min Price</label>
           <input
             type="number"
-            value={minPrice}
+            value={localMinPrice}
             onChange={(e) => {
               const value = e.target.value;
               if (value === '' || parseFloat(value) >= 0) {
-                setMinPrice(value);
+                setLocalMinPrice(value);
               }
             }}
             placeholder="$0"
             className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
             min="0"
             step="100"
+            autoFocus
           />
         </div>
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Max Price</label>
           <input
             type="number"
-            value={maxPrice}
+            value={localMaxPrice}
             onChange={(e) => {
               const value = e.target.value;
               if (value === '' || parseFloat(value) >= 0) {
-                setMaxPrice(value);
+                setLocalMaxPrice(value);
               }
             }}
             placeholder="Any"
@@ -1333,8 +1369,8 @@ export default function PropertiesHeaderCompact({
       <div className="flex justify-between gap-2 pt-3 border-t border-border mt-4">
         <button
           onClick={() => {
-            setMinPrice('');
-            setMaxPrice('');
+            setLocalMinPrice('');
+            setLocalMaxPrice('');
           }}
           className="px-3 py-2 text-sm border border-input rounded-lg hover:bg-muted transition-colors"
         >
@@ -1462,7 +1498,7 @@ export default function PropertiesHeaderCompact({
                       <DollarSign className="w-4 h-4" />
                       <span>{priceLabel}</span>
                     </button>
-                    {showPriceSelector && <PriceSelectorDesktop />}
+                    {showPriceSelector && PriceSelectorDesktop}
                   </div>
                 </>
               }

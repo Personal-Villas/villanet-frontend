@@ -12,7 +12,7 @@ interface QuoteData {
   adults: number;
   children: number;
   infants: number;
-  destination: string;
+  destinations: string[]; // multi-select: array of destination codes
   checkIn: string;
   checkOut: string;
   bedrooms: number | null;
@@ -24,7 +24,7 @@ const INITIAL: QuoteData = {
   adults: 2,
   children: 0,
   infants: 0,
-  destination: '',
+  destinations: [],
   checkIn: '',
   checkOut: '',
   bedrooms: null,
@@ -395,10 +395,12 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
       preloadFilters.bedrooms = data.bedrooms;
     }
 
-    // Destinations from step 4 — single selection
-    if (screen >= 4 && data.destination) {
-      const mapped = DEST_CODE_TO_NAME[data.destination];
-      if (mapped) preloadFilters.destination = mapped;
+    // Destinations from step 4 — multi-select
+    if (screen >= 4 && data.destinations.length > 0) {
+      const mapped = data.destinations
+        .map(code => DEST_CODE_TO_NAME[code])
+        .filter(Boolean);
+      if (mapped.length > 0) preloadFilters.destination = mapped.join('|');
     }
 
     triggerPreload(preloadFilters);
@@ -462,10 +464,12 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
     // Bedrooms
     if (data.bedrooms) params.set('bedrooms', String(data.bedrooms));
 
-    // Destination — single selection
-    if (data.destination) {
-      const destName = DEST_CODE_TO_NAME[data.destination];
-      if (destName) params.set('destination', destName);
+    // Destinations — multi-select, sent as comma-separated names
+    if (data.destinations.length > 0) {
+      const destNames = data.destinations
+        .map(code => DEST_CODE_TO_NAME[code])
+        .filter(Boolean);
+      if (destNames.length > 0) params.set('destinations', destNames.join('|'));
     }
 
     // Dates
@@ -485,7 +489,7 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
   const canContinue = (): boolean => {
     if (screen === 0) return !!(data.checkIn && data.checkOut); // Dates required
-    if (screen === 4) return data.destination !== '';            // One dest selected
+    if (screen === 4) return data.destinations.length > 0;   // At least one dest required
     return true;
   };
 
@@ -763,7 +767,34 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
             {screen === 4 && (
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-neutral-900 mb-2">Where are they considering?</h2>
-                <p className="text-neutral-400 text-sm mb-8">Select a destination.</p>
+                <p className="text-neutral-400 text-sm mb-5">Select one or more destinations.</p>
+
+                {/* Selected tags */}
+                {data.destinations.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-5">
+                    {data.destinations.map(code => {
+                      const name = [...CARIBBEAN, ...MEXICO].find(d => d.code === code)?.name || code;
+                      return (
+                        <span
+                          key={code}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 text-white text-xs font-medium rounded-full"
+                        >
+                          {name}
+                          <button
+                            onClick={() => setData(d => ({
+                              ...d,
+                              destinations: d.destinations.filter(c => c !== code),
+                            }))}
+                            className="hover:text-neutral-300 transition-colors ml-0.5"
+                            aria-label={`Remove ${name}`}
+                          >
+                            <X size={12} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <div className="space-y-6">
 
@@ -772,13 +803,15 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
                     <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Caribbean</p>
                     <div className="grid grid-cols-2 gap-2">
                       {CARIBBEAN.map(dest => {
-                        const selected = data.destination === dest.code;
+                        const selected = data.destinations.includes(dest.code);
                         return (
                           <button
                             key={dest.code}
                             onClick={() => setData(d => ({
                               ...d,
-                              destination: selected ? '' : dest.code,
+                              destinations: selected
+                                ? d.destinations.filter(c => c !== dest.code)
+                                : [...d.destinations, dest.code],
                             }))}
                             className={`flex items-center px-4 py-3 border rounded-xl text-sm text-left transition-all ${
                               selected
@@ -798,13 +831,15 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
                     <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Mexico</p>
                     <div className="grid grid-cols-2 gap-2">
                       {MEXICO.map(dest => {
-                        const selected = data.destination === dest.code;
+                        const selected = data.destinations.includes(dest.code);
                         return (
                           <button
                             key={dest.code}
                             onClick={() => setData(d => ({
                               ...d,
-                              destination: selected ? '' : dest.code,
+                              destinations: selected
+                                ? d.destinations.filter(c => c !== dest.code)
+                                : [...d.destinations, dest.code],
                             }))}
                             className={`flex items-center px-4 py-3 border rounded-xl text-sm text-left transition-all ${
                               selected
@@ -827,13 +862,19 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
                 </div>
 
-                {/* Selected destination summary */}
-                {data.destination && (
-                  <div className="mt-6 px-4 py-3 bg-neutral-50 rounded-xl">
-                    <p className="text-xs text-neutral-500 mb-1 uppercase tracking-wider font-medium">Selected</p>
-                    <p className="text-sm text-neutral-900 font-medium">
-                      {[...CARIBBEAN, ...MEXICO].find(d => d.code === data.destination)?.name || data.destination}
+                {/* Selected summary count */}
+                {data.destinations.length > 0 && (
+                  <div className="mt-6 px-4 py-3 bg-neutral-50 rounded-xl flex items-center justify-between">
+                    <p className="text-sm text-neutral-600">
+                      <strong className="text-neutral-900">{data.destinations.length}</strong>{' '}
+                      destination{data.destinations.length > 1 ? 's' : ''} selected
                     </p>
+                    <button
+                      onClick={() => setData(d => ({ ...d, destinations: [] }))}
+                      className="text-xs text-neutral-400 hover:text-neutral-700 transition-colors"
+                    >
+                      Clear all
+                    </button>
                   </div>
                 )}
               </div>

@@ -317,81 +317,37 @@ export default function PropertyDetail() {
 
   //Función para "volver a propiedades"
   const handleBackToProperties = () => {
-  const savedFilters = localStorage.getItem('searchFilters');
-  const scrollPosition = localStorage.getItem('propertiesScrollPosition');
-  
-  if (savedFilters) {
-    try {
-      const filters = JSON.parse(savedFilters);
-      const params = new URLSearchParams();
-      
-      // Query
-      if (filters.query && filters.query.trim()) {
-        params.set('q', filters.query.trim());
+    const scrollPosition = localStorage.getItem('propertiesScrollPosition');
+    localStorage.setItem('restoreScrollPosition', scrollPosition || '0');
+
+    const savedFilters = localStorage.getItem('searchFilters');
+    const params = new URLSearchParams();
+
+    // quoteFlow=false evita que NewQuoteModal se abra al volver
+    params.set('quoteFlow', 'false');
+
+    if (savedFilters) {
+      try {
+        const filters = JSON.parse(savedFilters);
+        if (filters.query?.trim())                              params.set('q', filters.query.trim());
+        if (filters.destination)                                params.set('destination', filters.destination);
+        if (filters.destinations)                               params.set('destinations', filters.destinations);
+        if (filters.bedrooms?.length)                           params.set('bedrooms', filters.bedrooms.join(','));
+        if (filters.bathrooms?.length)                          params.set('bathrooms', filters.bathrooms.join(','));
+        if (filters.minPrice)                                   params.set('minPrice', filters.minPrice.toString());
+        if (filters.maxPrice)                                   params.set('maxPrice', filters.maxPrice.toString());
+        if (filters.checkIn)                                    params.set('checkIn', filters.checkIn);
+        if (filters.checkOut)                                   params.set('checkOut', filters.checkOut);
+        if (filters.guests > 0)                                 params.set('guests', filters.guests.toString());
+        if (filters.badges?.length)                             params.set('badges', filters.badges.join(','));
+        if (filters.sort)                                       params.set('sort', filters.sort);
+      } catch (e) {
+        console.error('Error parsing saved filters:', e);
       }
-      
-      // Destination
-      if (filters.destination) {
-        params.set('destination', filters.destination);
-      }
-      
-      // Bedrooms (array)
-      if (filters.bedrooms && Array.isArray(filters.bedrooms) && filters.bedrooms.length > 0) {
-        params.set('bedrooms', filters.bedrooms.join(','));
-      }
-      
-      // Bathrooms (array)
-      if (filters.bathrooms && Array.isArray(filters.bathrooms) && filters.bathrooms.length > 0) {
-        params.set('bathrooms', filters.bathrooms.join(','));
-      }
-      
-      // Price
-      if (filters.minPrice) {
-        params.set('minPrice', filters.minPrice.toString());
-      }
-      if (filters.maxPrice) {
-        params.set('maxPrice', filters.maxPrice.toString());
-      }
-      
-      // Dates
-      if (filters.checkIn) {
-        params.set('checkIn', filters.checkIn);
-      }
-      if (filters.checkOut) {
-        params.set('checkOut', filters.checkOut);
-      }
-      
-      // Guests
-      if (filters.guests && filters.guests > 0) {
-        params.set('guests', filters.guests.toString());
-      }
-      
-      // Badges (array)
-      if (filters.badges && Array.isArray(filters.badges) && filters.badges.length > 0) {
-        params.set('badges', filters.badges.join(','));
-      }
-      
-      // Sort
-      if (filters.sort) {
-        params.set('sort', filters.sort);
-      }
-      
-      const queryString = params.toString();
-      
-      console.log('🔙 Volviendo con filtros:', queryString);
-      
-      navigate(queryString ? `/properties?${queryString}` : '/properties');
-    } catch (error) {
-      console.error('Error parsing saved filters:', error);
-      navigate('/properties');
     }
-  } else {
-    navigate('/properties');
-  }
-  
-  // Marcar para restaurar scroll
-  localStorage.setItem('restoreScrollPosition', scrollPosition || '0');
-};
+
+    navigate(`/properties?${params.toString()}`);
+  };
 
   useEffect(() => {
     if (!id) {
@@ -614,7 +570,7 @@ export default function PropertyDetail() {
 
         <div className="max-w-6xl mx-auto p-4 lg:p-6">
           <button
-            onClick={() => navigate('/properties')}
+            onClick={() => navigate('/properties?quoteFlow=false')}
             className="flex items-center gap-2 text-orange-500 hover:text-orange-600 mb-6"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -659,7 +615,7 @@ export default function PropertyDetail() {
               Property Not Found
             </h2>
             <button
-              onClick={() => navigate('/properties')}
+              onClick={() => navigate('/properties?quoteFlow=false')}
               className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition"
             >
               Back to Properties
