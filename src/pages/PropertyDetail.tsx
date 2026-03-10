@@ -204,7 +204,9 @@ export default function PropertyDetail() {
     openCart,
     isCartModalOpen,
     openCartModal,
-    closeCartModal
+    closeCartModal,
+    quoteCheckIn,
+    quoteCheckOut,
   } = useCart();
 
   const [start, setStart] = useState(() => {
@@ -722,7 +724,7 @@ export default function PropertyDetail() {
       <CartSidebar />
 
       {/* Cart Modal */}
-      <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} />
+      <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} defaultCheckIn={quoteCheckIn} defaultCheckOut={quoteCheckOut} />
 
       {/* Botón flotante del carrito */}
       {cartCount > 0 && (

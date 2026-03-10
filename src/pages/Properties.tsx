@@ -420,7 +420,8 @@ export default function Properties() {
     openCart,
     cartCount,
     isCartModalOpen,
-    closeCartModal
+    closeCartModal,
+    setQuoteDates,
   } = useCart();
 
   const currentLocationLabel = debouncedQuery.trim() || appliedFilters.selectedDestination || 'Top Villa Destinations';
@@ -529,11 +530,14 @@ export default function Properties() {
     setItems([]);
     setAvailabilitySession(null);
 
+    // Persistir fechas en CartContext para que estén disponibles desde PropertyDetail
+    setQuoteDates(filters.checkIn, filters.checkOut);
+
     setPage1Filled(false);
     setAutoFillDone(false);
 
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-  }, [filters, startSearchUx]);
+  }, [filters, startSearchUx, setQuoteDates]);
 
   const handleClearAllFilters = useCallback(() => {
     filterChangedRef.current = true;
@@ -563,9 +567,10 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
+    setQuoteDates('', '');
 
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-  }, [startSearchUx]);
+  }, [startSearchUx, setQuoteDates]);
 
   const applyFiltersImmediately = useCallback((newFilters: typeof filters) => {
     console.log('🔵 [UX] applyFiltersImmediately → destination:', newFilters.selectedDestination, '| badges:', newFilters.selectedBadges);

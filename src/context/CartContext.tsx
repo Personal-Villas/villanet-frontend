@@ -27,6 +27,10 @@ type CartContextType = {
   isCartModalOpen: boolean;
   openCartModal: () => void;
   closeCartModal: () => void;
+  // Fechas de búsqueda activas — persisten para quotes desde cualquier página
+  quoteCheckIn: string;
+  quoteCheckOut: string;
+  setQuoteDates: (checkIn: string, checkOut: string) => void;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -40,6 +44,23 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
+
+  // Fechas persistidas para quotes — sobreviven navegación a /property/:id
+  const [quoteCheckIn, setQuoteCheckIn] = useState<string>(() =>
+    localStorage.getItem('quoteCheckIn') || ''
+  );
+  const [quoteCheckOut, setQuoteCheckOut] = useState<string>(() =>
+    localStorage.getItem('quoteCheckOut') || ''
+  );
+
+  const setQuoteDates = (checkIn: string, checkOut: string) => {
+    setQuoteCheckIn(checkIn);
+    setQuoteCheckOut(checkOut);
+    if (checkIn) localStorage.setItem('quoteCheckIn', checkIn);
+    else localStorage.removeItem('quoteCheckIn');
+    if (checkOut) localStorage.setItem('quoteCheckOut', checkOut);
+    else localStorage.removeItem('quoteCheckOut');
+  };
 
   // Persistir en localStorage cuando cambia
   useEffect(() => {
@@ -89,6 +110,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         isCartModalOpen,
         openCartModal,
         closeCartModal,
+        quoteCheckIn,
+        quoteCheckOut,
+        setQuoteDates,
       }}
     >
       {children}
@@ -103,4 +127,3 @@ export const useCart = () => {
   }
   return context;
 };
-
