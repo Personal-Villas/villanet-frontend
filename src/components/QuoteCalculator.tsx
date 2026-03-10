@@ -12,10 +12,11 @@ interface QuoteCalculatorProps {
   defaultCommission?: number;
 }
 
-interface FeeItem {
+interface FeeBreakdownItem {
   title: string;
   amount: number;
   type: string;
+  secondIdentifier?: string | null;
 }
 
 const COMMISSION_PCT = 10;
@@ -27,10 +28,11 @@ interface QuoteServerData {
   cleaning: number;
   taxes: number;
   feesTotal: number;
-  feeBreakdown: FeeItem[];
+  feeBreakdown: FeeBreakdownItem[];
   guestyTotal: number;
   // Comisión informativa calculada sobre base rate — no se suma al total
   advisorCommission: number;
+
 }
 
 // Helper para redondeo a 2 decimales (igual que backend)
@@ -136,10 +138,7 @@ export default function QuoteCalculator({
     debouncedParams.guests
   ]);
 
-  // Los valores de comisión y total vienen directamente del backend (fuente de verdad)
-  // No recalculamos localmente para garantizar coincidencia exacta con Guesty
-
-  // ✅ Estado cuando faltan fechas (NO es loading, es "esperando input")
+    // ✅ Estado cuando faltan fechas (NO es loading, es "esperando input")
   if (!hasValidDates || !hasValidGuests) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">

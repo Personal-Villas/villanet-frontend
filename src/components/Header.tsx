@@ -4,7 +4,7 @@ import { useAuth } from '../auth/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 interface UnifiedHeaderProps {
-  onAuthClick?: () => void; 
+  onAuthClick?: () => void;
   mode?: 'simple' | 'search';
   query?: string;
   setQuery?: (query: string) => void;
@@ -50,9 +50,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
     }
   };
 
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
   const handleAuthClick = () => {
     setIsMobileMenuOpen(false);
@@ -114,7 +112,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
               )}
 
               {!showNavbarSearch && (
-                <nav className="hidden md:flex items-center gap-6">
+                <nav className="hidden md:flex items-center gap-8">
                   <a href="/for-travel-advisors" className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors">Advisors</a>
                   <a href="/for-property-managers" className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors">Property Managers</a>
                   <a href="/about" className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors">About</a>
@@ -122,7 +120,20 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                   {user ? (
                     <UserMenu user={user} onLogout={handleLogout} onAdminClick={handleAdminClick} />
                   ) : (
-                    <AuthButtons onAuthClick={handleAuthClick} />
+                    <>
+                      <button
+                        onClick={handleAuthClick}
+                        className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors bg-transparent border-0 cursor-pointer"
+                      >
+                        Login
+                      </button>
+                      <a
+                        href="/advisor-signup"
+                        className="inline-flex items-center justify-center h-9 rounded-md bg-gray-900 text-white font-bold border-0 hover:bg-gray-700 text-sm px-4"
+                      >
+                        Join Network
+                      </a>
+                    </>
                   )}
                 </nav>
               )}
@@ -149,7 +160,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setIsMobileMenuOpen(false)} />
@@ -166,10 +177,9 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                 <a href="/for-travel-advisors" className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100" onClick={() => setIsMobileMenuOpen(false)}>Advisors</a>
                 <a href="/for-property-managers" className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100" onClick={() => setIsMobileMenuOpen(false)}>Property Managers</a>
                 <a href="/about" className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100" onClick={() => setIsMobileMenuOpen(false)}>About</a>
-                
-                {/* Admin Dashboard Mobile */}
+
                 {user?.role === 'admin' && (
-                  <button 
+                  <button
                     onClick={handleAdminClick}
                     className="w-full flex items-center gap-2 py-3 text-lg font-bold text-blue-600 hover:text-blue-800 transition-colors border-b border-gray-100"
                   >
@@ -180,10 +190,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
 
                 {mode === 'search' && (
                   <button
-                    onClick={() => {
-                      setShowFilters?.(!showFilters);
-                      setIsMobileMenuOpen(false);
-                    }}
+                    onClick={() => { setShowFilters?.(!showFilters); setIsMobileMenuOpen(false); }}
                     className="w-full flex items-center justify-between py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100"
                   >
                     <span>Filters</span>
@@ -252,17 +259,15 @@ interface UserMenuProps {
 
 const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout, onAdminClick }) => (
   <div className="flex items-center gap-4">
-    {/* Admin Button - Desktop */}
     {user?.role === 'admin' && (
-      <button 
+      <button
         onClick={onAdminClick}
-        className="flex items-center gap-2 px-3 py-1.5 bg-[#111111] text-white rounded-full hover:bg-gray-700 transition-colors border border-gray-200"
+        className="flex items-center gap-2 px-3 py-1.5 bg-[#111111] text-white rounded-full hover:bg-gray-700 transition-colors"
       >
         <LayoutDashboard className="w-4 h-4" />
         <span className="text-xs font-bold uppercase tracking-wider">Dashboard</span>
       </button>
     )}
-    
     <div className="flex items-center gap-2 text-sm text-gray-700">
       <User className="w-4 h-4" />
       <span className="font-medium">{user.full_name || user.email}</span>
@@ -296,8 +301,8 @@ const SearchBar: React.FC<any> = ({ query, setQuery, checkIn, setCheckIn, checkO
 
 const AuthButtons: React.FC<{ onAuthClick: () => void }> = ({ onAuthClick }) => (
   <div className="flex items-center gap-3">
-    <button 
-      onClick={onAuthClick} 
+    <button
+      onClick={onAuthClick}
       className="inline-flex items-center justify-center h-9 rounded-md bg-gray-900 text-white font-bold border-0 hover:bg-gray-700 text-sm px-4 cursor-pointer"
     >
       Login to Access

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { api, publicApi } from '../api/api';
 import AuthModal from '../components/AuthModal';
@@ -18,6 +18,7 @@ import ExpansionButton from '../components/ExpansionButton';
 import ExpansionModal from '../components/ExpansionModal';
 import { initPerformanceMetrics } from '../services/imageUtils';
 import { normalizePropertyName } from '../utils/normalizePropertyName';
+import { NewQuoteModal } from '../components/NewQuoteModal';
 
 
 type Listing = {
@@ -133,6 +134,78 @@ const MIN_LOADER_MS = 1200; // Loader visible mínimo 1.2s
 export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Navigate back to quote wizard
+  const handleEditQuote = useCallback(() => {
+    navigate('/properties?quoteFlow=true');
+  }, [navigate]);
+
+  // ── Auto-open NewQuoteModal al entrar en /properties ─────────────────────
+  // Solo corre al montar. Pone quoteFlow=true para abrir el modal, salvo que:
+  // - ya haya quoteFlow en la URL (true o false — false lo manda PropertyDetail)
+  // - venga fromQuote=true (wizard completado, los filtros se aplican aparte)
+  useEffect(() => {
+    const quoteFlow = searchParams.get('quoteFlow');
+    const isFromQuote = searchParams.get('fromQuote') === 'true';
+
+    if (!isFromQuote && quoteFlow === null) {
+      const next = new URLSearchParams(searchParams);
+      next.set('quoteFlow', 'true');
+      setSearchParams(next, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Aplicar filtros cuando viene fromQuote=true ───────────────────────────
+  // El wizard navega a /properties?fromQuote=true&destination=...&checkIn=...
+  // Este efecto lee esos params, los aplica a los filtros y limpia la URL.
+  useEffect(() => {
+    if (searchParams.get('fromQuote') !== 'true') return;
+
+    const destination = searchParams.get('destination') || '';
+    // Support both single `destination` (legacy) and multi `destinations` (wizard multi-select)
+    const destinationsParam = searchParams.get('destinations') || '';
+    const resolvedDestination = destinationsParam || destination;
+    const bedroomsParam = searchParams.get('bedrooms');
+    const guestsParam = searchParams.get('guests');
+    const checkIn = searchParams.get('checkIn') || '';
+    const checkOut = searchParams.get('checkOut') || '';
+    const maxPrice = searchParams.get('maxPrice') || '';
+
+    const quoteFilters = {
+      query: '',
+      selectedDestination: resolvedDestination,
+      bedrooms: bedroomsParam ? bedroomsParam.split(',').filter(Boolean) : [] as string[],
+      bathrooms: [] as string[],
+      minPrice: '',
+      maxPrice,
+      checkIn,
+      checkOut,
+      selectedBadges: [] as string[],
+      guests: guestsParam ? parseInt(guestsParam, 10) : 0,
+      sortBy: 'rank' as const,
+    };
+
+    filterChangedRef.current = true;
+    setFilters(quoteFilters);
+    setAppliedFilters(quoteFilters);
+    setCurrentPage(1);
+    setAvailabilityCursor(0);
+    setItems([]);
+    setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
+
+    // Limpiar params del wizard de la URL
+    const cleanParams = new URLSearchParams(searchParams);
+    ['fromQuote', 'destination', 'destinations', 'bedrooms', 'guests',
+     'checkIn', 'checkOut', 'maxPrice', 'flexibleRange'].forEach(k => cleanParams.delete(k));
+    setSearchParams(cleanParams, { replace: true });
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
 
   // Estados para filtros
   const [filters, setFilters] = useState({
@@ -192,6 +265,32 @@ export default function Properties() {
   const uxCleanupRef = useRef<null | (() => void)>(null);
   // Señal para mostrar skeletons inmediatamente al cambiar filtros
   const filterChangedRef = useRef<boolean>(false);
+
+  // paddingTop dinámico para el grid: solo la altura del panel absoluto + gap
+  // El sticky bar (80px) ya ocupa espacio en el flujo del documento.
+  const [panelHeight, setPanelHeight] = useState(291); // offsetHeight medido en dev
+  useEffect(() => {
+    let ro: ResizeObserver | null = null;
+    const attach = () => {
+      const panel = document.querySelector<HTMLElement>(
+        '.sticky.top-16 > div[class*="absolute"]'
+      );
+      if (!panel) return false;
+      ro = new ResizeObserver(() => {
+        const isVisible = !panel.classList.contains('opacity-0');
+        setPanelHeight(isVisible ? panel.scrollHeight : 0);
+      });
+      ro.observe(panel);
+      const isVisible = !panel.classList.contains('opacity-0');
+      setPanelHeight(isVisible ? panel.scrollHeight : 0);
+      return true;
+    };
+    if (!attach()) {
+      const t = setTimeout(attach, 300);
+      return () => clearTimeout(t);
+    }
+    return () => ro?.disconnect();
+  }, []);
 
   const startSearchUx = useCallback(() => {
     uxCleanupRef.current?.(); // limpia timers previos
@@ -321,7 +420,8 @@ export default function Properties() {
     openCart,
     cartCount,
     isCartModalOpen,
-    closeCartModal
+    closeCartModal,
+    setQuoteDates,
   } = useCart();
 
   const currentLocationLabel = debouncedQuery.trim() || appliedFilters.selectedDestination || 'Top Villa Destinations';
@@ -430,11 +530,14 @@ export default function Properties() {
     setItems([]);
     setAvailabilitySession(null);
 
+    // Persistir fechas en CartContext para que estén disponibles desde PropertyDetail
+    setQuoteDates(filters.checkIn, filters.checkOut);
+
     setPage1Filled(false);
     setAutoFillDone(false);
 
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-  }, [filters, startSearchUx]);
+  }, [filters, startSearchUx, setQuoteDates]);
 
   const handleClearAllFilters = useCallback(() => {
     filterChangedRef.current = true;
@@ -464,9 +567,10 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
+    setQuoteDates('', '');
 
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-  }, [startSearchUx]);
+  }, [startSearchUx, setQuoteDates]);
 
   const applyFiltersImmediately = useCallback((newFilters: typeof filters) => {
     console.log('🔵 [UX] applyFiltersImmediately → destination:', newFilters.selectedDestination, '| badges:', newFilters.selectedBadges);
@@ -495,11 +599,11 @@ export default function Properties() {
   }, [filters, applyFiltersImmediately]);
 
   const handleDestinationChange = useCallback((destination: string) => {
-    const newDestination = destination === filters.selectedDestination ? '' : destination;
-
+    // SecondSearchBar now passes the full updated CSV string (e.g. "Jamaica,St. Barts")
+    // We just apply it directly — toggle logic is handled inside SecondSearchBar
     applyFiltersImmediately({
       ...filters,
-      selectedDestination: newDestination
+      selectedDestination: destination
     });
   }, [filters, applyFiltersImmediately]);
 
@@ -839,8 +943,14 @@ useEffect(() => {
           qs.set('q', appliedFilters.query.trim());
         }
 
+        // Support both single destination and comma-separated multi-destination
         if (appliedFilters.selectedDestination) {
-          qs.set('destination', appliedFilters.selectedDestination);
+          const dests = appliedFilters.selectedDestination.split('|').map(s => s.trim()).filter(Boolean);
+          if (dests.length > 1) {
+            qs.set('destinations', dests.join('|'));
+          } else {
+            qs.set('destination', appliedFilters.selectedDestination);
+          }
         }
 
         // ✅ Bedrooms
@@ -1256,6 +1366,7 @@ useEffect(() => {
           guests={filters.guests}
           setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
           onApplyFilters={handleApplyFilters}
+          onEditQuote={handleEditQuote}
         />
 
         <main className="w-full px-4 md:px-8">
@@ -1290,7 +1401,7 @@ useEffect(() => {
           {/* SearchLoader como overlay encima del grid — no oculta el skeleton */}
           {uxPhase === 'loader' && (<SearchLoader progress={progress} />)}
 
-          <div className="pt-10 lg:pt-[290px] md:pt-[360px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" style={{ paddingTop: panelHeight + 32 }}>
             {renderList.map((item, idx) => {
               if (!item) {
                 return <ListingCardSkeleton key={`sk-${idx}`} />;
@@ -1318,7 +1429,7 @@ useEffect(() => {
 
           {/* Empty state — búsqueda terminó sin resultados, solo ExpansionButton */}
           {uxPhase === 'results' && items.length === 0 && (
-            <div className="pt-10 lg:pt-[290px] md:pt-[360px] flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center justify-center" style={{ paddingTop: panelHeight + 32 }}>
               <ExpansionButton
                 resultsCount={0}
                 onClick={() => setShowExpansionModal(true)}
@@ -1472,6 +1583,8 @@ useEffect(() => {
             currentResultsCount={total}
           />
         )}
+
+        <NewQuoteModal onBrowseAll={handleClearAllFilters} />
       </div>
     </>
   );

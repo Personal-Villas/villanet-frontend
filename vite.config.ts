@@ -8,10 +8,12 @@ export default defineConfig({
     port: 3000
   },
   preview: {
+    host: '0.0.0.0',
     allowedHosts: [
       'thevillanet.com',
       'www.thevillanet.com',
-      'villanet-frontend.onrender.com'
+      'villanet-frontend.onrender.com',
+      'villanet-frontend-dev.onrender.com'
     ]
   }
 })

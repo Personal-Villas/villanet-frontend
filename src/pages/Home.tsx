@@ -1,107 +1,65 @@
 import React, { useState, useCallback } from "react";
 import {
   Hero,
-  WhySection,
+  FeaturesSection,
   TrustLayer,
-  AdvisorsPmsSplit,
-  HowItWorks,
+  WhiteLabelSection,
   FloatingButton,
   CTASection,
   RegionsSection,
-  ProofSection,
-  Footer
+  Footer,
 } from "../components/home/index";
 import AuthModal from "../components/AuthModal";
 import { UnifiedHeader } from "../components/Header";
 import VillaNetRankModal from "../components/VillaNetRankModal";
 
 export const Home: React.FC = () => {
-  // Estado del modal de autenticación
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showRankModal, setShowRankModal] = useState(false);
 
-  // Función para abrir el modal
-  const openAuthModal = useCallback(() => {
-    setShowAuthModal(true);
-  }, []);
+  const openAuthModal = useCallback(() => setShowAuthModal(true), []);
+  const closeAuthModal = useCallback(() => setShowAuthModal(false), []);
+  const openRankModal = () => setShowRankModal(true);
+  const closeRankModal = () => setShowRankModal(false);
 
-  // Función para cerrar el modal
-  const closeAuthModal = useCallback(() => {
-    setShowAuthModal(false);
-  }, []);
-
-  const openRankModal = () => {
-    setShowRankModal(true);
-  };
-
-  const closeRankModal = () => {
-    setShowRankModal(false);
-  };
-
-  // Función cuando el usuario se autentica exitosamente
-  const handleAuthSuccess = useCallback((user: any) => {
-    console.log('✅ Auth success:', user);
-    closeAuthModal();
-    
-    // Disparar evento para actualizar el contexto de auth
-    window.dispatchEvent(new Event('authStateChange'));
-  }, [closeAuthModal]);
+  const handleAuthSuccess = useCallback(
+    (user: any) => {
+      console.log("✅ Auth success:", user);
+      closeAuthModal();
+      window.dispatchEvent(new Event("authStateChange"));
+    },
+    [closeAuthModal]
+  );
 
   return (
+    // font-[Inter] fuerza Inter en toda la home, igual que Lovable
     <div className="min-h-screen bg-background font-[Inter]">
-      {/* Header unificado en modo simple */}
-      <UnifiedHeader 
-        mode="simple"
-        onAuthClick={openAuthModal} 
-      />
-      
+      <UnifiedHeader mode="simple" onAuthClick={openAuthModal} />
+
       <Hero />
-      <WhySection />
+      <FeaturesSection />
       <TrustLayer />
-      <AdvisorsPmsSplit />
-      <HowItWorks />
-      <ProofSection />
+      <WhiteLabelSection />
       <RegionsSection />
-      <CTASection onAuthClick={openAuthModal} />
+      <CTASection />
       <Footer />
-      <FloatingButton onClick={openRankModal}/>
+      <FloatingButton onClick={openRankModal} />
 
-      {/* Modal de Villa Net Rank */}
-      <VillaNetRankModal 
-        isOpen={showRankModal}
-        onClose={closeRankModal}
-      />
+      <VillaNetRankModal isOpen={showRankModal} onClose={closeRankModal} />
 
-      {/* Modal de Auth */}
       {showAuthModal && (
-        <AuthModal 
-          onClose={closeAuthModal}
-          onSuccess={handleAuthSuccess}
-        />
+        <AuthModal onClose={closeAuthModal} onSuccess={handleAuthSuccess} />
       )}
-      
+
       <style>
         {`
           @keyframes fadeInUp {
-            from {
-              opacity: 0;
-              transform: translateY(20px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
           }
-
           @keyframes pulse-subtle {
-            0%, 100% {
-              transform: scale(1);
-              opacity: 1;
-            }
-            50% {
-              transform: scale(1.05);
-              opacity: 0.9;
-            }
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
           }
         `}
       </style>
