@@ -54,12 +54,12 @@ export const WhiteLabelSection: React.FC = () => {
           {/* Right: phone mockups */}
           <div className="flex justify-center gap-6">
             <PhoneMockup
-              imageSrc="src/assets/images/advisor-view.png"
+              imageSrc="/assets/images/advisor-view.png"
               imageAlt="Advisor View"
               label="Advisor View"
             />
             <PhoneMockup
-              imageSrc="src/assets/images/client-view.png"
+              imageSrc="/assets/images/client-view.png"
               imageAlt="Client View"
               label="Client View"
             />

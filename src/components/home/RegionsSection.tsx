@@ -31,9 +31,9 @@ const regions = [
 ];
 
 const villaImages = [
-  { src: "src/assets/images/caribbean-villa.png", alt: "Caribbean villa" },
-  { src: "src/assets/images/dominican-villa.png", alt: "Dominican Republic villa" },
-  { src: "src/assets/images/mexico-villa.png", alt: "Mexico villa" },
+  { src: "/assets/images/caribbean-villa.png", alt: "Caribbean villa" },
+  { src: "/assets/images/dominican-villa.png", alt: "Dominican Republic villa" },
+  { src: "/assets/images/mexico-villa.png", alt: "Mexico villa" },
 ];
 
 export const RegionsSection: React.FC = () => {

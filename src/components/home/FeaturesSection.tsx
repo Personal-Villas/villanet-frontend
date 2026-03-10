@@ -7,7 +7,7 @@ const features = [
     title: "Price-First Search",
     description:
       "Filter by nightly rate, total cost, or commission-eligible pricing. Surface the right villas without wading through irrelevant results.",
-    imageSrc: "src/assets/images/price-first-search.png",
+    imageSrc: "/assets/images/price-first-search.png",
     imageAlt: "Price-First Search UI",
   },
   {
@@ -15,7 +15,7 @@ const features = [
     title: "1-Click Location Check",
     description:
       "See exactly where a villa sits — proximity to beach, airport, restaurants — before you pitch it. No guesswork, no surprises.",
-    imageSrc: "src/assets/images/location-check.png",
+    imageSrc: "/assets/images/location-check.png",
     imageAlt: "1-Click Location Check UI",
   },
   {
@@ -23,7 +23,7 @@ const features = [
     title: "Strategic Curation",
     description:
       "Build shortlists from pre-vetted inventory. Every property has standardized data, verified photos, and transparent pricing.",
-    imageSrc: "src/assets/images/strategic-curation.png",
+    imageSrc: "/assets/images/strategic-curation.png",
     imageAlt: "Strategic Curation UI",
   },
 ];
