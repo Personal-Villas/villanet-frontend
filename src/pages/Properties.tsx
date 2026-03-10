@@ -266,6 +266,32 @@ export default function Properties() {
   // Señal para mostrar skeletons inmediatamente al cambiar filtros
   const filterChangedRef = useRef<boolean>(false);
 
+  // paddingTop dinámico para el grid: solo la altura del panel absoluto + gap
+  // El sticky bar (80px) ya ocupa espacio en el flujo del documento.
+  const [panelHeight, setPanelHeight] = useState(291); // offsetHeight medido en dev
+  useEffect(() => {
+    let ro: ResizeObserver | null = null;
+    const attach = () => {
+      const panel = document.querySelector<HTMLElement>(
+        '.sticky.top-16 > div[class*="absolute"]'
+      );
+      if (!panel) return false;
+      ro = new ResizeObserver(() => {
+        const isVisible = !panel.classList.contains('opacity-0');
+        setPanelHeight(isVisible ? panel.scrollHeight : 0);
+      });
+      ro.observe(panel);
+      const isVisible = !panel.classList.contains('opacity-0');
+      setPanelHeight(isVisible ? panel.scrollHeight : 0);
+      return true;
+    };
+    if (!attach()) {
+      const t = setTimeout(attach, 300);
+      return () => clearTimeout(t);
+    }
+    return () => ro?.disconnect();
+  }, []);
+
   const startSearchUx = useCallback(() => {
     uxCleanupRef.current?.(); // limpia timers previos
 
@@ -1370,7 +1396,7 @@ useEffect(() => {
           {/* SearchLoader como overlay encima del grid — no oculta el skeleton */}
           {uxPhase === 'loader' && (<SearchLoader progress={progress} />)}
 
-          <div className="pt-10 lg:pt-[290px] md:pt-[360px] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" style={{ paddingTop: panelHeight + 32 }}>
             {renderList.map((item, idx) => {
               if (!item) {
                 return <ListingCardSkeleton key={`sk-${idx}`} />;
@@ -1398,7 +1424,7 @@ useEffect(() => {
 
           {/* Empty state — búsqueda terminó sin resultados, solo ExpansionButton */}
           {uxPhase === 'results' && items.length === 0 && (
-            <div className="pt-10 lg:pt-[290px] md:pt-[360px] flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center justify-center" style={{ paddingTop: panelHeight + 32 }}>
               <ExpansionButton
                 resultsCount={0}
                 onClick={() => setShowExpansionModal(true)}
