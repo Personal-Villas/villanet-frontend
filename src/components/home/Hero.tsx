@@ -76,7 +76,7 @@ export const Hero: React.FC = () => {
             <div className="flex justify-center lg:justify-end">
               <div className="relative w-full max-w-[560px]">
                 <img
-                  src="/assets/images/hero-search-preview.png"
+                  src="/assets/images/hero-search-preview.webp"
                   alt="Villa Net search results preview"
                   className="w-full h-auto rounded-xl shadow-lg"
                   onError={(e) => {
