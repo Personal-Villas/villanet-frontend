@@ -30,7 +30,8 @@ export interface PreloadFilters {
   checkIn?: string;
   checkOut?: string;
   bedrooms?: number | null;
-  maxPrice?: number;
+  maxPrice?: number;       // legacy — precio por noche estático (sin fechas)
+  maxTotalBudget?: number; // budget total de estadía incluyendo fees
 }
 
 export interface PreloadResult {
@@ -86,7 +87,10 @@ export function QuotePreloadProvider({ children }: { children: ReactNode }) {
         if (filters.checkOut) qs.set('checkOut', filters.checkOut);
 
         // Budget
-        if (filters.maxPrice && filters.maxPrice < 100_000) {
+        if (filters.maxTotalBudget && filters.maxTotalBudget < 1_000_000) {
+          qs.set('maxTotalBudget', String(filters.maxTotalBudget));
+        } else if (filters.maxPrice && filters.maxPrice < 100_000) {
+          // legacy fallback — sin fechas
           qs.set('maxPrice', String(filters.maxPrice));
         }
 

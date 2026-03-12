@@ -172,6 +172,7 @@ export default function Properties() {
     const checkIn = searchParams.get('checkIn') || '';
     const checkOut = searchParams.get('checkOut') || '';
     const maxPrice = searchParams.get('maxPrice') || '';
+    const maxTotalBudget = searchParams.get('maxTotalBudget') || '';
 
     const quoteFilters = {
       query: '',
@@ -180,6 +181,7 @@ export default function Properties() {
       bathrooms: [] as string[],
       minPrice: '',
       maxPrice,
+      maxTotalBudget,
       checkIn,
       checkOut,
       selectedBadges: [] as string[],
@@ -200,7 +202,7 @@ export default function Properties() {
     // Limpiar params del wizard de la URL
     const cleanParams = new URLSearchParams(searchParams);
     ['fromQuote', 'destination', 'destinations', 'bedrooms', 'guests',
-     'checkIn', 'checkOut', 'maxPrice', 'flexibleRange'].forEach(k => cleanParams.delete(k));
+     'checkIn', 'checkOut', 'maxPrice', 'maxTotalBudget', 'flexibleRange'].forEach(k => cleanParams.delete(k));
     setSearchParams(cleanParams, { replace: true });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,6 +217,7 @@ export default function Properties() {
     bathrooms: [] as string[],
     minPrice: '',
     maxPrice: '',
+    maxTotalBudget: '',  // budget total de estadía (desde wizard) — tiene prioridad sobre maxPrice cuando hay fechas
     checkIn: '',
     checkOut: '',
     selectedBadges: [] as string[],
@@ -550,6 +553,7 @@ export default function Properties() {
       bathrooms: [] as string[],
       minPrice: '',
       maxPrice: '',
+      maxTotalBudget: '',
       checkIn: '',
       checkOut: '',
       selectedBadges: [] as string[],
@@ -625,6 +629,7 @@ export default function Properties() {
     bathrooms: [] as string[],
     minPrice: '',
     maxPrice: '',
+    maxTotalBudget: '',
     checkIn: '',
     checkOut: '',
     selectedBadges: [] as string[],
@@ -971,7 +976,14 @@ useEffect(() => {
           }
         }
 
-        if (appliedFilters.maxPrice && appliedFilters.maxPrice.trim()) {
+        // Budget: si viene del wizard con fechas usar maxTotalBudget (suma de noches + fees),
+        // si no usar maxPrice (precio por noche estático — filtro manual de la barra).
+        if (appliedFilters.maxTotalBudget && appliedFilters.maxTotalBudget.trim()) {
+          const totalVal = Number(appliedFilters.maxTotalBudget);
+          if (!isNaN(totalVal) && totalVal > 0) {
+            qs.set('maxTotalBudget', String(totalVal));
+          }
+        } else if (appliedFilters.maxPrice && appliedFilters.maxPrice.trim()) {
           const maxVal = Number(appliedFilters.maxPrice);
           if (!isNaN(maxVal) && maxVal > 0) {
             qs.set('maxPrice', String(maxVal));
