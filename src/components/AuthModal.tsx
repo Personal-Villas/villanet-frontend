@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
-import imageLoginDefault from '../assets/images/villanet-login.jpg';
+import imageLoginDefault from '../assets/images/villanet-login.webp';
 //import googleIcon from '../assets/images/google.png';
 //import appleIcon from '../assets/images/apple.png';
 //import facebookIcon from '../assets/images/facebook.png';
