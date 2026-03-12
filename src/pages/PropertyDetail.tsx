@@ -1244,11 +1244,34 @@ export default function PropertyDetail() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
-              onClick={() => setShowBookingForm(true)}
-              className="inline-flex items-center justify-center h-14 px-8 rounded-xl bg-gray-900 text-white font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all hover:bg-gray-800 hover:scale-[1.02] active:scale-[0.98]"
+              onClick={handleToggleCart}
+              className={`inline-flex items-center justify-center gap-2 h-14 px-8 rounded-xl font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                isPropertyInCart
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-gray-900 text-white hover:bg-gray-800'
+              }`}
             >
-              INQUIRE
+              {isPropertyInCart ? (
+                <>
+                  <Minus className="w-5 h-5" />
+                  REMOVE FROM QUOTE
+                </>
+              ) : (
+                <>
+                  <Plus className="w-5 h-5" />
+                  ADD TO QUOTE
+                </>
+              )}
             </button>
+            {cartCount > 0 && (
+              <button
+                onClick={openCartModal}
+                className="inline-flex items-center justify-center gap-2 h-14 px-8 rounded-xl font-bold uppercase tracking-wider border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 shadow-sm hover:shadow-md transition-all"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                VIEW QUOTE ({cartCount})
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -1432,7 +1455,7 @@ export default function PropertyDetail() {
 
                 {amenitiesWithIcons.length === 0 && (
                   <p className="text-center text-gray-500 text-sm mt-8">
-                    Amenity details available upon inquiry
+                    Amenity details available upon request
                   </p>
                 )}
               </>
@@ -1772,10 +1795,24 @@ export default function PropertyDetail() {
           <div className="flex gap-3 items-center">
             <div className="flex-1 flex gap-3">
               <button
-                onClick={() => setShowBookingForm(true)}
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-2 flex-1 h-14 px-8 !rounded-xl bg-gray-900 text-white font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:bg-gray-800 hover:scale-[1.02] active:scale-[0.98] border border-gray-800"
+                onClick={handleToggleCart}
+                className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-2 flex-1 h-14 px-8 !rounded-xl font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] ${
+                  isPropertyInCart
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-700'
+                    : 'bg-gray-900 text-white hover:bg-gray-800 border border-gray-800'
+                }`}
               >
-                INQUIRE
+                {isPropertyInCart ? (
+                  <>
+                    <Minus className="w-4 h-4" />
+                    REMOVE FROM QUOTE
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    ADD TO QUOTE
+                  </>
+                )}
               </button>
             </div>
 
