@@ -44,7 +44,7 @@ type PropertiesHeaderCompactProps = {
   location: string;
   sortBy: string;
   setSortBy: (sort: string) => void;
-  onApplyFilters?: () => void;
+  onApplyFilters?: (overrides?: Record<string, unknown>) => void;
   query: string;
   setQuery?: (value: string) => void;
 
@@ -73,6 +73,11 @@ type PropertiesHeaderCompactProps = {
 
   maxPrice: string;
   setMaxPrice: (value: string) => void;
+
+  // Budget total (modo quote) — tiene prioridad sobre maxPrice cuando isQuoteMode=true
+  maxTotalBudget?: string;
+  setMaxTotalBudget?: (value: string) => void;
+  isQuoteMode?: boolean; // true cuando el usuario llegó desde el wizard con un quote activo
 
   guests?: number;
   setGuests?: (value: number) => void;
@@ -737,6 +742,9 @@ export default function PropertiesHeaderCompact({
   setMinPrice,
   maxPrice,
   setMaxPrice,
+  maxTotalBudget = '',
+  setMaxTotalBudget,
+  isQuoteMode = false,
   guests = 0,
   setGuests,
   onClearAllFilters,
@@ -764,6 +772,7 @@ export default function PropertiesHeaderCompact({
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
   const [localMinPrice, setLocalMinPrice] = useState(minPrice);
   const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice);
+  const [localMaxTotalBudget, setLocalMaxTotalBudget] = useState(maxTotalBudget);
 
   const guestsLabel = guests && guests > 0 ? `${guests} Guests` : 'Guests';
   const datesLabel = formatDates(checkIn, checkOut);
@@ -779,11 +788,12 @@ export default function PropertiesHeaderCompact({
       bathrooms.includes("12+") ? "12+ Bathrooms" :
         `${bathrooms[0]} Bathrooms`;
 */
-  const priceLabel =
-    !minPrice && !maxPrice ? "Price" :
-      minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
-        !minPrice && maxPrice ? `Up to $${Number(maxPrice).toLocaleString()}` :
-          `$${Number(minPrice).toLocaleString()} - $${Number(maxPrice).toLocaleString()}`;
+  const priceLabel = isQuoteMode
+    ? (!maxTotalBudget ? 'Budget' : `Up to $${Number(maxTotalBudget).toLocaleString()}`)
+    : (!minPrice && !maxPrice ? "Price" :
+        minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
+          !minPrice && maxPrice ? `Up to $${Number(maxPrice).toLocaleString()}` :
+            `$${Number(minPrice).toLocaleString()} - $${Number(maxPrice).toLocaleString()}`);
 
   const { caribbean, mexico } = useMemo(
     () => groupDestinationsByRegion(destinations),
@@ -867,10 +877,15 @@ export default function PropertiesHeaderCompact({
   };*/
 
   const handleApplyPrice = () => {
-    setMinPrice(localMinPrice);
-    setMaxPrice(localMaxPrice);
+    if (isQuoteMode) {
+      setMaxTotalBudget?.(localMaxTotalBudget);
+      onApplyFilters?.({ maxTotalBudget: localMaxTotalBudget });
+    } else {
+      setMinPrice(localMinPrice);
+      setMaxPrice(localMaxPrice);
+      onApplyFilters?.({ minPrice: localMinPrice, maxPrice: localMaxPrice });
+    }
     setShowPriceSelector(false);
-    onApplyFilters?.();
   };
 
   const handleApplyAllFilters = () => {
@@ -878,12 +893,20 @@ export default function PropertiesHeaderCompact({
       return;
     }
 
+    const overrides: Record<string, unknown> = {};
+
     if (setGuests) {
       setGuests(localGuestsForModal);
+      overrides.guests = localGuestsForModal;
+    }
+
+    if (isQuoteMode) {
+      setMaxTotalBudget?.(localMaxTotalBudget);
+      overrides.maxTotalBudget = localMaxTotalBudget;
     }
 
     setShowMobileFilters(false);
-    onApplyFilters?.();
+    onApplyFilters?.(overrides);
   };
 
   useEffect(() => {
@@ -935,6 +958,7 @@ export default function PropertiesHeaderCompact({
     if (showPriceSelector) {
       setLocalMinPrice(minPrice);
       setLocalMaxPrice(maxPrice);
+      setLocalMaxTotalBudget(maxTotalBudget);
     }
   }, [showPriceSelector]);
 
@@ -943,6 +967,10 @@ export default function PropertiesHeaderCompact({
     setLocalMinPrice(minPrice);
     setLocalMaxPrice(maxPrice);
   }, [minPrice, maxPrice]);
+
+  useEffect(() => {
+    setLocalMaxTotalBudget(maxTotalBudget);
+  }, [maxTotalBudget]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1328,61 +1356,104 @@ export default function PropertiesHeaderCompact({
       ref={priceSelectorRef}
       className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-5 w-80"
     >
-      <h3 className="font-medium text-sm mb-4">Price range (per night)</h3>
-      <div className="space-y-3">
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Min Price</label>
-          <input
-            type="number"
-            value={localMinPrice}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === '' || parseFloat(value) >= 0) {
-                setLocalMinPrice(value);
-              }
-            }}
-            placeholder="$0"
-            className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-            min="0"
-            step="100"
-            autoFocus
-          />
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Max Price</label>
-          <input
-            type="number"
-            value={localMaxPrice}
-            onChange={(e) => {
-              const value = e.target.value;
-              if (value === '' || parseFloat(value) >= 0) {
-                setLocalMaxPrice(value);
-              }
-            }}
-            placeholder="Any"
-            className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-            min="0"
-            step="100"
-          />
-        </div>
-      </div>
-      <div className="flex justify-between gap-2 pt-3 border-t border-border mt-4">
-        <button
-          onClick={() => {
-            setLocalMinPrice('');
-            setLocalMaxPrice('');
-          }}
-          className="px-3 py-2 text-sm border border-input rounded-lg hover:bg-muted transition-colors"
-        >
-          Clear
-        </button>
-        <button
-          onClick={handleApplyPrice}
-          className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
-        >
-          Apply Price
-        </button>
-      </div>
+      {isQuoteMode ? (
+        // Modo quote: solo max total budget
+        <>
+          <h3 className="font-medium text-sm mb-1">Total stay budget</h3>
+          <p className="text-xs text-muted-foreground mb-4">Maximum total including all fees and taxes</p>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Max Budget</label>
+            <input
+              type="number"
+              value={localMaxTotalBudget}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || parseFloat(value) >= 0) {
+                  setLocalMaxTotalBudget(value);
+                }
+              }}
+              placeholder="Any"
+              className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              min="0"
+              step="1000"
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-between gap-2 pt-3 border-t border-border mt-4">
+            <button
+              onClick={() => setLocalMaxTotalBudget('')}
+              className="px-3 py-2 text-sm border border-input rounded-lg hover:bg-muted transition-colors"
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleApplyPrice}
+              className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+            >
+              Apply Budget
+            </button>
+          </div>
+        </>
+      ) : (
+        // Modo normal: rango min-max por noche
+        <>
+          <h3 className="font-medium text-sm mb-4">Price range (per night)</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Min Price</label>
+              <input
+                type="number"
+                value={localMinPrice}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || parseFloat(value) >= 0) {
+                    setLocalMinPrice(value);
+                  }
+                }}
+                placeholder="$0"
+                className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                min="0"
+                step="100"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Max Price</label>
+              <input
+                type="number"
+                value={localMaxPrice}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '' || parseFloat(value) >= 0) {
+                    setLocalMaxPrice(value);
+                  }
+                }}
+                placeholder="Any"
+                className="w-full px-3 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                min="0"
+                step="100"
+              />
+            </div>
+          </div>
+          <div className="flex justify-between gap-2 pt-3 border-t border-border mt-4">
+            <button
+              onClick={() => {
+                setLocalMinPrice('');
+                setLocalMaxPrice('');
+              }}
+              className="px-3 py-2 text-sm border border-input rounded-lg hover:bg-muted transition-colors"
+            >
+              Clear
+            </button>
+            <button
+              onClick={handleApplyPrice}
+              className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+            >
+              Apply Price
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -1395,7 +1466,7 @@ export default function PropertiesHeaderCompact({
             <div className="flex items-center gap-2 text-sm flex-wrap">
               <h1 className="text-xl font-semibold text-foreground flex items-baseline gap-1 min-w-0">
                 <span className="whitespace-nowrap">{itemsCount} Villas in</span>
-                <span className="truncate max-w-[260px]" title={location}>{location}</span>
+                <span className="truncate max-w-[260px]" title={location.replace(/\|/g, ', ')}>{location.replace(/\|/g, ', ')}</span>
               </h1>
               <span className="text-muted-foreground">•</span>
 
@@ -1971,37 +2042,60 @@ export default function PropertiesHeaderCompact({
                 </div>
                 */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">Price Range (per night)</label>
-                  <div className="space-y-2">
-                    <input
-                      type="number"
-                      value={minPrice}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || parseFloat(value) >= 0) {
-                          setMinPrice(value);
-                        }
-                      }}
-                      placeholder="Min Price ($)"
-                      className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      min="0"
-                      step="100"
-                    />
-                    <input
-                      type="number"
-                      value={maxPrice}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || parseFloat(value) >= 0) {
-                          setMaxPrice(value);
-                        }
-                      }}
-                      placeholder="Max Price ($)"
-                      className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      min="0"
-                      step="100"
-                    />
-                  </div>
+                  {isQuoteMode ? (
+                    <>
+                      <label className="block text-sm font-medium mb-1">Total Stay Budget</label>
+                      <p className="text-xs text-muted-foreground mb-2">Maximum total including all fees and taxes</p>
+                      <input
+                        type="number"
+                        value={localMaxTotalBudget}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || parseFloat(value) >= 0) {
+                            setLocalMaxTotalBudget(value);
+                          }
+                        }}
+                        placeholder="Max Budget ($)"
+                        className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        min="0"
+                        step="1000"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <label className="block text-sm font-medium mb-2">Price Range (per night)</label>
+                      <div className="space-y-2">
+                        <input
+                          type="number"
+                          value={minPrice}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || parseFloat(value) >= 0) {
+                              setMinPrice(value);
+                            }
+                          }}
+                          placeholder="Min Price ($)"
+                          className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          min="0"
+                          step="100"
+                        />
+                        <input
+                          type="number"
+                          value={maxPrice}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || parseFloat(value) >= 0) {
+                              setMaxPrice(value);
+                            }
+                          }}
+                          placeholder="Max Price ($)"
+                          className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                          min="0"
+                          step="100"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             }

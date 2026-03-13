@@ -192,6 +192,7 @@ export default function Properties() {
     filterChangedRef.current = true;
     setFilters(quoteFilters);
     setAppliedFilters(quoteFilters);
+    if (maxTotalBudget) setIsQuoteMode(true);
     setCurrentPage(1);
     setAvailabilityCursor(0);
     setItems([]);
@@ -217,7 +218,7 @@ export default function Properties() {
     bathrooms: [] as string[],
     minPrice: '',
     maxPrice: '',
-    maxTotalBudget: '',  // budget total de estadía (desde wizard) — tiene prioridad sobre maxPrice cuando hay fechas
+    maxTotalBudget: '',  // budget total de estadía (desde wizard)
     checkIn: '',
     checkOut: '',
     selectedBadges: [] as string[],
@@ -226,6 +227,11 @@ export default function Properties() {
   });
 
   const [appliedFilters, setAppliedFilters] = useState(filters);
+
+  // isQuoteMode: true cuando el usuario llegó desde el wizard con un quote completado.
+  // Se mantiene aunque el usuario borre el valor de maxTotalBudget en el input,
+  // y solo se desactiva al hacer Clear All o navegar sin quote.
+  const [isQuoteMode, setIsQuoteMode] = useState(false);
 
   // Estados de paginación
   const [items, setItems] = useState<Listing[]>([]);
@@ -331,6 +337,7 @@ export default function Properties() {
       bathrooms: appliedFilters.bathrooms,
       minPrice: appliedFilters.minPrice,
       maxPrice: appliedFilters.maxPrice,
+      maxTotalBudget: appliedFilters.maxTotalBudget,
       destination: appliedFilters.selectedDestination,
       badges: appliedFilters.selectedBadges,
       sort: appliedFilters.sortBy,
@@ -523,24 +530,27 @@ export default function Properties() {
     console.log('🔄 Auth state updated, Properties should re-render');
   }, [closeAuthModal]);
 
-  const handleApplyFilters = useCallback(() => {
+  const handleApplyFilters = useCallback((overrides?: Record<string, unknown>) => {
     filterChangedRef.current = true;
     startSearchUx();
 
-    setAppliedFilters(filters);
+    // Si vienen overrides (ej: maxTotalBudget desde SecondSearchBar), se aplican
+    // directamente sin depender del setState previo — evita stale closure.
+    setFilters(latestFilters => {
+      const filtersToApply = overrides ? { ...latestFilters, ...overrides } : latestFilters;
+      setAppliedFilters(filtersToApply);
+      setQuoteDates(filtersToApply.checkIn, filtersToApply.checkOut);
+      return filtersToApply;
+    });
+
     setCurrentPage(1);
     setAvailabilityCursor(0);
     setItems([]);
     setAvailabilitySession(null);
-
-    // Persistir fechas en CartContext para que estén disponibles desde PropertyDetail
-    setQuoteDates(filters.checkIn, filters.checkOut);
-
     setPage1Filled(false);
     setAutoFillDone(false);
-
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-  }, [filters, startSearchUx, setQuoteDates]);
+  }, [startSearchUx, setQuoteDates]);
 
   const handleClearAllFilters = useCallback(() => {
     filterChangedRef.current = true;
@@ -563,6 +573,7 @@ export default function Properties() {
 
     setFilters(resetFilters);
     setAppliedFilters(resetFilters);
+    setIsQuoteMode(false);
     setCurrentPage(1);
     setError(null);
 
@@ -629,7 +640,7 @@ export default function Properties() {
     bathrooms: [] as string[],
     minPrice: '',
     maxPrice: '',
-    maxTotalBudget: '',
+    maxTotalBudget: '',  // budget total de estadía (desde wizard)
     checkIn: '',
     checkOut: '',
     selectedBadges: [] as string[],
@@ -727,6 +738,10 @@ export default function Properties() {
     }
     if (params.get('maxPrice')) {
       urlFilters.maxPrice = params.get('maxPrice') || '';
+      hasUrlFilters = true;
+    }
+    if (params.get('maxTotalBudget')) {
+      urlFilters.maxTotalBudget = params.get('maxTotalBudget') || '';
       hasUrlFilters = true;
     }
 
@@ -976,8 +991,6 @@ useEffect(() => {
           }
         }
 
-        // Budget: si viene del wizard con fechas usar maxTotalBudget (suma de noches + fees),
-        // si no usar maxPrice (precio por noche estático — filtro manual de la barra).
         if (appliedFilters.maxTotalBudget && appliedFilters.maxTotalBudget.trim()) {
           const totalVal = Number(appliedFilters.maxTotalBudget);
           if (!isNaN(totalVal) && totalVal > 0) {
@@ -1369,6 +1382,9 @@ useEffect(() => {
           setMinPrice={(minPrice) => setFilters(prev => ({ ...prev, minPrice }))}
           maxPrice={filters.maxPrice}
           setMaxPrice={(maxPrice) => setFilters(prev => ({ ...prev, maxPrice }))}
+          maxTotalBudget={filters.maxTotalBudget}
+          setMaxTotalBudget={(maxTotalBudget) => setFilters(prev => ({ ...prev, maxTotalBudget }))}
+          isQuoteMode={isQuoteMode}
           onClearAllFilters={handleClearAllFilters}
           destinations={DESTINATIONS}
           selectedDestination={filters.selectedDestination}
