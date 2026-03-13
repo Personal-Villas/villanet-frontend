@@ -147,15 +147,19 @@ const toISODateLocal = (d: Date) => {
 const CARIBBEAN_DESTINATIONS = [
   "St. Barts",
   "Turks & Caicos",
-  "St. Martin",
+  "St. Martin / St. Maarten",
   "Barbados",
   "Jamaica",
   "British Virgin Islands",
-  "Casa de Campo",
-  "Punta Cana",
+  "Casa de Campo, Dominican Republic",
+  "Punta Cana, Dominican Republic",
+  "Cap Cana, Dominican Republic",
+  "Cayman Islands",
+  "Bahamas",
+  "Anguilla",
 ];
 
-const MEXICO_DESTINATIONS = ["Punta Mita", "Puerto Vallarta", "Los Cabos", "Riviera Maya"];
+const MEXICO_DESTINATIONS = ["Punta Mita, Mexico", "Puerto Vallarta, Mexico", "Riviera Maya, Mexico"];
 
 const parseISODateLocal = (s: string) => {
   const [y, m, d] = s.split("-").map(Number);
@@ -205,7 +209,10 @@ const groupDestinationsByRegion = (
       /\bjamaica\b/.test(normalized) ||
       /\bbritish virgin islands\b/.test(normalized) ||
       /\bst barts\b/.test(normalized) ||
-      /\bst martin\b/.test(normalized)
+      /\bst martin\b/.test(normalized) ||
+      /\banguilla\b/.test(normalized) ||
+      /\bcayman\b/.test(normalized) ||
+      /\bbahamas\b/.test(normalized)
     ) {
       caribbeanResults.add(original);
       continue;
