@@ -13,12 +13,29 @@ import AuthModal from "../components/AuthModal";
 import { UnifiedHeader } from "../components/Header";
 import VillaNetRankModal from "../components/VillaNetRankModal";
 
+// ✅ Estado del modal de auth: puede abrirse en modo 'email' normal
+// o directamente en modo 'code' cuando el usuario ya existe
+interface AuthModalState {
+  open: boolean;
+  initialEmail?: string;
+  initialMode?: 'email' | 'code';
+}
+
 export const Home: React.FC = () => {
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModal, setAuthModal] = useState<AuthModalState>({ open: false });
   const [showRankModal, setShowRankModal] = useState(false);
 
-  const openAuthModal = useCallback(() => setShowAuthModal(true), []);
-  const closeAuthModal = useCallback(() => setShowAuthModal(false), []);
+  // Abre el modal en modo email normal (desde el header)
+  const openAuthModal = useCallback(() =>
+    setAuthModal({ open: true, initialMode: 'email' }), []);
+
+  // ✅ Abre el modal directamente en el paso de código para usuarios existentes
+  const openAuthModalWithCode = useCallback((email: string) =>
+    setAuthModal({ open: true, initialEmail: email, initialMode: 'code' }), []);
+
+  const closeAuthModal = useCallback(() =>
+    setAuthModal({ open: false }), []);
+
   const openRankModal = () => setShowRankModal(true);
   const closeRankModal = () => setShowRankModal(false);
 
@@ -32,23 +49,27 @@ export const Home: React.FC = () => {
   );
 
   return (
-    // font-[Inter] fuerza Inter en toda la home, igual que Lovable
     <div className="min-h-screen bg-background font-[Inter]">
       <UnifiedHeader mode="simple" onAuthClick={openAuthModal} />
 
-      <Hero />
+      <Hero onOpenAuthWithCode={openAuthModalWithCode} />
       <FeaturesSection />
       <TrustLayer />
       <WhiteLabelSection />
       <RegionsSection />
-      <CTASection />
+      <CTASection onOpenAuthWithCode={openAuthModalWithCode} />
       <Footer />
       <FloatingButton onClick={openRankModal} />
 
       <VillaNetRankModal isOpen={showRankModal} onClose={closeRankModal} />
 
-      {showAuthModal && (
-        <AuthModal onClose={closeAuthModal} onSuccess={handleAuthSuccess} />
+      {authModal.open && (
+        <AuthModal
+          onClose={closeAuthModal}
+          onSuccess={handleAuthSuccess}
+          initialEmail={authModal.initialEmail}
+          initialMode={authModal.initialMode}
+        />
       )}
 
       <style>

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { AdvisorSignupData } from '../types/advisor';
 import { advisorService } from '../services/advisorService';
 
-// 🆕 Definir AuthResponse localmente o importarlo
 interface AuthResponse {
   accessToken: string;
   user: {
@@ -17,34 +16,45 @@ interface AuthResponse {
 const STORAGE_KEY = 'advisor_signup_data';
 
 export const useAdvisorSignup = () => {
+  // ✅ Leer el email del query param ?email= al inicializar
+  const emailFromUrl = new URLSearchParams(window.location.search).get('email') ?? '';
+
   const [currentStep, setCurrentStep] = useState<'step1' | 'welcome' | 'step2'>('step1');
   const [formData, setFormData] = useState<AdvisorSignupData>({
     personalInfo: {
       firstName: '',
       lastName: '',
-      email: '',
+      // ✅ Precarga el email desde la URL si existe
+      email: emailFromUrl,
       password: ''
     }
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Cargar datos del localStorage al montar
+  // ✅ Cargar datos del localStorage al montar, pero NUNCA saltear el step1.
+  // El localStorage sirve para no perder lo que el usuario ya escribió si recarga,
+  // pero no debe avanzar el paso automáticamente — eso causaba que se saltee el formulario.
   useEffect(() => {
     const savedData = localStorage.getItem(STORAGE_KEY);
     if (savedData) {
       try {
-        const data = JSON.parse(savedData);
-        setFormData(data);
-        
-        // Si ya completó el paso 1, mostrar bienvenida
-        if (data.personalInfo.firstName && data.personalInfo.email) {
-          setCurrentStep('welcome');
-        }
+        const data = JSON.parse(savedData) as AdvisorSignupData;
+        setFormData(prev => ({
+          ...data,
+          personalInfo: {
+            ...data.personalInfo,
+            // ✅ El email de la URL siempre tiene prioridad sobre el guardado
+            email: emailFromUrl || data.personalInfo.email,
+          }
+        }));
+        // ✅ Eliminado: el bloque que hacía setCurrentStep('welcome') automáticamente.
+        // El usuario siempre arranca en step1 y avanza manualmente.
       } catch (error) {
         console.error('Error loading saved data:', error);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Guardar datos en localStorage cuando cambien
@@ -61,23 +71,22 @@ export const useAdvisorSignup = () => {
   const goToStep2 = () => setCurrentStep('step2');
   const goBackToStep1 = () => setCurrentStep('step1');
 
-  // 🆕 Cambiar el tipo de retorno a AuthResponse
   const submitForm = async (): Promise<AuthResponse> => {
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
       const result = await advisorService.submitAdvisorSignup(formData);
-      
+
       // Limpiar localStorage después del envío exitoso
       localStorage.removeItem(STORAGE_KEY);
-      
-      return result; // 🆕 Devolver el resultado completo
-      
+
+      return result;
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setSubmitError(errorMessage);
-      throw error; // 🆕 Propagar el error
+      throw error;
     } finally {
       setIsSubmitting(false);
     }

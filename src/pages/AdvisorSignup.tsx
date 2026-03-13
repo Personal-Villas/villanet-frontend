@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAdvisorSignup } from '../hooks/useAdvisorSignup';
 import { AdvisorSignupStep1 } from '../components/advisor-signup/AdvisorSignupStep1';
 import AdvisorSignupStep2 from '../components/advisor-signup/AdvisorSignupStep2';
@@ -11,30 +11,35 @@ export const AdvisorSignup: React.FC = () => {
     updateFormData,
     goToWelcome,
     goToStep2,
-    //goBackToStep1,
     submitForm,
     isSubmitting,
-    submitError
+    submitError,
+    clearStorage
   } = useAdvisorSignup();
+
+  // ✅ Limpiar cualquier dato guardado de sesiones anteriores al entrar a la página.
+  // Evita que un usuario que ya visitó el signup arranque con datos viejos pre-cargados.
+  useEffect(() => {
+    clearStorage();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFinalSubmit = async () => {
     try {
       const result = await submitForm();
-      
+
       // ✅ Guardar token en localStorage
       localStorage.setItem('access', result.accessToken);
-      
+
       // ✅ Disparar evento para que el AuthContext se actualice automáticamente
       window.dispatchEvent(new Event('authStateChange'));
-      
+
       // ✅ Pequeño delay para asegurar que el contexto se actualice antes de redirigir
       setTimeout(() => {
-        // Redirigir a properties (o dashboard)
         window.location.href = '/properties';
       }, 100);
-      
+
     } catch (error) {
-      // El error ya está manejado en el hook, solo loggear
       console.error('Signup submission error:', error);
     }
   };
@@ -53,7 +58,7 @@ export const AdvisorSignup: React.FC = () => {
             <p className="text-base md:text-lg text-muted-foreground mb-10">
               Get access to the travel industry's most vetted villas — backed by data, trusted by professionals.
             </p>
-            
+
             <AdvisorSignupStep1
               data={formData}
               updateData={updateFormData}
@@ -72,8 +77,8 @@ export const AdvisorSignup: React.FC = () => {
               <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md mx-auto z-50">
                 <strong className="font-bold">Error: </strong>
                 <span className="block sm:inline">{submitError}</span>
-                <button 
-                  onClick={() => window.location.reload()} 
+                <button
+                  onClick={() => window.location.reload()}
                   className="ml-2 text-red-800 underline"
                 >
                   Try again

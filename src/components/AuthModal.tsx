@@ -1,15 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import imageLoginDefault from '../assets/images/villanet-login.webp';
-//import googleIcon from '../assets/images/google.png';
-//import appleIcon from '../assets/images/apple.png';
-//import facebookIcon from '../assets/images/facebook.png';
-//import people1 from '../assets/images/people-1.png';
-//import people2 from '../assets/images/people-2.png';
-//import people3 from '../assets/images/people-3.png';
-//import people4 from '../assets/images/people-4.png';
-//import people5 from '../assets/images/people-5.png';
-//import people6 from '../assets/images/people-6.png';
 import { publicApi } from '../api/api';
 import { useAuth } from '../auth/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +10,9 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess: (user: any) => void;
   imageLogin?: string;
+  // ✅ Nuevas props: permiten abrir el modal directamente en el paso de código
+  initialEmail?: string;
+  initialMode?: 'email' | 'code';
 }
 
 interface ApiResponse {
@@ -31,21 +25,23 @@ const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onSuccess,
   imageLogin,
+  initialEmail = '',
+  initialMode = 'email',
 }) => {
-  const [mode, setMode] = useState<'email' | 'code'>('email');
-  const [email, setEmail] = useState<string>('');
+  const [mode, setMode] = useState<'email' | 'code'>(initialMode);
+  const [email, setEmail] = useState<string>(initialEmail);
   const [code, setCode] = useState<string[]>(['', '', '', '', '', '']);
   const [fullName, setFullName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [userExists, setUserExists] = useState<boolean>(false);
+  // ✅ Si abrimos directamente en modo 'code' es porque el usuario ya existe
+  const [userExists, setUserExists] = useState<boolean>(initialMode === 'code');
 
-  // ✅ Usa el hook real de autenticación
   const { verifyCode: realVerifyCode } = useAuth();
   const navigate = useNavigate();
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const isSendingRef = useRef<boolean>(false); // 🔒 previene race condition por doble envío
+  const isSendingRef = useRef<boolean>(false);
   const bgImage = imageLogin ?? imageLoginDefault;
 
   useEffect(() => {
@@ -54,17 +50,12 @@ const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [mode]);
 
-  /*const handleSocialClick = (provider: string): void => {
-    console.log(`[AUTH] ${provider} login - in progress 🚧`);
-  };*/
-
   const handleSendCode = async (): Promise<void> => {
     if (!email.includes('@')) {
       setError('Please enter a valid email');
       return;
     }
 
-    // 🔒 Bloquea ejecución concurrente — evita doble POST que genera dos códigos distintos
     if (isSendingRef.current) return;
     isSendingRef.current = true;
 
@@ -113,7 +104,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>): void => {
     e.preventDefault();
-    // 🔧 Limpia espacios y saltos de línea que algunos clientes de email agregan al código
     const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     if (pastedData.length === 0) return;
 
@@ -146,13 +136,10 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
 
     try {
-      // ✅ Usa la función real verifyCode que actualiza el estado global
       const data = await realVerifyCode(email, codeString, fullName.trim() || undefined);
 
       console.log('✅ verify-code OK', data);
 
-      // ✅ El hook useAuth ya actualizó el estado global del usuario
-      // ✅ Ahora llamamos a onSuccess con el usuario real
       if (data.user) {
         onSuccess(data.user);
         onClose();
@@ -204,10 +191,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${bgImage})` }}
             />
-            {/* Gradiente que desvanece la imagen hacia blanco */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/30 to-white" />
-
-            {/* Texto superpuesto */}
             <div className="absolute bottom-4 left-4 right-4 z-10">
               <h3 className="text-[25px] font-semibold text-neutral-900 mb-1">
                 Welcome to Villanet
@@ -242,46 +226,12 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
           {mode === 'email' && (
             <>
-              {/* Título solo en desktop, en mobile está sobre la imagen */}
               <h3 className="hidden sm:block text-[23px] font-semibold text-neutral-900 mb-3 mt-[100px] md:mb-[20px]">
                 Welcome to Villanet
               </h3>
-
               <p className="hidden sm:block text-sm text-neutral-600 mb-6 md:mb-[30px]">
                 Enter your email to log in or register. We will never sell your personal information.
               </p>
-
-              {/* Botones sociales */}
-              {/*    <div className="flex gap-2 sm:gap-3 mb-4 lg:mt-5">
-                <button
-                  type="button"
-                  onClick={() => handleSocialClick('apple')}
-                  className="flex-1 border border-neutral-300 rounded-xl py-2.5 sm:py-2 flex items-center justify-center gap-2 hover:bg-neutral-50 transition text-sm font-medium"
-                >
-                  <img src={appleIcon} alt="Apple" className="w-9 h-9 lg:w-7 lg:h-7" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSocialClick('google')}
-                  className="flex-1 border border-neutral-300 rounded-xl py-2.5 sm:py-2 flex items-center justify-center gap-2 hover:bg-neutral-50 transition text-sm font-medium"
-                >
-                  <img src={googleIcon} alt="Google" className="w-9 h-9 lg:w-6 lg:h-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSocialClick('facebook')}
-                  className="flex-1 border border-neutral-300 rounded-xl py-2.5 sm:py-2 flex items-center justify-center gap-2 hover:bg-neutral-50 transition text-sm font-medium"
-                >
-                  <img src={facebookIcon} alt="Facebook" className="w-9 h-9 lg:w-6 lg:h-6" />
-                </button>
-              </div>
-*/}
-              {/* Separador OR */}
-              {/*  <div className="flex items-center gap-3 my-4 lg:my-8">
-                <div className="h-px bg-neutral-200 flex-1" />
-                <span className="text-xs uppercase tracking-wider text-neutral-500 font-medium">or</span>
-                <div className="h-px bg-neutral-200 flex-1" />
-              </div>*/}
 
               <div className="flex-1">
                 <input
@@ -304,51 +254,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   {loading ? 'Sending code...' : 'Continue'}
                 </button>
               </div>
-
-              {/*	<div className="mt-6 pt-4">
-                <div className="flex items-center justify-center gap-3 text-xs text-neutral-600">
-                  <div className="flex -space-x-2">
-                    <img
-                      src={people1}
-                      alt="Person 1"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                    <img
-                      src={people2}
-                      alt="Person 2"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                    <img
-                      src={people3}     
-                      alt="Person 3"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                    <img
-                      src={people4}
-                      alt="Person 4"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                    <img
-                      src={people5}
-                      alt="Person 5"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                    <img
-                      src={people6}
-                      alt="Person 6"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                  </div>
-                  <span>Join 636,748 happy Villaneters...</span>
-                </div>
-              </div>*/}
             </>
           )}
 
           {mode === 'code' && (
             <div className="flex-1 flex flex-col lg:mt-[50px]">
               <div className="flex-1">
-                <h3 className="text-xl font-semibold text-neutral-900 mb-2 ">
+                <h3 className="text-xl font-semibold text-neutral-900 mb-2">
                   We sent you a 6-digit code to {email}
                 </h3>
 
@@ -417,29 +329,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   </button>
                 </div>
               </div>
-
-              {/*	<div className="mt-6 pt-4 border-t border-neutral-200">
-                <div className="flex items-center justify-center gap-4 text-sm text-neutral-600">
-                  <div className="inline-flex -space-x-1.5">
-                    <img
-                      src={people1}
-                      alt="Person 1"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                    <img
-                      src={people2}
-                      alt="Person 2"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                    <img
-                      src={people3}
-                      alt="Person 3"
-                      className="w-6 h-6 rounded-full bg-neutral-300 border-2 border-white object-cover"
-                    />
-                  </div>
-                  <p className="text-sm text-neutral-600 ml-[-2px]">Join 636,748 happy Villaneters...</p>
-                </div>
-              </div>*/}
             </div>
           )}
         </div>
