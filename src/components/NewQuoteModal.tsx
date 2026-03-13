@@ -368,20 +368,12 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
       preloadFilters.checkOut = data.checkOut;
     }
 
-    // Budget from step 1 — divide by nights to get per-night price
+    // Budget from step 1 — total stay budget (backend descuenta fees fijos y compara contra sum de noches)
     if (screen >= 1 && data.budget < 100_000) {
       const totalBudget = data.budgetFlexible
         ? Math.round(data.budget * 1.2)
         : data.budget;
-      const nights = (data.checkIn && data.checkOut)
-        ? Math.round(
-            (new Date(data.checkOut).getTime() - new Date(data.checkIn).getTime())
-            / 86400000
-          )
-        : 0;
-      preloadFilters.maxPrice = nights > 0
-        ? Math.round(totalBudget / nights)
-        : totalBudget;
+      preloadFilters.maxTotalBudget = totalBudget;
     }
 
     // Guests from step 2 — infants do NOT count
@@ -442,23 +434,12 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
   const handleFinish = () => {
     const params = new URLSearchParams();
 
-    // Nights from selected dates
-    const nights = (data.checkIn && data.checkOut)
-      ? Math.round(
-          (new Date(data.checkOut).getTime() - new Date(data.checkIn).getTime())
-          / 86400000
-        )
-      : 0;
-
-    // Budget: user enters TOTAL stay budget — backend filters by price_usd (per night)
+    // Budget: total stay budget — backend descuenta fees fijos y filtra por sum de noches en listing_availability
     if (data.budget && data.budget < 100000) {
       const totalBudget = data.budgetFlexible
         ? Math.round(data.budget * 1.2)
         : data.budget;
-      const perNightBudget = nights > 0
-        ? Math.round(totalBudget / nights)
-        : totalBudget;
-      params.set('maxPrice', String(perNightBudget));
+      params.set('maxTotalBudget', String(totalBudget));
     }
 
     // Bedrooms

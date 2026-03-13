@@ -338,6 +338,7 @@ export default function PropertyDetail() {
         if (filters.bathrooms?.length)                          params.set('bathrooms', filters.bathrooms.join(','));
         if (filters.minPrice)                                   params.set('minPrice', filters.minPrice.toString());
         if (filters.maxPrice)                                   params.set('maxPrice', filters.maxPrice.toString());
+        if (filters.maxTotalBudget)                             params.set('maxTotalBudget', filters.maxTotalBudget.toString());
         if (filters.checkIn)                                    params.set('checkIn', filters.checkIn);
         if (filters.checkOut)                                   params.set('checkOut', filters.checkOut);
         if (filters.guests > 0)                                 params.set('guests', filters.guests.toString());

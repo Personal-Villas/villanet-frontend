@@ -172,6 +172,7 @@ export default function Properties() {
     const checkIn = searchParams.get('checkIn') || '';
     const checkOut = searchParams.get('checkOut') || '';
     const maxPrice = searchParams.get('maxPrice') || '';
+    const maxTotalBudget = searchParams.get('maxTotalBudget') || '';
 
     const quoteFilters = {
       query: '',
@@ -180,6 +181,7 @@ export default function Properties() {
       bathrooms: [] as string[],
       minPrice: '',
       maxPrice,
+      maxTotalBudget,
       checkIn,
       checkOut,
       selectedBadges: [] as string[],
@@ -190,6 +192,7 @@ export default function Properties() {
     filterChangedRef.current = true;
     setFilters(quoteFilters);
     setAppliedFilters(quoteFilters);
+    if (maxTotalBudget) setIsQuoteMode(true);
     setCurrentPage(1);
     setAvailabilityCursor(0);
     setItems([]);
@@ -200,7 +203,7 @@ export default function Properties() {
     // Limpiar params del wizard de la URL
     const cleanParams = new URLSearchParams(searchParams);
     ['fromQuote', 'destination', 'destinations', 'bedrooms', 'guests',
-     'checkIn', 'checkOut', 'maxPrice', 'flexibleRange'].forEach(k => cleanParams.delete(k));
+     'checkIn', 'checkOut', 'maxPrice', 'maxTotalBudget', 'flexibleRange'].forEach(k => cleanParams.delete(k));
     setSearchParams(cleanParams, { replace: true });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,6 +218,7 @@ export default function Properties() {
     bathrooms: [] as string[],
     minPrice: '',
     maxPrice: '',
+    maxTotalBudget: '',  // budget total de estadía (desde wizard)
     checkIn: '',
     checkOut: '',
     selectedBadges: [] as string[],
@@ -223,6 +227,11 @@ export default function Properties() {
   });
 
   const [appliedFilters, setAppliedFilters] = useState(filters);
+
+  // isQuoteMode: true cuando el usuario llegó desde el wizard con un quote completado.
+  // Se mantiene aunque el usuario borre el valor de maxTotalBudget en el input,
+  // y solo se desactiva al hacer Clear All o navegar sin quote.
+  const [isQuoteMode, setIsQuoteMode] = useState(false);
 
   // Estados de paginación
   const [items, setItems] = useState<Listing[]>([]);
@@ -328,6 +337,7 @@ export default function Properties() {
       bathrooms: appliedFilters.bathrooms,
       minPrice: appliedFilters.minPrice,
       maxPrice: appliedFilters.maxPrice,
+      maxTotalBudget: appliedFilters.maxTotalBudget,
       destination: appliedFilters.selectedDestination,
       badges: appliedFilters.selectedBadges,
       sort: appliedFilters.sortBy,
@@ -520,24 +530,27 @@ export default function Properties() {
     console.log('🔄 Auth state updated, Properties should re-render');
   }, [closeAuthModal]);
 
-  const handleApplyFilters = useCallback(() => {
+  const handleApplyFilters = useCallback((overrides?: Record<string, unknown>) => {
     filterChangedRef.current = true;
     startSearchUx();
 
-    setAppliedFilters(filters);
+    // Si vienen overrides (ej: maxTotalBudget desde SecondSearchBar), se aplican
+    // directamente sin depender del setState previo — evita stale closure.
+    setFilters(latestFilters => {
+      const filtersToApply = overrides ? { ...latestFilters, ...overrides } : latestFilters;
+      setAppliedFilters(filtersToApply);
+      setQuoteDates(filtersToApply.checkIn, filtersToApply.checkOut);
+      return filtersToApply;
+    });
+
     setCurrentPage(1);
     setAvailabilityCursor(0);
     setItems([]);
     setAvailabilitySession(null);
-
-    // Persistir fechas en CartContext para que estén disponibles desde PropertyDetail
-    setQuoteDates(filters.checkIn, filters.checkOut);
-
     setPage1Filled(false);
     setAutoFillDone(false);
-
     setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-  }, [filters, startSearchUx, setQuoteDates]);
+  }, [startSearchUx, setQuoteDates]);
 
   const handleClearAllFilters = useCallback(() => {
     filterChangedRef.current = true;
@@ -550,6 +563,7 @@ export default function Properties() {
       bathrooms: [] as string[],
       minPrice: '',
       maxPrice: '',
+      maxTotalBudget: '',
       checkIn: '',
       checkOut: '',
       selectedBadges: [] as string[],
@@ -559,6 +573,7 @@ export default function Properties() {
 
     setFilters(resetFilters);
     setAppliedFilters(resetFilters);
+    setIsQuoteMode(false);
     setCurrentPage(1);
     setError(null);
 
@@ -625,6 +640,7 @@ export default function Properties() {
     bathrooms: [] as string[],
     minPrice: '',
     maxPrice: '',
+    maxTotalBudget: '',  // budget total de estadía (desde wizard)
     checkIn: '',
     checkOut: '',
     selectedBadges: [] as string[],
@@ -722,6 +738,10 @@ export default function Properties() {
     }
     if (params.get('maxPrice')) {
       urlFilters.maxPrice = params.get('maxPrice') || '';
+      hasUrlFilters = true;
+    }
+    if (params.get('maxTotalBudget')) {
+      urlFilters.maxTotalBudget = params.get('maxTotalBudget') || '';
       hasUrlFilters = true;
     }
 
@@ -971,7 +991,12 @@ useEffect(() => {
           }
         }
 
-        if (appliedFilters.maxPrice && appliedFilters.maxPrice.trim()) {
+        if (appliedFilters.maxTotalBudget && appliedFilters.maxTotalBudget.trim()) {
+          const totalVal = Number(appliedFilters.maxTotalBudget);
+          if (!isNaN(totalVal) && totalVal > 0) {
+            qs.set('maxTotalBudget', String(totalVal));
+          }
+        } else if (appliedFilters.maxPrice && appliedFilters.maxPrice.trim()) {
           const maxVal = Number(appliedFilters.maxPrice);
           if (!isNaN(maxVal) && maxVal > 0) {
             qs.set('maxPrice', String(maxVal));
@@ -1357,6 +1382,9 @@ useEffect(() => {
           setMinPrice={(minPrice) => setFilters(prev => ({ ...prev, minPrice }))}
           maxPrice={filters.maxPrice}
           setMaxPrice={(maxPrice) => setFilters(prev => ({ ...prev, maxPrice }))}
+          maxTotalBudget={filters.maxTotalBudget}
+          setMaxTotalBudget={(maxTotalBudget) => setFilters(prev => ({ ...prev, maxTotalBudget }))}
+          isQuoteMode={isQuoteMode}
           onClearAllFilters={handleClearAllFilters}
           destinations={DESTINATIONS}
           selectedDestination={filters.selectedDestination}
