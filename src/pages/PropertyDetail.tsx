@@ -8,15 +8,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
-  Star,
+  //Star,       
   Shield,
   Check,
   Users,
   //Calendar,
   Sparkles,
   ChefHat,
-  Waves,
-  Wifi,
   //Headphones,
   Car,
   ShoppingCart,
@@ -24,16 +22,19 @@ import {
   Baby,
   PartyPopper,
   Plane,
-  AirVent,
   Briefcase,
-  Tv,
-  Fan,
-  TreePine,
-  Utensils,
-  Lock,
-  Palmtree,
-  Eye,
-  Wind,
+  // [REMOVED] Used by: Property Amenities section icons
+  // Waves,
+  // Wifi,
+  // AirVent,
+  // Tv,
+  // Fan,
+  // TreePine,
+  // Utensils,
+  // Lock,
+  // Palmtree,
+  // Eye,
+  // Wind,
   Plus,
   Minus
 } from 'lucide-react';
@@ -123,7 +124,10 @@ const fmt = (d: Date) => {
   return `${y}-${m}-${da}`;
 };
 
-// Mapeo de amenities a iconos
+// [REMOVED] Mapeo de amenities a iconos — usado por la sección "Property Amenities"
+// Re-enable junto con: imports (Waves, Wifi, AirVent, Tv, Fan, TreePine, Utensils, Lock, Palmtree, Eye, Wind),
+// el estado showAllAmenities, y la sección JSX "Amenities Section - DYNAMIC"
+/*
 const getAmenitiesWithIcons = (amenities: string[]) => {
   const amenityMap: Record<string, { icon: any; label: string }> = {
     'Air conditioning': { icon: AirVent, label: 'Air Conditioning' },
@@ -157,6 +161,7 @@ const getAmenitiesWithIcons = (amenities: string[]) => {
       index === self.findIndex(t => t.label === item.label)
     );
 };
+*/
 
 
 // Función helper para formatear rank de forma segura
@@ -193,7 +198,7 @@ export default function PropertyDetail() {
   const [guests, setGuests] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [showAllAmenities, setShowAllAmenities] = useState(false);
+  // const [showAllAmenities, setShowAllAmenities] = useState(false); // [REMOVED] Property Amenities section
   const { user } = useAuth();
 
   // Usar el contexto del carrito
@@ -331,19 +336,19 @@ export default function PropertyDetail() {
     if (savedFilters) {
       try {
         const filters = JSON.parse(savedFilters);
-        if (filters.query?.trim())                              params.set('q', filters.query.trim());
-        if (filters.destination)                                params.set('destination', filters.destination);
-        if (filters.destinations)                               params.set('destinations', filters.destinations);
-        if (filters.bedrooms?.length)                           params.set('bedrooms', filters.bedrooms.join(','));
-        if (filters.bathrooms?.length)                          params.set('bathrooms', filters.bathrooms.join(','));
-        if (filters.minPrice)                                   params.set('minPrice', filters.minPrice.toString());
-        if (filters.maxPrice)                                   params.set('maxPrice', filters.maxPrice.toString());
-        if (filters.maxTotalBudget)                             params.set('maxTotalBudget', filters.maxTotalBudget.toString());
-        if (filters.checkIn)                                    params.set('checkIn', filters.checkIn);
-        if (filters.checkOut)                                   params.set('checkOut', filters.checkOut);
-        if (filters.guests > 0)                                 params.set('guests', filters.guests.toString());
-        if (filters.badges?.length)                             params.set('badges', filters.badges.join(','));
-        if (filters.sort)                                       params.set('sort', filters.sort);
+        if (filters.query?.trim()) params.set('q', filters.query.trim());
+        if (filters.destination) params.set('destination', filters.destination);
+        if (filters.destinations) params.set('destinations', filters.destinations);
+        if (filters.bedrooms?.length) params.set('bedrooms', filters.bedrooms.join(','));
+        if (filters.bathrooms?.length) params.set('bathrooms', filters.bathrooms.join(','));
+        if (filters.minPrice) params.set('minPrice', filters.minPrice.toString());
+        if (filters.maxPrice) params.set('maxPrice', filters.maxPrice.toString());
+        if (filters.maxTotalBudget) params.set('maxTotalBudget', filters.maxTotalBudget.toString());
+        if (filters.checkIn) params.set('checkIn', filters.checkIn);
+        if (filters.checkOut) params.set('checkOut', filters.checkOut);
+        if (filters.guests > 0) params.set('guests', filters.guests.toString());
+        if (filters.badges?.length) params.set('badges', filters.badges.join(','));
+        if (filters.sort) params.set('sort', filters.sort);
       } catch (e) {
         console.error('Error parsing saved filters:', e);
       }
@@ -688,7 +693,7 @@ export default function PropertyDetail() {
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" />
             <span className="text-sm font-medium">Back to Properties</span>
-            
+
             {/* Badge opcional mostrando filtros activos */}
             {(() => {
               const savedFilters = localStorage.getItem('searchFilters');
@@ -703,7 +708,7 @@ export default function PropertyDetail() {
                       return value !== '' && value !== null && value !== undefined;
                     }
                   ).length;
-                  
+
                   if (filterCount > 0) {
                     return (
                       <span className="ml-2 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
@@ -768,10 +773,19 @@ export default function PropertyDetail() {
         </div>
 
         {/* Verified Badge */}
-        <div className="absolute top-5 left-5">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 text-white border border-white">
-            <Shield className="w-4 h-4" />
-            <span className="text-sm font-medium">Villa Net Verified 2025</span>
+        <div className="absolute top-4 left-4 sm:top-5 sm:left-5 z-10">
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-white border border-white/30"
+            style={{
+              background: 'rgba(0, 0, 0, 0.45)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            }}
+          >
+            <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="text-xs sm:text-sm font-medium whitespace-nowrap">
+              Villa Net Verified {new Date().getFullYear()}
+            </span>
           </div>
         </div>
 
@@ -828,8 +842,8 @@ export default function PropertyDetail() {
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
                   className={`w-2 h-2 rounded-full transition-all ${index === currentImageIndex
-                      ? 'bg-white w-6'
-                      : 'bg-white/50 hover:bg-white/75'
+                    ? 'bg-white w-6'
+                    : 'bg-white/50 hover:bg-white/75'
                     }`}
                   aria-label={`Go to image ${index + 1}`}
                 />
@@ -839,10 +853,12 @@ export default function PropertyDetail() {
         )}
       </section>
 
+      {/* [REMOVED] Attribute Badges Row — Ranking, Trusted Years, Property Manager, Premium Feature
+          Re-enable junto con: import Star from lucide-react, formatVillaNetRank helper
+      {/* =====================================================================
       <section className="py-4 px-6 border-b border-[#E5E5E5]">
         <div className="container mx-auto max-w-6xl">
           <div className="flex flex-wrap justify-center gap-2">
-            {/* Badge 1: VillaNet Rank - SIEMPRE */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
               <Star className="w-4 h-4 text-yellow-500" />
               <span className="text-sm font-medium">
@@ -850,7 +866,6 @@ export default function PropertyDetail() {
               </span>
             </div>
 
-            {/* Badge 2: Trusted Years - DINÁMICO si hay datos, estático si no */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
               <Star className="w-4 h-4 text-blue-500" />
               <span className="text-sm font-medium">
@@ -861,7 +876,6 @@ export default function PropertyDetail() {
               </span>
             </div>
 
-            {/* Badge 3: Property Manager - MOSTRAR SOLO SI HAY DATOS */}
             {listing.villanet_property_manager_name ? (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
                 <Check className="w-4 h-4 text-green-600" />
@@ -870,14 +884,12 @@ export default function PropertyDetail() {
                 </span>
               </div>
             ) : (
-              // Fallback estático si no hay manager específico
               <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
                 <Check className="w-4 h-4" />
                 <span className="text-sm font-medium">Managed Locally</span>
               </div>
             )}
 
-            {/* Badge 4: Premium Feature más destacada */}
             {(() => {
               const premiumFeatures = [];
               if (listing.villanet_true_beach_front) premiumFeatures.push('True Beachfront');
@@ -893,7 +905,6 @@ export default function PropertyDetail() {
                 );
               }
 
-              // Fallback estático si no hay features premium
               return (
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white text-gray-900 border border-gray-900">
                   <span className="text-sm font-medium">Platinum Collection</span>
@@ -903,6 +914,7 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
+      ===================================================================== */}
 
       {/* Property Title Section */}
       <section className="py-6 px-6 text-center border-b border-[#E5E5E5]">
@@ -1246,11 +1258,10 @@ export default function PropertyDetail() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={handleToggleCart}
-              className={`inline-flex items-center justify-center gap-2 h-14 px-8 rounded-xl font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] ${
-                isPropertyInCart
+              className={`inline-flex items-center justify-center gap-2 h-14 px-8 rounded-xl font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] ${isPropertyInCart
                   ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                   : 'bg-gray-900 text-white hover:bg-gray-800'
-              }`}
+                }`}
             >
               {isPropertyInCart ? (
                 <>
@@ -1407,7 +1418,10 @@ export default function PropertyDetail() {
         </div>
       </section>
 
-      {/* Amenities Section - DYNAMIC */}
+      {/* [REMOVED] Property Amenities Section — "Amenities Section - DYNAMIC"
+          Re-enable junto con: getAmenitiesWithIcons(), showAllAmenities state,
+          e imports (Waves, Wifi, AirVent, Tv, Fan, TreePine, Utensils, Lock, Palmtree, Eye, Wind)
+      {/* =====================================================================
       <section className="py-12 px-6 border-b border-[#E5E5E5]">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-10">
@@ -1464,6 +1478,7 @@ export default function PropertyDetail() {
           })()}
         </div>
       </section>
+      ===================================================================== */}
 
       {/* Concierge Services */}
       <section className="py-12 px-6 bg-white border-b border-[#E5E5E5]">
@@ -1630,7 +1645,10 @@ export default function PropertyDetail() {
         </div>
       </section>
 
-      {/* Guest Reviews Section */}
+      {/* [REMOVED] Guest Reviews Section
+          Nota: las reseñas eran datos estáticos hardcodeados (sin endpoint de API).
+          No requiere cambios en el backend para restaurar.
+      {/* =====================================================================
       <section className="py-12 px-6 border-t border-b border-[#E5E5E5] bg-[#FAFAFA]">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-8">
@@ -1694,79 +1712,8 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
+      ===================================================================== */}
 
-      {/* Villa Net Collections Section */}
-      {/*      <section className="py-12 px-6 border-b border-[#E5E5E5]">
-        <div className="container mx-auto max-w-5xl">
-          <div className="text-center">
-            <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-              Similar Villa Experiences
-            </h3>
-            <p className="text-sm text-gray-600 max-w-3xl mx-auto mb-6">
-              Discover other villas with features like this one.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {(() => {
-              // Mapear características de esta propiedad a colecciones
-              const propertyFeatures = [
-                { condition: listing.villanet_true_beach_front, badge: 'true-beach-front', name: 'Beachfront Villas' },
-                { condition: listing.villanet_chef_included, badge: 'chef-included', name: 'Fully-Staffed Properties' },
-                { condition: listing.villanet_ocean_view, badge: 'ocean-view', name: 'Ocean View' },
-                { condition: listing.villanet_heated_pool, badge: 'heated-pool', name: 'Heated Pool' },
-                { condition: listing.villanet_golf_villa, badge: 'golf-villa', name: 'Golf Course Villas' },
-                { condition: listing.villanet_resort_villa, badge: 'resort-villa', name: 'Resort Communities' },
-                { condition: listing.villanet_private_gym, badge: 'private-gym', name: 'Private Gym' },
-                { condition: listing.villanet_gated_community, badge: 'gated-community', name: 'Gated Community' },
-                { condition: listing.villanet_tennis, badge: 'tennis', name: 'Tennis' },
-                { condition: listing.villanet_pickleball, badge: 'pickleball', name: 'Pickleball' },
-                { condition: listing.villanet_private_cinema, badge: 'private-cinema', name: 'Private Cinema' },
-              ];
-              
-              // Filtrar solo las características que SÍ tiene esta propiedad
-              const availableFeatures = propertyFeatures.filter(f => f.condition);
-              
-              // Crear array de colecciones para mostrar
-              const displayFeatures: Array<{badge?: string, filter?: string, name: string}> = [...availableFeatures];
-              
-              // Si tiene menos de 6 características, agregar algunas genéricas
-              if (displayFeatures.length < 6) {
-                const genericCollections = [
-                  { badge: 'ocean-view', name: 'Ultra-Luxe Estates' },
-                  { filter: 'sort=rank', name: 'Top Rated' },
-                  { filter: `bedrooms=${listing.bedrooms || '4'}`, name: 'Family Villas' },
-                ];
-                
-                genericCollections.forEach(collection => {
-                  if (displayFeatures.length < 6 && !displayFeatures.some(f => f.name === collection.name)) {
-                    displayFeatures.push(collection);
-                  }
-                });
-              }
-              
-              // Limitar a 6
-              return displayFeatures.slice(0, 6).map((feature, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    if (feature.badge) {
-                      navigate(`/properties?badge=${feature.badge}`);
-                    } else if (feature.filter) {
-                      const params = new URLSearchParams(feature.filter);
-                      navigate(`/properties?${params.toString()}`);
-                    }
-                  }}
-                  className="block p-4 text-[15px] font-medium text-gray-900 text-center border border-[#E9E9E9] rounded-[10px] hover:border-gray-400 hover:bg-gray-50 transition-colors cursor-pointer"
-                >
-                  {feature.name}
-                </button>
-              ));
-            })()}
-          </div>
-        </div>
-      </section>
-*/}
       {/* Booking & Stay Details Section */}
       <AccordeonBooking />
 
@@ -1797,11 +1744,10 @@ export default function PropertyDetail() {
             <div className="flex-1 flex gap-3">
               <button
                 onClick={handleToggleCart}
-                className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-2 flex-1 h-14 px-8 !rounded-xl font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] ${
-                  isPropertyInCart
+                className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 py-2 flex-1 h-14 px-8 !rounded-xl font-bold uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98] ${isPropertyInCart
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-700'
                     : 'bg-gray-900 text-white hover:bg-gray-800 border border-gray-800'
-                }`}
+                  }`}
               >
                 {isPropertyInCart ? (
                   <>
