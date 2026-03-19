@@ -1321,6 +1321,7 @@ export default function PropertyDetail() {
       </section>
 
       {/* Villa Net Verified Standard */}
+      {/* =====================================================================
       <section className="py-16 px-6 bg-white border-t border-b border-[#E6E6E6]">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-10">
@@ -1394,6 +1395,7 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
+      ===================================================================== */}
 
       {/* Availability Calendar */}
       <section className="py-8 md:py-12 px-6 bg-[#FAFAFA] border-t border-b border-[#E5E5E5]">
@@ -1485,7 +1487,7 @@ export default function PropertyDetail() {
         <div className="container mx-auto max-w-5xl">
           <div className="text-center">
             <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-              Villa Net Concierge Services
+              Concierge Services Available At This Rental
             </h3>
             <p className="text-sm text-gray-600 max-w-2xl mx-auto mb-6">
               Your concierge will help plan, arrange, and confirm every detail
@@ -1556,6 +1558,7 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
+      
       {/* Location Section */}
       <section className="py-12 px-6 border-b border-border">
         <div className="container mx-auto max-w-4xl">
@@ -1590,6 +1593,7 @@ export default function PropertyDetail() {
       </section>
 
       {/* Designed For Section */}
+      {/* =====================================================================
       <section className="py-12 px-6 border-t border-b border-[#E5E5E5]">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-10">
@@ -1644,6 +1648,8 @@ export default function PropertyDetail() {
           </div>
         </div>
       </section>
+      ===================================================================== */}
+
 
       {/* [REMOVED] Guest Reviews Section
           Nota: las reseñas eran datos estáticos hardcodeados (sin endpoint de API).
