@@ -10,7 +10,7 @@ import {
   ArrowLeft,
   //Star,       
   Shield,
-  Check,
+  //Check,
   Users,
   //Calendar,
   Sparkles,
@@ -22,7 +22,7 @@ import {
   Baby,
   PartyPopper,
   Plane,
-  Briefcase,
+  //Briefcase,
   // [REMOVED] Used by: Property Amenities section icons
   // Waves,
   // Wifi,
@@ -164,7 +164,7 @@ const getAmenitiesWithIcons = (amenities: string[]) => {
 */
 
 
-// Función helper para formatear rank de forma segura
+/*Función helper para formatear rank de forma segura
 const formatVillaNetRank = (rank: any): string => {
   if (rank == null || rank === undefined || rank === '') return '9.7';
 
@@ -178,6 +178,7 @@ const formatVillaNetRank = (rank: any): string => {
     return '9.7';
   }
 };
+*/
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
