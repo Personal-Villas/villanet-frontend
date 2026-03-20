@@ -1623,7 +1623,7 @@ export default function PropertiesHeaderCompact({
                       onClick={onEditQuote}
                       className="px-3 py-1 text-sm border border-neutral-900 bg-neutral-900 text-white rounded-md hover:bg-neutral-700 transition-colors font-medium whitespace-nowrap"
                     >
-                      ✎ Edit Quote Criteria
+                      ✎ Create New Quote
                     </button>
                   )}
                   {hasActiveFilters && onClearAllFilters && (
