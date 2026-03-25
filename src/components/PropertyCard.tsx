@@ -42,12 +42,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 }) => {
     const images = item.images_json?.length > 0 ? item.images_json : [item.heroImage];
 
-    // Solo la card #1 (cardIndex === 0) es candidata LCP — carga eager con fetchpriority high.
-    // El resto carga lazy para no competir con el LCP por ancho de banda.
     const isLcpCandidate = cardIndex === 0;
 
-    // Precargar imágenes del carrusel (posiciones 2 y 3) solo cuando el usuario
-    // hace hover sobre la card, no al montar. Evita descargas innecesarias al cargar la página.
     const [carouselPreloaded, setCarouselPreloaded] = useState(false);
 
     const handleMouseEnter = () => {
@@ -61,12 +57,14 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
 
     return (
         <div
-            className="group border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1 mt-10"
+            className="group relative border border-border rounded-lg overflow-hidden bg-card transition-all duration-200 hover:shadow-xl hover:-translate-y-1 mt-10 cursor-pointer"
             onMouseEnter={handleMouseEnter}
         >
-
-            {/* --- CARRUSEL DE IMÁGENES --- */}
-            <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+            {/* --- CARRUSEL DE IMÁGENES (clickeable → navega al detalle) --- */}
+            <div
+                className="relative aspect-[4/3] overflow-hidden bg-muted"
+                onClick={() => onGoToDetail(item)}
+            >
                 <div className="relative w-full h-full">
                     <div className="relative w-full h-full overflow-hidden">
                         <div
@@ -83,12 +81,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                                         alt={`${item.name} - Image ${imgIdx + 1}`}
                                         width={800}
                                         height={600}
-                                        /**
-                                         * LCP candidate (card #1, imagen #1): eager + fetchpriority high + decoding sync.
-                                         * Resto de imágenes (carrusel o cards below-fold): lazy + decoding async.
-                                         * Las imágenes del carrusel (imgIdx > 0) siempre lazy,
-                                         * incluso en la card #1, porque no son visibles inicialmente.
-                                         */
                                         loading={isLcpCandidate && imgIdx === 0 ? 'eager' : 'lazy'}
                                         fetchPriority={isLcpCandidate && imgIdx === 0 ? 'high' : 'auto'}
                                         decoding={isLcpCandidate && imgIdx === 0 ? 'sync' : 'async'}
@@ -99,17 +91,17 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                         </div>
                     </div>
 
-                    {/* Flechas de Navegación */}
+                    {/* Flechas — stopPropagation para no disparar onGoToDetail */}
                     <button
                         disabled={currentIndex === 0}
-                        onClick={(e) => onImagePrev(e, item.id, images.length)}
+                        onClick={(e) => { e.stopPropagation(); onImagePrev(e, item.id, images.length); }}
                         className="absolute left-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
                         <ChevronLeft className="w-4 h-4 text-foreground" />
                     </button>
 
                     <button
-                        onClick={(e) => onImageNext(e, item.id, images.length)}
+                        onClick={(e) => { e.stopPropagation(); onImageNext(e, item.id, images.length); }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md border border-border transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:bg-white hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
                         <ChevronRight className="w-4 h-4 text-foreground" />
@@ -122,7 +114,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 </div>
 
                 {/* Badges Superiores */}
-                <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10">
+                <div className="absolute top-3 left-3 right-3 flex justify-between items-start gap-2 z-10 pointer-events-none">
                     {(item.rank !== null && item.rank !== undefined && item.rank > 0) ? (
                         <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/95 backdrop-blur-sm border border-border shadow-sm">
                             <Star className="w-3.5 h-3.5 text-yellow-600 fill-yellow-600" />
@@ -134,17 +126,13 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 </div>
             </div>
 
-            {/* --- INFO DE LA PROPIEDAD --- */}
-            <div className="p-4">
-                <a
-                    className="block mb-2 group/link"
-                    href={`/property/${item.id}`}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        onGoToDetail(item);
-                    }}
-                >
-                    <h3 className="text-lg font-semibold text-foreground group-hover/link:text-primary transition-colors mb-1">
+            {/* --- INFO DE LA PROPIEDAD (clickeable → navega al detalle) --- */}
+            <div
+                className="p-4"
+                onClick={() => onGoToDetail(item)}
+            >
+                <div className="block mb-2">
+                    <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
                         {item.name}
                     </h3>
                     {item.location?.trim() && item.location !== 'Unknown' && (
@@ -153,7 +141,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                             <span className="text-xs truncate">{item.location}</span>
                         </div>
                     )}
-                </a>
+                </div>
 
                 {/* Métricas */}
                 <div className="flex items-center md:flex-nowrap flex-wrap gap-2 md:gap-3 text-xs md:text-sm text-muted-foreground mb-3 pb-3 border-b border-border">
@@ -181,8 +169,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                     </div>
                 </div>
 
-                {/* Botones */}
-                <div className="flex flex-col gap-2">
+                {/* Botones — stopPropagation en el wrapper para que ninguno dispare onGoToDetail */}
+                <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
                     <button
                         onClick={() => onGoToDetail(item)}
                         className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3 w-full bg-[#000000] text-white hover:bg-black/90"
