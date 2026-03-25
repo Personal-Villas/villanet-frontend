@@ -18,12 +18,35 @@ export const advisorService = {
   // 🆕 Cambiar el tipo de retorno a AuthResponse
   async submitAdvisorSignup(data: AdvisorSignupData): Promise<AuthResponse> {
     try {
+      // Construir FormData para soportar el upload del logo (multipart/form-data).
+      // Si no hay logo, el backend lo trata como campo opcional y no sube nada a S3.
+      const formData = new FormData();
+      const fields = this.prepareDataForBackend(data);
+
+      // Agregar todos los campos de texto/JSON al FormData
+      Object.entries(fields).forEach(([key, value]) => {
+  if (value === null || value === undefined) return;
+
+  // Arrays → appendear cada elemento individualmente (ej: travel_regions[])
+  if (Array.isArray(value)) {
+    if (value.length > 0) {
+      value.forEach((item) => formData.append(`${key}[]`, String(item)));
+    }
+    return;
+  }
+
+  formData.append(key, String(value));
+});
+
+      // Agregar el archivo solo si existe
+      if (data.agencyLogo instanceof File) {
+        formData.append('agency_logo', data.agencyLogo);
+      }
+
+      // ⚠️ No setear Content-Type manualmente — el browser lo agrega con el boundary correcto
       const response = await fetch(`${API_BASE_URL}/advisors/signup`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(this.prepareDataForBackend(data)),
+        body: formData,
       });
 
       if (!response.ok) {

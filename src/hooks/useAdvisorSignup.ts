@@ -27,7 +27,8 @@ export const useAdvisorSignup = () => {
       // ✅ Precarga el email desde la URL si existe
       email: emailFromUrl,
       password: ''
-    }
+    },
+    agencyLogo: null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export const useAdvisorSignup = () => {
     if (savedData) {
       try {
         const data = JSON.parse(savedData) as AdvisorSignupData;
-        setFormData(prev => ({
+        setFormData(() => ({
           ...data,
           personalInfo: {
             ...data.personalInfo,

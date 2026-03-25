@@ -18,6 +18,7 @@ export interface AdvisorPersonalInfo {
   export interface AdvisorSignupData {
     personalInfo: AdvisorPersonalInfo;
     professionalInfo?: AdvisorProfessionalInfo;
+    agencyLogo?: File | null;
   }
   
   export interface AdvisorSignupStepProps {
