@@ -53,6 +53,7 @@ import PropertyMap from '../components/PropertyMap';
 import QuoteCalculator from '../components/QuoteCalculator';
 import SEO, { generateProductSchema } from '../components/SEO';
 import { trackEvent } from '../services/analytics';
+import { normalizePropertyName } from '../utils/normalizePropertyName';
 
 type Listing = {
   listing_id: string;
@@ -921,7 +922,7 @@ export default function PropertyDetail() {
       <section className="py-6 px-6 text-center border-b border-[#E5E5E5]">
         <div className="container mx-auto max-w-4xl">
           <h1 className="font-bold text-3xl sm:text-4xl md:text-5xl text-gray-900 mb-3">
-            {listing.name}
+            {normalizePropertyName(listing.name)}
           </h1>
           <div className="flex items-start justify-center gap-1.5 text-gray-900">
             <MapPin className="w-4 h-4 md:w-5 md:h-5 mt-1 flex-shrink-0" />
@@ -1251,7 +1252,7 @@ export default function PropertyDetail() {
             Starting at
           </p>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2">
-            ${listing.price_usd?.toLocaleString() ?? '—'}/night
+            ${listing.price_usd != null ? Math.round(listing.price_usd).toLocaleString() : '—'}/night
           </h2>
           <p className="text-sm text-[#6B7280] mb-8">
             Rates vary by season & length of stay.
