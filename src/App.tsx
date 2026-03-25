@@ -13,6 +13,7 @@ import { About } from './pages/About';
 import { Advisors } from './pages/Advisors';
 import { PropertyManagers } from './pages/PropertyManagers';
 import { AdvisorSignup } from './pages/AdvisorSignup';
+import { AdvisorProfile } from './pages/AdvisorProfile';
 import { PropertyManagerSignup } from './pages/PropertyManagerSignup';
 import { TrustFramework } from './pages/TrustFramework';
 import { TermsOfService } from './pages/TermsOfService';
@@ -93,6 +94,16 @@ function AppRoutes() {
           auth.user && ['pmc', 'admin'].includes(auth.user.role)
             ? <PMCInbox />
             : <Navigate to="/" />
+        }
+      />
+
+      {/* ✅ Advisor profile dashboard */}
+      <Route
+        path="/dashboard/profile"
+        element={
+          auth.user && auth.user.role === 'ta'
+            ? <AdvisorProfile />
+            : <Navigate to="/" replace />
         }
       />
 
