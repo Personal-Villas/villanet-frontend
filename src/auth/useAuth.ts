@@ -8,6 +8,7 @@ export interface User {
   status: 'pending' | 'approved' | 'rejected';
   trial_expires_at?: string;
   full_name: string;
+  avatar_url?: string | null;
 }
 
 // ✅ Interfaces para las respuestas de la API

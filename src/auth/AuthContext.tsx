@@ -1,17 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../api/api';
-
-interface User {
-  company_name: any;
-  first_name: any;
-  last_name: any;
-  id: string;
-  email: string;
-  role: 'admin' | 'ta' | 'pmc';
-  status: 'pending' | 'approved' | 'rejected';
-  trial_expires_at?: string;
-  full_name: string;
-}
+import { User } from './useAuth';
 
 interface AuthContextType {
   user: User | undefined;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, User, LogOut, Search, SlidersHorizontal, X, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 interface UnifiedHeaderProps {
   onAuthClick?: () => void;
@@ -59,7 +59,11 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
 
   const handleAdminClick = () => {
     setIsMobileMenuOpen(false);
-    navigate('/dashboard');
+    if (user?.role === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/dashboard/profile');
+    }
   };
 
   if (loading) {
@@ -207,7 +211,15 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                 {user ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <User className="w-5 h-5 text-gray-600" />
+                      {user.avatar_url ? (
+                        <img
+                          src={user.avatar_url}
+                          alt="Agency logo"
+                          className="w-8 h-8 rounded-full object-cover border border-gray-200 shrink-0"
+                        />
+                      ) : (
+                        <User className="w-5 h-5 text-gray-600 shrink-0" />
+                      )}
                       <div>
                         <p className="font-medium text-gray-900">{user.full_name || user.email}</p>
                         <p className="text-sm text-gray-500 uppercase text-xs font-bold">{user.role}</p>
@@ -268,10 +280,22 @@ const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout, onAdminClick }) => 
         <span className="text-xs font-bold uppercase tracking-wider">Dashboard</span>
       </button>
     )}
-    <div className="flex items-center gap-2 text-sm text-gray-700">
-      <User className="w-4 h-4" />
+    <Link
+      to={user?.role === 'ta' ? '/dashboard/profile' : '#'}
+      className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors"
+      title={user?.role === 'ta' ? 'My Profile' : undefined}
+    >
+      {user?.avatar_url ? (
+        <img
+          src={user.avatar_url}
+          alt="Agency logo"
+          className="w-7 h-7 rounded-full object-cover border border-gray-200"
+        />
+      ) : (
+        <User className="w-4 h-4" />
+      )}
       <span className="font-medium">{user.full_name || user.email}</span>
-    </div>
+    </Link>
     <button
       onClick={onLogout}
       className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors border-0 bg-transparent cursor-pointer"
