@@ -16,6 +16,8 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps> = ({
   const [website, setWebsite] = useState(data.professionalInfo?.website || '');
   const [agreesToTerms, setAgreesToTerms] = useState(data.professionalInfo?.agreesToTerms || false);
   const [progress, setProgress] = useState(20);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   const advisorTypes = [
     'Independent travel advisor',
@@ -89,6 +91,35 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps> = ({
   }, [selectedAdvisorType, selectedRegions, selectedGroupSize, selectedBudget, selectedCommission, website, agreesToTerms]);
 
   // 🆕 Actualizar formData solo cuando se interactúa con los campos
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    setLogoError(null);
+
+    if (!file) return;
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    const MAX_SIZE_MB = 2;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setLogoError('Only JPG, PNG and WEBP files are allowed.');
+      return;
+    }
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setLogoError(`File size must be under ${MAX_SIZE_MB}MB.`);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setLogoPreview(objectUrl);
+    updateData({ agencyLogo: file });
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoPreview(null);
+    setLogoError(null);
+    updateData({ agencyLogo: null });
+  };
+
   const handleAdvisorTypeChange = (type: string) => {
     setSelectedAdvisorType(type);
     updateData({
@@ -243,6 +274,49 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps> = ({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Agency Logo */}
+        <div className="mb-10">
+          <label className="text-sm font-medium text-gray-900 mb-1 block">
+            Agency Logo
+            <span className="text-gray-500 ml-1 font-normal">(Optional)</span>
+          </label>
+          <p className="text-xs text-gray-500 mb-4">JPG, PNG or WEBP · Max 2MB</p>
+
+          {logoPreview ? (
+            <div className="flex items-center gap-4">
+              <img
+                src={logoPreview}
+                alt="Agency logo preview"
+                className="w-20 h-20 object-contain rounded-lg border border-gray-200 bg-gray-50 p-1"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveLogo}
+                className="text-sm text-red-600 hover:text-red-700 underline underline-offset-2"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+              <svg className="w-7 h-7 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="text-sm text-gray-500">Click to upload your logo</span>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                className="hidden"
+                onChange={handleLogoChange}
+              />
+            </label>
+          )}
+
+          {logoError && (
+            <p className="text-xs text-red-600 mt-2">{logoError}</p>
+          )}
         </div>
 
         {/* Travel Regions */}
