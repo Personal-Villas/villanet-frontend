@@ -133,17 +133,42 @@ export const AdvisorProfile: React.FC = () => {
     }
   };
 
-  // ── Update password (placeholder — requiere endpoint) ─────────────────────
+  // ── Update password ────────────────────────────────────────────────────────
+  // Conectado a POST /advisors/profile/change-password (requiere Bearer token)
   const handleUpdatePassword = async () => {
     setPwError(null);
+    setPwSuccess(false);
+
+    if (!currentPassword) { setPwError('Please enter your current password.'); return; }
+    if (newPassword.length < 8) { setPwError('New password must be at least 8 characters.'); return; }
     if (newPassword !== confirmPassword) { setPwError('Passwords do not match.'); return; }
-    if (newPassword.length < 8) { setPwError('Password must be at least 8 characters.'); return; }
+
+    if (!accessToken) { setPwError('Session expired. Please log in again.'); return; }
+
     setPwSaving(true);
     try {
-      // TODO: conectar con endpoint de cambio de contraseña cuando esté disponible
-      await new Promise(r => setTimeout(r, 800)); // placeholder
+      const res = await fetch(`${API_BASE_URL}/advisors/profile/change-password`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+        credentials: 'include',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // El backend devuelve mensajes específicos: contraseña incorrecta, etc.
+        setPwError(data.message || 'Could not update password. Please try again.');
+        return;
+      }
+
       setPwSuccess(true);
-      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
       setTimeout(() => setPwSuccess(false), 3000);
     } catch {
       setPwError('Could not update password. Please try again.');
@@ -338,6 +363,7 @@ export const AdvisorProfile: React.FC = () => {
                   type={showConfirmPw ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleUpdatePassword()}
                   placeholder="••••••••••"
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm pr-10 focus:outline-none focus:border-gray-400 transition-colors"
                 />
@@ -352,6 +378,7 @@ export const AdvisorProfile: React.FC = () => {
             </div>
 
             {pwError && <p className="text-xs text-red-500 mb-4">{pwError}</p>}
+            {pwSuccess && <p className="text-xs text-green-600 mb-4">Password updated successfully ✓</p>}
 
             <button
               onClick={handleUpdatePassword}
