@@ -13,25 +13,36 @@ import AuthModal from "../components/AuthModal";
 import { UnifiedHeader } from "../components/Header";
 import VillaNetRankModal from "../components/VillaNetRankModal";
 
-// ✅ Estado del modal de auth: puede abrirse en modo 'email' normal
-// o directamente en modo 'code' cuando el usuario ya existe
+// ✅ Estado del modal de auth:
+// - 'email'    → paso inicial (ingresar email)
+// - 'password' → usuario existente, ingresar contraseña (NUEVO)
+// - 'code'     → flujo de código (comentado, conservado para nuevos usuarios)
 interface AuthModalState {
   open: boolean;
   initialEmail?: string;
-  initialMode?: 'email' | 'code';
+  initialMode?: 'email' | 'code' | 'password';
 }
 
 export const Home: React.FC = () => {
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false });
   const [showRankModal, setShowRankModal] = useState(false);
 
-  // Abre el modal en modo email normal (desde el header)
+  // Abre el modal en modo email normal (desde el header → botón "Login")
   const openAuthModal = useCallback(() =>
     setAuthModal({ open: true, initialMode: 'email' }), []);
 
-  // ✅ Abre el modal directamente en el paso de código para usuarios existentes
+  // ✅ Abre el modal directamente en el paso de password para usuarios existentes.
+  // Se llama desde Hero y CTASection cuando el usuario ingresa su email
+  // en el campo de la landing y el backend confirma que ya existe en BD.
+  const openAuthModalWithPassword = useCallback((email: string) =>
+    setAuthModal({ open: true, initialEmail: email, initialMode: 'password' }), []);
+
+  // -- Función anterior para abrir en modo 'code' — ya no se usa como entrada
+  // principal, pero se conserva por si se reactiva el flujo de código. --
+  /*
   const openAuthModalWithCode = useCallback((email: string) =>
     setAuthModal({ open: true, initialEmail: email, initialMode: 'code' }), []);
+  */
 
   const closeAuthModal = useCallback(() =>
     setAuthModal({ open: false }), []);
@@ -52,12 +63,13 @@ export const Home: React.FC = () => {
     <div className="min-h-screen bg-background font-[Inter]">
       <UnifiedHeader mode="simple" onAuthClick={openAuthModal} />
 
-      <Hero onOpenAuthWithCode={openAuthModalWithCode} />
+      {/* ✅ Se pasa openAuthModalWithPassword en lugar de openAuthModalWithCode */}
+      <Hero onOpenAuthWithCode={openAuthModalWithPassword} />
       <FeaturesSection />
       <TrustLayer />
       <WhiteLabelSection />
       <RegionsSection />
-      <CTASection onOpenAuthWithCode={openAuthModalWithCode} />
+      <CTASection onOpenAuthWithCode={openAuthModalWithPassword} />
       <Footer />
       <FloatingButton onClick={openRankModal} />
 

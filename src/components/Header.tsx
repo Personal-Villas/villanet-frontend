@@ -52,6 +52,9 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
+  // ✅ Al hacer clic en "Login" del navbar, se abre el AuthModal (en modo 'email')
+  // en lugar de navegar a la página /login.
+  // onAuthClick viene de Home.tsx y llama a openAuthModal → setAuthModal({ open: true, initialMode: 'email' })
   const handleAuthClick = () => {
     setIsMobileMenuOpen(false);
     onAuthClick?.();
@@ -125,6 +128,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                     <UserMenu user={user} onLogout={handleLogout} onAdminClick={handleAdminClick} />
                   ) : (
                     <>
+                      {/* ✅ Botón Login abre el AuthModal en modo 'email' (no navega a /login) */}
                       <button
                         onClick={handleAuthClick}
                         className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors bg-transparent border-0 cursor-pointer"
@@ -222,7 +226,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                       )}
                       <div>
                         <p className="font-medium text-gray-900">{user.full_name || user.email}</p>
-                        <p className="text-sm text-gray-500 uppercase text-xs font-bold">{user.role}</p>
+                        <p className="text-gray-500 uppercase text-xs font-bold">{user.role}</p>
                       </div>
                     </div>
                     <button
@@ -235,6 +239,7 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    {/* ✅ En mobile también abre el AuthModal, no navega a /login */}
                     <button onClick={handleAuthClick} className="w-full py-3 px-4 text-center bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-700 transition-colors">
                       Login to Access
                     </button>
