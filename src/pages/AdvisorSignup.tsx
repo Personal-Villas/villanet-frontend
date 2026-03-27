@@ -10,6 +10,7 @@ export const AdvisorSignup: React.FC = () => {
     formData,
     updateFormData,
     goToWelcome,
+    goBackToStep1,
     goToStep2,
     submitForm,
     isSubmitting,
@@ -90,6 +91,7 @@ export const AdvisorSignup: React.FC = () => {
               updateData={updateFormData}
               onSubmit={handleFinalSubmit}
               isSubmitting={isSubmitting}
+              onBack={goBackToStep1}
             />
           </>
         );

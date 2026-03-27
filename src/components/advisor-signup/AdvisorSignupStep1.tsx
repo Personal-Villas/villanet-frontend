@@ -34,6 +34,15 @@ export const AdvisorSignupStep1: React.FC<AdvisorSignupStep1Props> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <a
+        href="/"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2 -mt-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to Home
+      </a>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium text-foreground mb-2 block">
