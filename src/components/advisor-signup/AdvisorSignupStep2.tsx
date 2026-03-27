@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { AdvisorSignupStepProps } from '../../types/advisor';
 
-const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps> = ({
+const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => void }> = ({
   data,
   updateData,
   onSubmit,
-  isSubmitting = false
+  isSubmitting = false,
+  onBack
 }) => {
   const [selectedAdvisorType, setSelectedAdvisorType] = useState(data.professionalInfo?.advisorType || '');
   const [selectedRegions, setSelectedRegions] = useState<string[]>(data.professionalInfo?.travelRegions || []);
@@ -223,6 +224,18 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps> = ({
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-2xl mx-auto pt-12 pb-16 px-6">
+        {/* Back navigation */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors mb-8"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
+
         {/* Progress Bar */}
         <div className="mb-10">
           <div className="flex justify-between items-center mb-3">
