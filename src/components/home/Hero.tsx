@@ -3,48 +3,56 @@ import { useNavigate } from "react-router-dom";
 import { publicApi } from "../../api/api";
 
 interface HeroProps {
-  // ✅ Callback para abrir AuthModal en paso de código cuando el usuario ya existe
   onOpenAuthWithCode: (email: string) => void;
+}
+
+// Validación más estricta que solo incluir '@'
+// Rechaza: "usuario@com", "a@b", "@dominio.com", etc.
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());
 }
 
 export const Hero: React.FC<HeroProps> = ({ onOpenAuthWithCode }) => {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (emailError) setEmailError(null);
+  };
+
   const handleSubmit = async () => {
+    // AC 1: campo vacío
     if (!email.trim()) {
-      // Sin email: ir a signup sin email precargado
-      navigate("/advisor-signup");
+      setEmailError("Please enter your email address");
       return;
     }
 
-    if (!email.includes("@")) {
-      // Email inválido: ir a signup con el texto como prefill
-      navigate(`/advisor-signup?email=${encodeURIComponent(email)}`);
+    // AC 2: formato inválido
+    if (!isValidEmail(email)) {
+      setEmailError("Please enter a valid email address");
       return;
     }
 
+    setEmailError(null);
     setLoading(true);
 
     try {
-      // ✅ Verificar si el usuario existe enviando el código
-      const response = await publicApi("/auth/check-email", {
+      const response = await publicApi("/auth/send-code", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim() }),
       }) as { userExists: boolean };
 
       if (response.userExists) {
-        // ✅ Usuario existente: abrir modal directamente en el paso de código
-        onOpenAuthWithCode(email);
+        onOpenAuthWithCode(email.trim());
       } else {
-        // Usuario nuevo: flujo normal hacia signup
-        navigate(`/advisor-signup?email=${encodeURIComponent(email)}`);
+        navigate(`/advisor-signup?email=${encodeURIComponent(email.trim())}`);
       }
     } catch (err) {
       console.error("❌ Error checking user:", err);
-      // En caso de error, no bloqueamos al usuario — seguimos al signup
-      navigate(`/advisor-signup?email=${encodeURIComponent(email)}`);
+      navigate(`/advisor-signup?email=${encodeURIComponent(email.trim())}`);
     } finally {
       setLoading(false);
     }
@@ -72,16 +80,26 @@ export const Hero: React.FC<HeroProps> = ({ onOpenAuthWithCode }) => {
                 minutes.
               </h2>
 
-              <div className="flex flex-col sm:flex-row gap-3 mb-4 max-w-md">
-                <input
-                  type="email"
-                  className="flex w-full rounded-md border bg-background py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm h-14 text-base px-5 border-input"
-                  placeholder="Enter your work email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !loading && handleSubmit()}
-                  disabled={loading}
-                />
+              <div className="flex flex-col sm:flex-row gap-3 mb-2 max-w-md">
+                {/* AC 3: borde rojo + mensaje de error bajo el input */}
+                <div className="flex-1 flex flex-col gap-1">
+                  <input
+                    type="text"
+                    className={`flex w-full rounded-md bg-background py-2 placeholder:text-muted-foreground focus-visible:outline-none md:text-sm h-14 text-base px-5 transition-all border-2 ${
+                      emailError
+                        ? "border-red-500 focus-visible:ring-0"
+                        : "border-input focus-visible:border-ring"
+                    }`}
+                    placeholder="Enter your work email"
+                    value={email}
+                    onChange={handleEmailChange}
+                    onKeyDown={(e) => e.key === "Enter" && !loading && handleSubmit()}
+                    disabled={loading}
+                  />
+                  {emailError && (
+                    <p className="text-red-500 text-xs pl-1">{emailError}</p>
+                  )}
+                </div>
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
