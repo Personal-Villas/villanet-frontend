@@ -40,7 +40,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenAuthWithCode }) => {
     setLoading(true);
 
     try {
-      const response = await publicApi("/auth/send-code", {
+      const response = await publicApi("/auth/check-email", {
         method: "POST",
         body: JSON.stringify({ email: email.trim() }),
       }) as { userExists: boolean };
