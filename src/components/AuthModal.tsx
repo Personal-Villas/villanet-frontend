@@ -84,7 +84,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setError(null);
     setLoading(true);
     try {
-      const response = await publicApi('/auth/send-code', {
+      const response = await publicApi('/auth/check-email', {
         method: 'POST',
         body: JSON.stringify({ email }),
       }) as ApiResponse;

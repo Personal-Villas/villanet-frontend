@@ -27,7 +27,7 @@ export const CTASection: React.FC<CTASectionProps> = ({ onOpenAuthWithCode }) =>
 
     try {
       // ✅ Verificar si el usuario existe enviando el código
-      const response = await publicApi("/auth/send-code", {
+      const response = await publicApi("/auth/check-email", {
         method: "POST",
         body: JSON.stringify({ email }),
       }) as { userExists: boolean };

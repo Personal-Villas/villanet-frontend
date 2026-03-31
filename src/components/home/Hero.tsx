@@ -29,7 +29,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenAuthWithCode }) => {
 
     try {
       // ✅ Verificar si el usuario existe enviando el código
-      const response = await publicApi("/auth/send-code", {
+      const response = await publicApi("/auth/check-email", {
         method: "POST",
         body: JSON.stringify({ email }),
       }) as { userExists: boolean };
@@ -75,7 +75,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenAuthWithCode }) => {
               <div className="flex flex-col sm:flex-row gap-3 mb-4 max-w-md">
                 <input
                   type="email"
-                  className="flex w-full rounded-md border bg-background py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm h-14 !rounded-xl text-base px-5 border-input"
+                  className="flex w-full rounded-md border bg-background py-2 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm h-14 text-base px-5 border-input"
                   placeholder="Enter your work email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -85,7 +85,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenAuthWithCode }) => {
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="inline-flex items-center justify-center gap-2 font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md h-14 !rounded-xl uppercase tracking-wider text-sm px-8 whitespace-nowrap hover:scale-[1.02] active:scale-[0.98] transition-transform bg-[#111111] text-white hover:bg-[#333333] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  className="inline-flex items-center justify-center gap-2 font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md h-14 uppercase tracking-wider text-sm px-8 whitespace-nowrap hover:scale-[1.02] active:scale-[0.98] transition-transform bg-[#111111] text-white hover:bg-[#333333] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   {loading ? "Checking..." : "Get Instant Access"}
                 </button>
