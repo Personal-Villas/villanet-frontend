@@ -37,9 +37,9 @@ export const Home: React.FC = () => {
     }
   }, [user, authLoading, navigate]);
     
-  // Abre el modal en modo email normal (desde el header → botón "Login")
+  // Abre el modal en modo password normal (desde el header → botón "Login")
   const openAuthModal = useCallback(() =>
-    setAuthModal({ open: true, initialMode: 'email' }), []);
+    setAuthModal({ open: true, initialMode: 'password' }), []);
 
   // ✅ Abre el modal directamente en el paso de password para usuarios existentes.
   // Se llama desde Hero y CTASection cuando el usuario ingresa su email

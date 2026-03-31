@@ -26,8 +26,8 @@ interface ApiResponse {
 
 interface ForgotStep {
   step: 'request'    // ingresar email y pedir código
-      | 'verify'     // ingresar código de 6 dígitos
-      | 'new-password'; // ingresar nueva contraseña
+  | 'verify'     // ingresar código de 6 dígitos
+  | 'new-password'; // ingresar nueva contraseña
   resetToken?: string; // se rellena tras verify-reset-code exitoso
 }
 
@@ -103,6 +103,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   // ── Handlers modo password ─────────────────────────────────────────────
   const handlePasswordLogin = async () => {
+    if (!email.trim() || !email.includes('@')) { setError('Please enter a valid email'); return; }
     if (!password.trim()) { setError('Please enter your password'); return; }
     setError(null);
     setLoading(true);
@@ -222,10 +223,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
   // ── Título y subtítulo del paso forgot ────────────────────────────────
   const forgotHeading = () => {
     if (forgotStep.step === 'request') return { title: 'Reset your password', sub: 'Enter your email and we\'ll send you a 6-digit code.' };
-    if (forgotStep.step === 'verify')  return { title: 'Check your email', sub: `We sent a 6-digit code to ${forgotEmail}` };
-    if (pwSuccess)                      return { title: 'Password updated!', sub: 'You\'ll be redirected to sign in now.' };
+    if (forgotStep.step === 'verify') return { title: 'Check your email', sub: `We sent a 6-digit code to ${forgotEmail}` };
+    if (pwSuccess) return { title: 'Password updated!', sub: 'You\'ll be redirected to sign in now.' };
     return { title: 'New password', sub: 'Choose a strong password for your account.' };
   };
+
+  // Bloquear el email solo si vino cargado y el modo inicial es password
+  const [isEmailLocked, setIsEmailLocked] = useState<boolean>(!!initialEmail && initialMode === 'password');
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -308,14 +312,18 @@ const AuthModal: React.FC<AuthModalProps> = ({
               <h3 className="text-xl font-semibold text-neutral-900 mb-2">Welcome back</h3>
               <p className="text-sm text-neutral-500 mb-8">Sign in to your account</p>
 
-              {/* Email bloqueado */}
+              {/* Email bloqueado/editable */}
               <div className="mb-4">
                 <label className="text-sm font-medium text-neutral-700 mb-2 block">Email</label>
                 <input
                   type="email"
                   value={email}
-                  disabled
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-500 cursor-not-allowed text-sm"
+                  onChange={(e) => setEmail(e.target.value)} // Añadir onChange
+                  disabled={isEmailLocked} // Usar el nuevo estado
+                  className={`w-full px-4 py-3 rounded-xl border text-sm transition ${isEmailLocked
+                    ? 'bg-neutral-50 text-neutral-500 cursor-not-allowed border-neutral-200'
+                    : 'bg-white text-neutral-900 border-neutral-300 focus:border-neutral-900'
+                    }`}
                 />
               </div>
 
@@ -369,13 +377,20 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
 
-              <button
-                type="button"
-                onClick={() => { setMode('email'); setPassword(''); setError(null); }}
-                className="w-full text-neutral-500 text-sm hover:text-neutral-900 transition text-center mt-2"
-              >
-                ← Use a different email
-              </button>
+              {/* Reemplaza el botón al final del modo password */}
+              {isEmailLocked && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEmailLocked(false); // Desbloquea el campo
+                    setPassword(''); // Limpia la contraseña por seguridad
+                    setError(null);
+                  }}
+                  className="w-full text-neutral-500 text-sm hover:text-neutral-900 transition text-center mt-2 underline underline-offset-4"
+                >
+                  ← Use a different email
+                </button>
+              )}
             </div>
           )}
 
