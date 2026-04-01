@@ -47,6 +47,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   // ── Modo password ──────────────────────────────────────────────────────
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   // ── Modo forgot ────────────────────────────────────────────────────────
   const [forgotStep, setForgotStep] = useState<ForgotStep>({ step: 'request' });
@@ -108,7 +109,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setError(null);
     setLoading(true);
     try {
-      const data = await login(email, password);
+      const data = await login(email, password, rememberMe);
       if (data.user) {
         onSuccess(data.user);
         onClose();
@@ -364,6 +365,20 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 >
                   Forgot password?
                 </button>
+              </div>
+
+              {/* Remember Me */}
+              <div className="flex items-center gap-2 mb-6">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-neutral-300 accent-neutral-900 cursor-pointer"
+                />
+                <label htmlFor="rememberMe" className="text-sm text-neutral-600 cursor-pointer select-none">
+                  Keep me signed in for 7 days
+                </label>
               </div>
 
               {error && <p className="text-red-600 text-sm mb-4">{error}</p>}

@@ -23,7 +23,7 @@ interface AuthResponse {
 
 export function useAuth() {
   // ✅ Usar el contexto en lugar de estado local
-  const { user, loading/*, isAuthenticated, updateAuthState */} = useAuthContext();
+  const { user, loading/*, isAuthenticated, updateAuthState */ } = useAuthContext();
 
   // ✅ Obtener accessToken de localStorage (para compatibilidad)
   const accessToken = localStorage.getItem('access') || undefined;
@@ -37,48 +37,48 @@ export function useAuth() {
         body: JSON.stringify({ email, code, full_name: fullName }),
       }
     );
-    
+
     localStorage.setItem('access', data.accessToken);
-    
+
     // ✅ Disparar evento para que el contexto se actualice
     window.dispatchEvent(new Event('authStateChange'));
-    
+
     return data;
   }
 
   // ✅ Ahora retorna explícitamente los datos
-  async function login(email: string, password: string): Promise<AuthResponse> {
+  async function login(email: string, password: string, rememberMe = false): Promise<AuthResponse> {
     const data = await api<AuthResponse>(
-      '/auth/login', 
-      { 
-        method: 'POST', 
-        body: JSON.stringify({ email, password }) 
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password, rememberMe })
       }
     );
-    
+
     localStorage.setItem('access', data.accessToken);
-    
+
     // ✅ Disparar evento para que el contexto se actualice
     window.dispatchEvent(new Event('authStateChange'));
-    
+
     return data;
   }
 
   // ✅ Ahora retorna explícitamente los datos
   async function register(email: string, password: string, full_name: string): Promise<AuthResponse> {
     const data = await api<AuthResponse>(
-      '/auth/register', 
-      { 
-        method: 'POST', 
-        body: JSON.stringify({ email, password, full_name }) 
+      '/auth/register',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password, full_name })
       }
     );
-    
+
     localStorage.setItem('access', data.accessToken);
-    
+
     // ✅ Disparar evento para que el contexto se actualice
     window.dispatchEvent(new Event('authStateChange'));
-    
+
     return data;
   }
 
@@ -89,7 +89,7 @@ export function useAuth() {
       console.warn('Logout request failed, clearing local state anyway');
     } finally {
       localStorage.removeItem('access');
-      
+
       // ✅ Disparar evento para que el contexto se actualice
       window.dispatchEvent(new Event('authStateChange'));
     }
@@ -102,14 +102,14 @@ export function useAuth() {
   }
 
   // ✅ Retornar los datos del contexto + las funciones
-  return { 
-    user, 
-    accessToken, 
-    loading, 
-    verifyCode, 
-    login, 
-    register, 
-    logout, 
-    refresh 
+  return {
+    user,
+    accessToken,
+    loading,
+    verifyCode,
+    login,
+    register,
+    logout,
+    refresh
   };
 }
