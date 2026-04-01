@@ -11,23 +11,25 @@ interface AuthModalProps {
   onSuccess: (user: any) => void;
   imageLogin?: string;
   initialEmail?: string;
-  // 'email'    → paso inicial
-  // 'password' → usuario existente, login con contraseña
+  // 'password' → usuario existente, login con contraseña (default)
   // 'forgot'   → flujo de reset (3 sub-pasos internos)
   // 'code'     → flujo de código (comentado, conservado)
+  // 'email'    → deshabilitado (comentado)
   initialMode?: 'email' | 'password' | 'forgot' | 'code';
 }
 
+/*
 interface ApiResponse {
   message: string;
   userExists: boolean;
   user?: any;
 }
+*/
 
 interface ForgotStep {
   step: 'request'    // ingresar email y pedir código
-  | 'verify'     // ingresar código de 6 dígitos
-  | 'new-password'; // ingresar nueva contraseña
+  | 'verify'         // ingresar código de 6 dígitos
+  | 'new-password';  // ingresar nueva contraseña
   resetToken?: string; // se rellena tras verify-reset-code exitoso
 }
 
@@ -37,7 +39,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   onSuccess,
   imageLogin,
   initialEmail = '',
-  initialMode = 'email',
+  initialMode = 'password',  // ← default cambiado de 'email' a 'password'
 }) => {
   const [mode, setMode] = useState<'email' | 'password' | 'forgot' | 'code'>(initialMode);
   const [email, setEmail] = useState<string>(initialEmail);
@@ -78,49 +80,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => forgotCodeRefs.current[0]?.focus(), 50);
     }
   }, [forgotStep.step]);
-
-  // ── Handlers modo email ────────────────────────────────────────────────
-  const handleContinue = async () => {
-    if (!email.includes('@')) { setError('Please enter a valid email'); return; }
-    setError(null);
-    setLoading(true);
-    try {
-      const response = await publicApi('/auth/check-email', {
-        method: 'POST',
-        body: JSON.stringify({ email }),
-      }) as ApiResponse;
-      if (response.userExists) {
-        setMode('password');
-      } else {
-        onClose();
-        navigate('/advisor-signup');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to continue');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Handlers modo password ─────────────────────────────────────────────
-  const handlePasswordLogin = async () => {
-    if (!email.trim() || !email.includes('@')) { setError('Please enter a valid email'); return; }
-    if (!password.trim()) { setError('Please enter your password'); return; }
-    setError(null);
-    setLoading(true);
-    try {
-      const data = await login(email, password, rememberMe);
-      if (data.user) {
-        onSuccess(data.user);
-        onClose();
-        navigate('/properties');
-      }
-    } catch (err: any) {
-      setError('Invalid credentials. Please check your password.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // ── Handlers modo forgot ───────────────────────────────────────────────
 
@@ -221,6 +180,26 @@ const AuthModal: React.FC<AuthModalProps> = ({
     (firstEmpty !== -1 ? forgotCodeRefs.current[firstEmpty] : forgotCodeRefs.current[5])?.focus();
   };
 
+  // ── Handlers modo password ─────────────────────────────────────────────
+  const handlePasswordLogin = async () => {
+    if (!email.trim() || !email.includes('@')) { setError('Please enter a valid email'); return; }
+    if (!password.trim()) { setError('Please enter your password'); return; }
+    setError(null);
+    setLoading(true);
+    try {
+      const data = await login(email, password, rememberMe);
+      if (data.user) {
+        onSuccess(data.user);
+        onClose();
+        navigate('/properties');
+      }
+    } catch (err: any) {
+      setError('Invalid credentials. Please check your password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── Título y subtítulo del paso forgot ────────────────────────────────
   const forgotHeading = () => {
     if (forgotStep.step === 'request') return { title: 'Reset your password', sub: 'Enter your email and we\'ll send you a 6-digit code.' };
@@ -249,7 +228,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/30 to-white" />
             <div className="absolute bottom-4 left-4 right-4 z-10">
               <h3 className="text-[25px] font-semibold text-neutral-900 mb-1">Welcome to Villanet</h3>
-              <p className="text-[17px] text-neutral-600">Enter your email to log in or register.</p>
+              <p className="text-[17px] text-neutral-600">Sign in to your account.</p>
             </div>
           </div>
         </div>
@@ -276,7 +255,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
             <h2 className="text-2xl font-bold text-neutral-900">Villanet</h2>
           </div>
 
-          {/* ── MODO EMAIL ── */}
+          {/* ── MODO EMAIL — deshabilitado: el modal arranca siempre en modo password ──
           {mode === 'email' && (
             <>
               <h3 className="hidden sm:block text-[23px] font-semibold text-neutral-900 mb-3 mt-[100px] md:mb-[20px]">
@@ -306,6 +285,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </>
           )}
+          */}
 
           {/* ── MODO PASSWORD ── */}
           {mode === 'password' && (
@@ -319,8 +299,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)} // Añadir onChange
-                  disabled={isEmailLocked} // Usar el nuevo estado
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isEmailLocked}
                   className={`w-full px-4 py-3 rounded-xl border text-sm transition ${isEmailLocked
                     ? 'bg-neutral-50 text-neutral-500 cursor-not-allowed border-neutral-200'
                     : 'bg-white text-neutral-900 border-neutral-300 focus:border-neutral-900'
@@ -352,7 +332,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               {/* Forgot password */}
-              <div className="flex justify-end mb-6">
+              <div className="flex justify-end mb-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -392,13 +372,12 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
 
-              {/* Reemplaza el botón al final del modo password */}
               {isEmailLocked && (
                 <button
                   type="button"
                   onClick={() => {
-                    setIsEmailLocked(false); // Desbloquea el campo
-                    setPassword(''); // Limpia la contraseña por seguridad
+                    setIsEmailLocked(false);
+                    setPassword('');
                     setError(null);
                   }}
                   className="w-full text-neutral-500 text-sm hover:text-neutral-900 transition text-center mt-2 underline underline-offset-4"
