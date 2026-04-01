@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, RefreshCw, Wifi } from 'lucide-react';
+import { X, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, RefreshCw, Wifi, Lock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../auth/useAuth';
 import { api } from '../api/api';
 import { parseError, type UserFacingError } from '../utils/errorMessages';
 
@@ -41,6 +42,10 @@ const CartModal: React.FC<CartModalProps> = ({
   defaultGuests,
 }) => {
   const { items, removeItem, clearCart } = useCart();
+
+  // AC4: obtener el usuario logueado para pre-llenar y bloquear el email
+  const { user } = useAuth();
+  const isEmailLocked = !!user;
 
   const [guestFirstName, setGuestFirstName] = useState('');
   const [guestLastName, setGuestLastName] = useState('');
@@ -110,6 +115,11 @@ const CartModal: React.FC<CartModalProps> = ({
     setMessage(null);
     pendingQuoteIdRef.current = null;
 
+    // AC4: pre-llenar con el email del advisor logueado cada vez que se abre
+    if (user?.email) {
+      setTravelAdvisorEmail(user.email);
+    }
+
     setAvMap((prev) => {
       const next: AvMap = { ...prev };
       for (const it of items as any[]) {
@@ -122,7 +132,7 @@ const CartModal: React.FC<CartModalProps> = ({
       }
       return next;
     });
-  }, [isOpen, defaultCheckIn, defaultCheckOut, defaultGuests, items]);
+  }, [isOpen, defaultCheckIn, defaultCheckOut, defaultGuests, items, user]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -333,7 +343,8 @@ const CartModal: React.FC<CartModalProps> = ({
 
         setGuestFirstName('');
         setGuestLastName('');
-        setTravelAdvisorEmail('');
+        // AC4: solo limpiar si no hay user logueado; si hay, mantener su email
+        if (!user?.email) setTravelAdvisorEmail('');
         setGuestEmail('');
         setSendToGuest(false);
         setCheckIn('');
@@ -345,8 +356,6 @@ const CartModal: React.FC<CartModalProps> = ({
 
       } catch (emailErr: unknown) {
         // El quote se creó pero el email falló — error PARCIAL
-        // No limpiar el carrito, no cerrar el modal.
-        // El usuario puede reintentar solo el envío (sin recrear el quote).
         console.error('[CartModal] Email send failed (quote was created):', emailErr);
 
         const parsed = parseError(emailErr);
@@ -555,22 +564,33 @@ const CartModal: React.FC<CartModalProps> = ({
                           </div>
                         )}
 
-                        {/* Travel Advisor Email */}
+                        {/* Travel Advisor Email — AC4: pre-llenado y bloqueado si hay sesión */}
                         <div>
                           <label className="block text-sm font-medium text-neutral-700 mb-1">
                             Travel Advisor Email*
                           </label>
-                          <input
-                            type="email"
-                            value={travelAdvisorEmail}
-                            onChange={(e) => setTravelAdvisorEmail(e.target.value)}
-                            required
-                            className="w-full px-3 py-2.5 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900"
-                            placeholder="advisor@email.com"
-                            disabled={isSubmitting}
-                          />
+                          <div className="relative">
+                            <input
+                              type="email"
+                              value={travelAdvisorEmail}
+                              onChange={(e) => !isEmailLocked && setTravelAdvisorEmail(e.target.value)}
+                              required
+                              className={`w-full px-3 py-2.5 text-sm border rounded-lg transition ${
+                                isEmailLocked
+                                  ? 'bg-neutral-50 text-neutral-500 cursor-not-allowed border-neutral-200 pr-9'
+                                  : 'border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900'
+                              }`}
+                              placeholder="advisor@email.com"
+                              disabled={isSubmitting || isEmailLocked}
+                            />
+                            {isEmailLocked && (
+                              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
+                            )}
+                          </div>
                           <p className="text-xs text-neutral-500 mt-1">
-                            You will receive an email with the full quote which you can forward to your client
+                            {isEmailLocked
+                              ? 'Linked to your account. You will receive the quote at this address.'
+                              : 'You will receive an email with the full quote which you can forward to your client'}
                           </p>
                         </div>
 

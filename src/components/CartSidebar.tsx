@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ShoppingBag, X, ExternalLink } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../auth/useAuth';
+import AuthModal from './AuthModal';
 
 const PLACEHOLDER = '/assets/hero-villa-Cl4d2Edi.jpg';
 
@@ -13,6 +15,24 @@ const CartSidebar: React.FC = () => {
     openCartModal,
     cartCount 
   } = useCart();
+
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // AC1: interceptar apertura del modal si no hay sesión
+  const handleCreateQuote = () => {
+    if (user) {
+      openCartModal();
+    } else {
+      setShowAuthModal(true);
+    }
+  };
+
+  // AC2: una vez logueado, abrir el CartModal automáticamente
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
+    openCartModal();
+  };
 
   // Función para obtener la imagen correcta
   const getImageUrl = (villa: any) => {
@@ -96,7 +116,7 @@ const CartSidebar: React.FC = () => {
           <div className="absolute bottom-0 left-0 right-0 border-t border-neutral-200 bg-white p-4 z-50">
             <div className="flex gap-3 mb-3">
               <button
-                onClick={openCartModal}
+                onClick={handleCreateQuote}
                 className="flex-1 px-4 py-3 text-sm font-medium bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 z-50"
               >
                 <ExternalLink className="w-4 h-4" />
@@ -115,6 +135,14 @@ const CartSidebar: React.FC = () => {
         <div
           className="fixed inset-0 bg-black/20 z-30 md:hidden"
           onClick={closeCart}
+        />
+      )}
+
+      {/* AC1+AC2: Login modal interceptor */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
         />
       )}
     </>
