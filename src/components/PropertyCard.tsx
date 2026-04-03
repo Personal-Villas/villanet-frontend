@@ -160,7 +160,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                     <div className="flex items-center gap-1 whitespace-nowrap ml-auto">
                         {item.priceUSD != null ? (
                             <span className="text-foreground font-semibold text-sm">
-                                USD {formatMoney(item.priceUSD)}<span className="font-normal text-muted-foreground text-xs"> /nt</span>
+                                {formatMoney(item.priceUSD)}<span className="font-normal text-muted-foreground text-xs"> /nt</span>
                             </span>
                         ) : (
                             <span className="text-muted-foreground text-xs italic">Price on request</span>
@@ -175,7 +175,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                             Est. base rate · {nightCount} {nightCount === 1 ? 'night' : 'nights'}
                         </span>
                         <span className="text-sm font-bold text-foreground">
-                            USD {formatMoney(item.priceUSD * nightCount)}
+                            {formatMoney(item.priceUSD * nightCount)}
                         </span>
                     </div>
                 )}

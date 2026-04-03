@@ -54,6 +54,7 @@ import QuoteCalculator from '../components/QuoteCalculator';
 import SEO, { generateProductSchema } from '../components/SEO';
 import { trackEvent } from '../services/analytics';
 import { normalizePropertyName } from '../utils/normalizePropertyName';
+import { useCurrency, type SupportedCurrency } from '../hooks/useCurrency';
 
 type Listing = {
   listing_id: string;
@@ -184,6 +185,10 @@ const formatVillaNetRank = (rank: any): string => {
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // ── Multi-currency display ──────────────────────────────────────────────
+  const savedCurrency = (localStorage.getItem('villanet_preferred_currency') as SupportedCurrency) || 'USD';
+  const { format: formatPrice, rateNote, isUSD, currency } = useCurrency(savedCurrency);
   const [listing, setListing] = useState<Listing | null>(null);
   const [days, setDays] = useState<Day[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1252,8 +1257,18 @@ export default function PropertyDetail() {
             Starting at
           </p>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2">
-            ${listing.price_usd != null ? Math.round(listing.price_usd).toLocaleString() : '—'}/night
+            {formatPrice(listing.price_usd)}/night
+            {!isUSD && (
+              <span className="text-xs text-muted-foreground block mt-0.5 font-normal">
+                (~{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(listing.price_usd ?? 0)} USD)
+              </span>
+            )}
           </h2>
+          {!isUSD && rateNote && (
+            <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+              * Indicative exchange rate · billing in USD.
+            </p>
+          )}
           <p className="text-sm text-[#6B7280] mb-8">
             Rates vary by season & length of stay.
           </p>
@@ -1309,6 +1324,9 @@ export default function PropertyDetail() {
               checkOut={checkOut}
               guests={guests || 2}
               defaultCommission={12}
+              formatPrice={formatPrice}
+              currency={currency}
+              rateNote={!isUSD ? rateNote : undefined}
             />
           </div>
 
