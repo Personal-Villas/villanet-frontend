@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, RefreshCw, Wifi, Lock } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { X, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, RefreshCw, Wifi, Lock, TrendingUp } from 'lucide-react';
+import { useCurrency, type SupportedCurrency } from '../hooks/useCurrency';
+import { CurrencySelector } from './CurrencySelector';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../auth/useAuth';
 import { api } from '../api/api';
@@ -33,6 +35,23 @@ type AvailabilityResponse = {
     reason?: string;
   }>;
 };
+
+// ── Price breakdown types ────────────────────────────────────────────────────
+type FeeItem = { title: string; amount: number; type?: string };
+
+type PriceBreakdown = {
+  base: number;
+  cleaning: number;
+  taxes: number;
+  feesTotal: number;
+  feeBreakdown: FeeItem[];
+  total: number;
+  nights: number;
+  currency: string;
+  source?: string;
+};
+
+type BreakdownMap = Record<string, { status: 'idle' | 'loading' | 'ready' | 'error'; data?: PriceBreakdown }>;
 
 const CartModal: React.FC<CartModalProps> = ({
   isOpen,
@@ -72,6 +91,16 @@ const CartModal: React.FC<CartModalProps> = ({
   const avAbortRef = useRef<AbortController | null>(null);
   const avDebounceRef = useRef<number | null>(null);
 
+  // ── Price breakdown state ────────────────────────────────────────────────
+  const [breakdownMap, setBreakdownMap] = useState<BreakdownMap>({});
+  // ── Currency hook ────────────────────────────────────────────────────────
+  const savedCurrency = (
+    typeof window !== 'undefined'
+      ? localStorage.getItem('villanet_preferred_currency') as SupportedCurrency | null
+      : null
+  ) ?? 'USD';
+  const { currency, setCurrency, format: formatPrice, isUSD } = useCurrency(savedCurrency);
+
   // ── helpers ──────────────────────────────────────────────────────────────
   const getImageUrl = (villa: any) =>
     villa.heroImage || villa.hero_image_url || (villa.images_json && villa.images_json[0]) || PLACEHOLDER;
@@ -79,15 +108,65 @@ const CartModal: React.FC<CartModalProps> = ({
   const getLocation = (villa: any) =>
     villa.location || villa.villaNetDestinationTag || villa.villaNetCity || 'Location not specified';
 
-  const formatMoney = (n: number | null | undefined) => {
-    if (n == null) return '—';
-    const amount = Number(n);
-    return Number.isFinite(amount)
-      ? `$${amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-      : '—';
-  };
-
   const hasDates = !!checkIn && !!checkOut;
+
+  // ── Fetch price breakdowns from /quotes/calculate ─────────────────────────
+  const fetchBreakdowns = useCallback(async (ciDate: string, coDate: string, gNum: number | null) => {
+    if (!ciDate || !coDate) return;
+
+    // Reset all to idle and refetch whenever dates/guests change
+    const pending = (items as any[]);
+    if (pending.length === 0) return;
+
+    // Mark all as loading
+    setBreakdownMap((prev) => {
+      const next = { ...prev };
+      for (const v of pending) next[v.id] = { status: 'loading' };
+      return next;
+    });
+
+    for (const villa of pending) {
+      try {
+        const resp = await api<{ ok: boolean } & PriceBreakdown & { breakdown: PriceBreakdown; nights: number; currency: string; source: string }>(
+          '/quotes/calculate',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              listingId: villa.id,
+              checkIn: ciDate,
+              checkOut: coDate,
+              guests: gNum ?? 1,
+              commissionPct: 0,
+            }),
+          }
+        );
+
+        if (resp.ok && resp.breakdown) {
+          setBreakdownMap((prev) => ({
+            ...prev,
+            [villa.id]: {
+              status: 'ready',
+              data: {
+                base:        resp.breakdown.base,
+                cleaning:    resp.breakdown.cleaning ?? 0,
+                taxes:       resp.breakdown.taxes ?? 0,
+                feesTotal:   resp.breakdown.feesTotal ?? 0,
+                feeBreakdown: resp.breakdown.feeBreakdown ?? [],
+                total:       resp.breakdown.total,
+                nights:      resp.nights,
+                currency:    resp.currency ?? 'USD',
+                source:      resp.source,
+              },
+            },
+          }));
+        } else {
+          setBreakdownMap((prev) => ({ ...prev, [villa.id]: { status: 'error' } }));
+        }
+      } catch {
+        setBreakdownMap((prev) => ({ ...prev, [villa.id]: { status: 'error' } }));
+      }
+    }
+  }, [items, breakdownMap]);
 
   const isValidRange = useMemo(() => {
     if (!hasDates) return true;
@@ -247,6 +326,25 @@ const CartModal: React.FC<CartModalProps> = ({
     };
   }, [isOpen, travelLocked, hasDates, isValidRange, checkIn, checkOut, guestsNum, items]);
 
+  // ── Auto-fetch breakdowns when dates become valid ────────────────────────
+  useEffect(() => {
+    if (!isOpen || !hasDates || !isValidRange) return;
+    // Reset breakdown for any newly added villa that hasn't been fetched
+    setBreakdownMap((prev) => {
+      const next = { ...prev };
+      for (const v of items as any[]) {
+        if (!next[v.id]) next[v.id] = { status: 'idle' };
+      }
+      // Remove entries for items no longer in cart
+      for (const key of Object.keys(next)) {
+        if (!(items as any[]).some((v) => String(v.id) === key)) delete next[key];
+      }
+      return next;
+    });
+    fetchBreakdowns(checkIn, checkOut, guestsNum);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, checkIn, checkOut, hasDates, isValidRange]);
+
   // ── Submit ────────────────────────────────────────────────────────────────
   async function submitQuote({ sendWithoutDates }: { sendWithoutDates: boolean }) {
     // Validaciones locales
@@ -303,6 +401,8 @@ const CartModal: React.FC<CartModalProps> = ({
           (villa as any).guesty_booking_domain ||
           'book.guesty.com',
       })),
+      // Multi-currency: pass advisor's display currency to the email generator
+      displayCurrency: currency,
     };
 
     try {
@@ -328,7 +428,7 @@ const CartModal: React.FC<CartModalProps> = ({
       try {
         await api(`/quotes/${quoteId}/send`, {
           method: 'POST',
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, displayCurrency: currency }),
         });
 
         // ── Éxito total ────────────────────────────────────────────────────
@@ -492,19 +592,171 @@ const CartModal: React.FC<CartModalProps> = ({
 
                           <div className="p-4">
                             <h5 className="font-semibold text-neutral-900 mb-1 line-clamp-1">{villa.name}</h5>
-                            <p className="text-sm text-neutral-600 mb-2 line-clamp-1">{getLocation(villa)}</p>
-                            <div className="flex items-center justify-between text-xs text-neutral-500">
-                              <span>
-                                {villa.bedrooms} BD • {villa.bathrooms} BA
-                              </span>
-                              <span className="font-semibold text-neutral-900">{formatMoney(villa.priceUSD)}/nt</span>
-                            </div>
+                            <p className="text-xs text-neutral-500 mb-2 line-clamp-1">{getLocation(villa)} · {villa.bedrooms} BD · {villa.bathrooms} BA</p>
+
+                            {/* Price area */}
+                            {(() => {
+                              const bdState = breakdownMap[villa.id];
+                              if (!hasDates) {
+                                return (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-neutral-400">Add dates to see full pricing</span>
+                                    <span className="font-semibold text-neutral-900">{formatPrice(villa.priceUSD)}/nt</span>
+                                  </div>
+                                );
+                              }
+
+                              if (!bdState || bdState.status === 'idle' || bdState.status === 'loading') {
+                                return (
+                                  <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>Calculating price…</span>
+                                  </div>
+                                );
+                              }
+
+                              if (bdState.status === 'error') {
+                                return (
+                                  <div className="text-xs text-neutral-400">
+                                    <span className="font-semibold text-neutral-700">{formatPrice(villa.priceUSD)}/nt</span>
+                                    <span className="ml-1 text-neutral-400">(est.)</span>
+                                  </div>
+                                );
+                              }
+
+                              const bd = bdState.data!;
+                              const nights = bd.nights;
+
+                              return (
+                                <div className="mt-2 pt-2 border-t border-neutral-100 space-y-1">
+                                  <div className="flex justify-between text-xs text-neutral-600">
+                                    <span>Base rate ({nights} nt)</span>
+                                    <span>{formatPrice(bd.base)}</span>
+                                  </div>
+                                  {bd.cleaning > 0 && (
+                                    <div className="flex justify-between text-xs text-neutral-600">
+                                      <span>Cleaning fee</span>
+                                      <span>{formatPrice(bd.cleaning)}</span>
+                                    </div>
+                                  )}
+                                  {(bd.feeBreakdown?.length > 0
+                                    ? bd.feeBreakdown.filter((f) => f.amount > 0)
+                                    : bd.feesTotal > 0 ? [{ title: 'Fees', amount: bd.feesTotal }] : []
+                                  ).map((f, i) => (
+                                    <div key={i} className="flex justify-between text-xs text-neutral-600">
+                                      <span>{f.title}</span>
+                                      <span>{formatPrice(f.amount)}</span>
+                                    </div>
+                                  ))}
+                                  {bd.taxes > 0 && (
+                                    <div className="flex justify-between text-xs text-neutral-600">
+                                      <span>Taxes</span>
+                                      <span>{formatPrice(bd.taxes)}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between text-xs font-semibold text-neutral-900 pt-1 border-t border-neutral-100">
+                                    <span>Total ({nights} nt)</span>
+                                    <span>{formatPrice(bd.total)}</span>
+                                  </div>
+                                  {!isUSD && (
+                                    <p className="text-[10px] text-neutral-400 text-right pt-0.5">
+                                      * Indicative rate · billing in USD
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
+
+                {/* ── Quote Summary + Currency selector ───────────────────── */}
+                {hasDates && (() => {
+                  const readyItems = (items as any[]).filter((v: any) => breakdownMap[v.id]?.status === 'ready');
+                  const loadingCount = (items as any[]).filter((v: any) => {
+                    const s = breakdownMap[v.id]?.status;
+                    return s === 'loading' || s === 'idle';
+                  }).length;
+                  const hasAnyReady = readyItems.length > 0;
+                  const allReady = loadingCount === 0 && readyItems.length === (items as any[]).length;
+
+                  const quoteBase     = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.base ?? 0), 0);
+                  const quoteCleaning = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.cleaning ?? 0), 0);
+                  const quoteFees     = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.feesTotal ?? 0), 0);
+                  const quoteTaxes    = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.taxes ?? 0), 0);
+                  const quoteTotal    = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.total ?? 0), 0);
+
+                  return (
+                    <div className="mx-6 mt-4 mb-2 rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
+                      {/* Header row */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-neutral-500" />
+                          <span className="text-sm font-semibold text-neutral-800">Quote Summary</span>
+                          {loadingCount > 0 && (
+                            <span className="flex items-center gap-1 text-xs text-neutral-400">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              {loadingCount} loading…
+                            </span>
+                          )}
+                        </div>
+                        {/* Currency selector */}
+                        <CurrencySelector
+                          value={currency}
+                          onChange={setCurrency}
+                          compact
+                        />
+                      </div>
+
+                      {/* Breakdown rows */}
+                      {hasAnyReady && (
+                        <div className="px-4 py-3 space-y-1.5">
+                          <div className="flex justify-between text-xs text-neutral-600">
+                            <span>Base rate</span>
+                            <span>{formatPrice(quoteBase)}</span>
+                          </div>
+                          {quoteCleaning > 0 && (
+                            <div className="flex justify-between text-xs text-neutral-600">
+                              <span>Cleaning fees</span>
+                              <span>{formatPrice(quoteCleaning)}</span>
+                            </div>
+                          )}
+                          {quoteFees > 0 && (
+                            <div className="flex justify-between text-xs text-neutral-600">
+                              <span>Additional fees</span>
+                              <span>{formatPrice(quoteFees)}</span>
+                            </div>
+                          )}
+                          {quoteTaxes > 0 && (
+                            <div className="flex justify-between text-xs text-neutral-600">
+                              <span>Taxes</span>
+                              <span>{formatPrice(quoteTaxes)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm font-bold text-neutral-900 pt-1.5 border-t border-neutral-200">
+                            <span>Quote Total{!allReady ? ' (partial)' : ''}</span>
+                            <span>{formatPrice(quoteTotal)}</span>
+                          </div>
+                          {!isUSD && (
+                            <p className="text-[10px] text-neutral-400 text-right pt-0.5">
+                              * Indicative exchange rate — billing always in USD
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {!hasAnyReady && loadingCount > 0 && (
+                        <div className="px-4 py-3 flex items-center gap-2 text-xs text-neutral-400">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>Fetching price details from Guesty…</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* ── Message banner ──────────────────────────────────────── */}
                 {message && (
