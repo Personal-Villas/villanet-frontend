@@ -1285,6 +1285,21 @@ useEffect(() => {
     return rank.toString();
   };
 
+  // Número de noches según las fechas aplicadas (0 si no hay fechas).
+  // Se parsea con hora fija en UTC para evitar desfase por timezone del browser.
+  const nightCount = (() => {
+    if (!appliedFilters.checkIn || !appliedFilters.checkOut) return 0;
+    const toUtcMidnight = (ymd: string) => {
+      const [y, m, d] = ymd.split('-').map(Number);
+      return Date.UTC(y, m - 1, d);
+    };
+    const nights = Math.round(
+      (toUtcMidnight(appliedFilters.checkOut) - toUtcMidnight(appliedFilters.checkIn))
+      / (1000 * 60 * 60 * 24)
+    );
+    return nights > 0 ? nights : 0;
+  })();
+
   const goToDetail = useCallback((property: Listing) => {
     if (!user) {
       openAuthModal();
@@ -1450,6 +1465,7 @@ useEffect(() => {
                   isInCart={isInCart(item.id)}
                   formatMoney={formatMoney}
                   formatRank={formatRank}
+                  nightCount={nightCount}
                 />
               );
             })}

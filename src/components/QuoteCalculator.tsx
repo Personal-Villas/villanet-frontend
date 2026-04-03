@@ -107,9 +107,10 @@ export default function QuoteCalculator({
           });
 
           const base = response.breakdown.base;
+          const nights = response.nights;
           setQuoteServer({
             currency: response.currency,
-            nights: response.nights,
+            nights,
             base,
             cleaning: response.breakdown.cleaning || 0,
             taxes: response.breakdown.taxes,
