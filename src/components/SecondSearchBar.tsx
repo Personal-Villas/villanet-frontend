@@ -479,16 +479,12 @@ const GuestyCalendar = ({
 
   // Mantener el mes del check-in visible
   useEffect(() => {
-    if (selected?.from) {
-      setCurrentMonth(
-        new Date(
-          selected.from.getFullYear(),
-          selected.from.getMonth(),
-          1
-        )
-      );
-    }
-  }, [selected?.from]);
+  if (selected?.from) {
+    setCurrentMonth(
+      new Date(selected.from.getFullYear(), selected.from.getMonth(), 1)
+    );
+  }
+}, [selected?.from?.getTime()]); 
 
   const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
