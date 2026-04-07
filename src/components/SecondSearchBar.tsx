@@ -26,6 +26,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import CartButton from "./CartButton";
+import { CurrencySelector } from "./CurrencySelector";
+import { type SupportedCurrency } from "../hooks/useCurrency";
 
 /**
  * Badge real del CRUD.
@@ -86,6 +88,10 @@ type PropertiesHeaderCompactProps = {
   onEditQuote?: () => void;
   cartCount?: number;
   onCartClick?: () => void;
+
+  //Currency display
+  currency?: SupportedCurrency;
+  onCurrencyChange?: (c: SupportedCurrency) => void;
 };
 
 // Mapea slugs/icon strings de tu CRUD a íconos lucide
@@ -473,16 +479,12 @@ const GuestyCalendar = ({
 
   // Mantener el mes del check-in visible
   useEffect(() => {
-    if (selected?.from) {
-      setCurrentMonth(
-        new Date(
-          selected.from.getFullYear(),
-          selected.from.getMonth(),
-          1
-        )
-      );
-    }
-  }, [selected?.from]);
+  if (selected?.from) {
+    setCurrentMonth(
+      new Date(selected.from.getFullYear(), selected.from.getMonth(), 1)
+    );
+  }
+}, [selected?.from?.getTime()]); 
 
   const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -758,6 +760,8 @@ export default function PropertiesHeaderCompact({
   onEditQuote,
   cartCount,
   onCartClick,
+  currency = 'USD',
+  onCurrencyChange,
 }: PropertiesHeaderCompactProps) {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -798,9 +802,9 @@ export default function PropertiesHeaderCompact({
   const priceLabel = isQuoteMode
     ? (!maxTotalBudget ? 'Budget' : `Up to $${Number(maxTotalBudget).toLocaleString()}`)
     : (!minPrice && !maxPrice ? "Price" :
-        minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
-          !minPrice && maxPrice ? `Up to $${Number(maxPrice).toLocaleString()}` :
-            `$${Number(minPrice).toLocaleString()} - $${Number(maxPrice).toLocaleString()}`);
+      minPrice && !maxPrice ? `$${Number(minPrice).toLocaleString()}+` :
+        !minPrice && maxPrice ? `Up to $${Number(maxPrice).toLocaleString()}` :
+          `$${Number(minPrice).toLocaleString()} - $${Number(maxPrice).toLocaleString()}`);
 
   const { caribbean, mexico } = useMemo(
     () => groupDestinationsByRegion(destinations),
@@ -1306,56 +1310,56 @@ export default function PropertiesHeaderCompact({
   };
 
   // ✅ Bathrooms Selector para desktop
- /* const BathroomsSelectorDesktop = () => {
-    const current = deriveInitialBathroomsCount(bathrooms);
-    return (
-      <div
-        ref={bathroomsSelectorRef}
-        className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-5 w-auto"
-      >
-        <h3 className="font-medium text-sm mb-4">Bathrooms required</h3>
-        <div className="flex items-center justify-between p-3 border border-input rounded-lg">
-          <span className="text-sm mr-2">Bathrooms</span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                const newVal = Math.max(0, current - 1);
-                if (newVal === 0) setBathrooms([]);
-                else if (newVal >= 12) setBathrooms(["12+"]);
-                else setBathrooms([String(newVal)]);
-              }}
-              className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
-            >
-              –
-            </button>
-            <span className="w-12 text-center font-semibold">
-              {current === 0 ? "Any" : current >= 12 ? "12+" : current}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const newVal = Math.min(13, current + 1);
-                if (newVal >= 12) setBathrooms(["12+"]);
-                else setBathrooms([String(newVal)]);
-              }}
-              className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
-            >
-              +
-            </button>
-          </div>
-        </div>
-        <div className="flex justify-end pt-3 border-t border-border mt-4">
-          <button
-            onClick={handleApplyBathrooms}
-            className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
-          >
-            Apply Bathrooms
-          </button>
-        </div>
-      </div>
-    );
-  };*/
+  /* const BathroomsSelectorDesktop = () => {
+     const current = deriveInitialBathroomsCount(bathrooms);
+     return (
+       <div
+         ref={bathroomsSelectorRef}
+         className="absolute top-full left-0 mt-2 z-50 bg-background border border-border rounded-xl shadow-2xl p-5 w-auto"
+       >
+         <h3 className="font-medium text-sm mb-4">Bathrooms required</h3>
+         <div className="flex items-center justify-between p-3 border border-input rounded-lg">
+           <span className="text-sm mr-2">Bathrooms</span>
+           <div className="flex items-center gap-3">
+             <button
+               type="button"
+               onClick={() => {
+                 const newVal = Math.max(0, current - 1);
+                 if (newVal === 0) setBathrooms([]);
+                 else if (newVal >= 12) setBathrooms(["12+"]);
+                 else setBathrooms([String(newVal)]);
+               }}
+               className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
+             >
+               –
+             </button>
+             <span className="w-12 text-center font-semibold">
+               {current === 0 ? "Any" : current >= 12 ? "12+" : current}
+             </span>
+             <button
+               type="button"
+               onClick={() => {
+                 const newVal = Math.min(13, current + 1);
+                 if (newVal >= 12) setBathrooms(["12+"]);
+                 else setBathrooms([String(newVal)]);
+               }}
+               className="w-8 h-8 rounded-full border border-input flex items-center justify-center hover:bg-muted transition-colors"
+             >
+               +
+             </button>
+           </div>
+         </div>
+         <div className="flex justify-end pt-3 border-t border-border mt-4">
+           <button
+             onClick={handleApplyBathrooms}
+             className="px-4 py-2 text-sm bg-[hsl(0,0%,6.7%)] text-white rounded-lg hover:bg-[hsl(0,0%,15%)] transition-colors font-medium"
+           >
+             Apply Bathrooms
+           </button>
+         </div>
+       </div>
+     );
+   };*/
 
   // ✅ Price Selector para desktop
   const PriceSelectorDesktop = (
@@ -1560,7 +1564,7 @@ export default function PropertiesHeaderCompact({
 
                   <span className="text-muted-foreground">•</span>
                   */}
-<span className="text-muted-foreground">•</span>
+                  <span className="text-muted-foreground">•</span>
                   <div className="relative">
                     <button
                       type="button"
@@ -1595,6 +1599,14 @@ export default function PropertiesHeaderCompact({
                 <option value="price_high">Price (High → Low)</option>
                 <option value="bedrooms">Bedrooms (Most → Least)</option>
               </select>
+
+              {onCurrencyChange && (
+                <CurrencySelector
+                  value={currency}
+                  onChange={onCurrencyChange}
+                  compact
+                />
+              )}
 
               <CartButton
                 count={cartCount}
@@ -2003,10 +2015,10 @@ export default function PropertiesHeaderCompact({
               </div>
             </div>
 
-             
+
             {
               <>
-              {/*
+                {/*
                 <div>
                   <label className="block text-sm font-medium mb-2">Bathrooms</label>
                   <div className="flex items-center justify-between p-4 border border-input rounded-lg">
@@ -2131,6 +2143,21 @@ export default function PropertiesHeaderCompact({
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {onCurrencyChange && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Display Currency</label>
+                <CurrencySelector
+                  value={currency}
+                  onChange={(c) => { onCurrencyChange(c); }}
+                />
+                {currency !== 'USD' && (
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    * Indicative rate only. Billing always in USD.
+                  </p>
+                )}
               </div>
             )}
 

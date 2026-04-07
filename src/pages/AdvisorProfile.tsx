@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { UnifiedHeader } from '../components/Header';
 import { Save, Lock, Eye, EyeOff } from 'lucide-react';
+import { CurrencySelector } from '../components/CurrencySelector';
+import { type SupportedCurrency } from '../hooks/useCurrency';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -19,6 +21,7 @@ interface AdvisorProfileData {
   profile_completion_percentage: number;
   avatar_url: string | null;
   full_name: string;
+  preferred_currency: SupportedCurrency | null;
 }
 
 export const AdvisorProfile: React.FC = () => {
@@ -40,6 +43,11 @@ export const AdvisorProfile: React.FC = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
+
+  // ── NUEVO: Currency preference ─────────────────────────────────────────────
+  const [preferredCurrency, setPreferredCurrency] = useState<SupportedCurrency>('USD');
+  const [currencySaving, setCurrencySaving] = useState(false);
+  const [currencySuccess, setCurrencySuccess] = useState(false);
 
   // Security fields
   const [currentPassword, setCurrentPassword] = useState('');
@@ -68,6 +76,12 @@ export const AdvisorProfile: React.FC = () => {
         setLastName(data.profile.last_name ?? '');
         setWebsite(data.profile.website ?? '');
         setAvatarUrl(data.profile.avatar_url ?? null);
+        // Cargar preferencia de moneda desde el perfil
+        const savedCurrency = data.profile.preferred_currency as SupportedCurrency | null;
+        if (savedCurrency) {
+          setPreferredCurrency(savedCurrency);
+          localStorage.setItem('villanet_preferred_currency', savedCurrency);
+        }
       } catch {
         setError('Could not load your profile. Please try again.');
       } finally {
@@ -98,6 +112,35 @@ export const AdvisorProfile: React.FC = () => {
       setError('Could not save changes. Please try again.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // ── NUEVO: Save currency preference ───────────────────────────────────────
+  const handleSaveCurrency = async (currency: SupportedCurrency) => {
+    setPreferredCurrency(currency);
+    localStorage.setItem('villanet_preferred_currency', currency);
+
+    if (!accessToken) return;
+    setCurrencySaving(true);
+    setCurrencySuccess(false);
+    try {
+      const res = await fetch(`${API_BASE_URL}/advisors/profile`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ preferred_currency: currency }),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to save currency preference');
+      setCurrencySuccess(true);
+      setTimeout(() => setCurrencySuccess(false), 2500);
+    } catch {
+      // Fallo silencioso — el localStorage ya lo guardó localmente
+      console.warn('[AdvisorProfile] Could not persist currency preference to server');
+    } finally {
+      setCurrencySaving(false);
     }
   };
 
@@ -134,7 +177,6 @@ export const AdvisorProfile: React.FC = () => {
   };
 
   // ── Update password ────────────────────────────────────────────────────────
-  // Conectado a POST /advisors/profile/change-password (requiere Bearer token)
   const handleUpdatePassword = async () => {
     setPwError(null);
     setPwSuccess(false);
@@ -160,7 +202,6 @@ export const AdvisorProfile: React.FC = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        // El backend devuelve mensajes específicos: contraseña incorrecta, etc.
         setPwError(data.message || 'Could not update password. Please try again.');
         return;
       }
@@ -306,6 +347,42 @@ export const AdvisorProfile: React.FC = () => {
               <Save className="w-4 h-4" />
               {isSaving ? 'Saving...' : saveSuccess ? 'Saved ✓' : 'Save Profile'}
             </button>
+          </div>
+
+          {/* ── Card: Display Preferences (NUEVO) ── */}
+          <div className="border border-gray-200 rounded-xl p-8 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">Display Preferences</h2>
+            <p className="text-sm text-gray-500 mb-7">
+              Choose how prices are displayed while browsing. Quotes are always billed in USD.
+            </p>
+
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Price Display Currency
+              </label>
+              <CurrencySelector
+                value={preferredCurrency}
+                onChange={handleSaveCurrency}
+              />
+            </div>
+
+            {/* Nota referencial */}
+            {preferredCurrency !== 'USD' && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <span className="text-amber-500 text-base leading-none mt-0.5">ℹ</span>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Prices are shown in {preferredCurrency} for reference only, using an indicative exchange rate (Apr 2025).
+                  All bookings and billing are processed in USD.
+                </p>
+              </div>
+            )}
+
+            {currencySaving && (
+              <p className="text-xs text-gray-400 mt-3">Saving preference…</p>
+            )}
+            {currencySuccess && (
+              <p className="text-xs text-green-600 mt-3">Currency preference saved ✓</p>
+            )}
           </div>
 
           {/* ── Card: Security ── */}

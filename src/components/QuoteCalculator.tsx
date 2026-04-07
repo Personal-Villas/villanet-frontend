@@ -10,6 +10,9 @@ interface QuoteCalculatorProps {
   checkOut: string;
   guests: number;
   defaultCommission?: number;
+  formatPrice?: (amountUSD: number | null | undefined) => string;
+  currency?: string;
+  rateNote?: string;
 }
 
 interface FeeBreakdownItem {
@@ -46,6 +49,9 @@ export default function QuoteCalculator({
   checkIn,
   checkOut,
   guests,
+  formatPrice,
+  currency: displayCurrency,
+  rateNote,
 }: QuoteCalculatorProps) {
   const [quoteServer, setQuoteServer] = useState<QuoteServerData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -107,9 +113,10 @@ export default function QuoteCalculator({
           });
 
           const base = response.breakdown.base;
+          const nights = response.nights;
           setQuoteServer({
             currency: response.currency,
-            nights: response.nights,
+            nights,
             base,
             cleaning: response.breakdown.cleaning || 0,
             taxes: response.breakdown.taxes,
@@ -212,6 +219,7 @@ export default function QuoteCalculator({
   }
 
   const formatMoney = (amount: number) => {
+    if (formatPrice) return formatPrice(amount);
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: quoteServer.currency,
@@ -307,6 +315,16 @@ export default function QuoteCalculator({
           <div className="text-2xl font-bold text-gray-900">
             {formatMoney(quoteServer.guestyTotal)}
           </div>
+          {displayCurrency && displayCurrency !== 'USD' && (
+            <div className="text-xs text-gray-500 mt-0.5">
+              (~{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(quoteServer.guestyTotal)} USD)
+            </div>
+          )}
+          {rateNote && (
+            <p className="text-[11px] text-muted-foreground mt-1 text-right leading-relaxed">
+              * Indicative rate · billing in USD.
+            </p>
+          )}
         </div>
       </div>
     </div>

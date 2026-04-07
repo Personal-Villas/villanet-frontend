@@ -19,6 +19,7 @@ import ExpansionModal from '../components/ExpansionModal';
 import { initPerformanceMetrics } from '../services/imageUtils';
 import { normalizePropertyName } from '../utils/normalizePropertyName';
 import { NewQuoteModal } from '../components/NewQuoteModal';
+import { useCurrency, toUSD, type SupportedCurrency } from '../hooks/useCurrency';
 
 
 type Listing = {
@@ -135,6 +136,16 @@ export default function Properties() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // ── Multi-currency display ──────────────────────────────────────────────
+  const savedCurrency = (localStorage.getItem('villanet_preferred_currency') as SupportedCurrency) || 'USD';
+  const {
+    currency,
+    setCurrency,
+    format: formatMoneyCurrency,
+    rateNote,
+    isUSD,
+  } = useCurrency(savedCurrency);
 
   // Navigate back to quote wizard
   const handleEditQuote = useCallback(() => {
@@ -987,19 +998,19 @@ useEffect(() => {
         if (appliedFilters.minPrice && appliedFilters.minPrice.trim()) {
           const minVal = Number(appliedFilters.minPrice);
           if (!isNaN(minVal) && minVal > 0) {
-            qs.set('minPrice', String(minVal));
+            qs.set('minPrice', String(isUSD ? minVal : toUSD(minVal, currency)));
           }
         }
 
         if (appliedFilters.maxTotalBudget && appliedFilters.maxTotalBudget.trim()) {
           const totalVal = Number(appliedFilters.maxTotalBudget);
           if (!isNaN(totalVal) && totalVal > 0) {
-            qs.set('maxTotalBudget', String(totalVal));
+            qs.set('maxTotalBudget', String(isUSD ? totalVal : toUSD(totalVal, currency)));
           }
         } else if (appliedFilters.maxPrice && appliedFilters.maxPrice.trim()) {
           const maxVal = Number(appliedFilters.maxPrice);
           if (!isNaN(maxVal) && maxVal > 0) {
-            qs.set('maxPrice', String(maxVal));
+            qs.set('maxPrice', String(isUSD ? maxVal : toUSD(maxVal, currency)));
           }
         }
 
@@ -1270,20 +1281,28 @@ useEffect(() => {
     }));
   }, []);
 
-  const formatMoney = (n: number | null | undefined) => {
-    if (n == null) return '—';
-    const amount = Number(n);
-    if (isNaN(amount)) return '—';
-
-    return `${amount.toLocaleString(undefined, {
-      maximumFractionDigits: 0,
-    })}`;
-  };
+  // formatMoney viene del hook useCurrency como `format`
+  const formatMoney = formatMoneyCurrency;
 
   const formatRank = (rank: number | string | null | undefined) => {
     if (rank == null) return "—";
     return rank.toString();
   };
+
+  // Número de noches según las fechas aplicadas (0 si no hay fechas).
+  // Se parsea con hora fija en UTC para evitar desfase por timezone del browser.
+  const nightCount = (() => {
+    if (!appliedFilters.checkIn || !appliedFilters.checkOut) return 0;
+    const toUtcMidnight = (ymd: string) => {
+      const [y, m, d] = ymd.split('-').map(Number);
+      return Date.UTC(y, m - 1, d);
+    };
+    const nights = Math.round(
+      (toUtcMidnight(appliedFilters.checkOut) - toUtcMidnight(appliedFilters.checkIn))
+      / (1000 * 60 * 60 * 24)
+    );
+    return nights > 0 ? nights : 0;
+  })();
 
   const goToDetail = useCallback((property: Listing) => {
     if (!user) {
@@ -1395,6 +1414,8 @@ useEffect(() => {
           setGuests={(guests) => setFilters(prev => ({ ...prev, guests }))}
           onApplyFilters={handleApplyFilters}
           onEditQuote={handleEditQuote}
+          currency={currency}
+          onCurrencyChange={setCurrency}
         />
 
         <main className="w-full px-4 md:px-8">
@@ -1450,6 +1471,7 @@ useEffect(() => {
                   isInCart={isInCart(item.id)}
                   formatMoney={formatMoney}
                   formatRank={formatRank}
+                  nightCount={nightCount}
                 />
               );
             })}
@@ -1501,6 +1523,11 @@ useEffect(() => {
         </main>
 
         <CartSidebar />
+        {!isUSD && rateNote && (
+          <p className="text-center text-xs text-muted-foreground mt-4 pb-2 px-4">
+            {rateNote}
+          </p>
+        )}
         <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} defaultCheckIn={appliedFilters.checkIn}
           defaultCheckOut={appliedFilters.checkOut}
           defaultGuests={appliedFilters.guests} />

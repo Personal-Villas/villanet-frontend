@@ -7,7 +7,6 @@ import {
     MapPin,
     Bed,
     Bath,
-    DollarSign
 } from 'lucide-react';
 import { cloudinaryTransform } from '../utils/imageTransform';
 
@@ -25,6 +24,8 @@ interface PropertyCardProps {
     isInCart: boolean;
     formatMoney: (n: number | null) => string;
     formatRank: (n: number | string | null | undefined) => string;
+    /** Número de noches del período buscado. 0 = sin fechas seleccionadas. */
+    nightCount: number;
 }
 
 export const PropertyCard: React.FC<PropertyCardProps> = ({
@@ -38,7 +39,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
     onOpenMessage,
     isInCart,
     formatMoney,
-    formatRank
+    formatRank,
+    nightCount,
 }) => {
     const images = item.images_json?.length > 0 ? item.images_json : [item.heroImage];
 
@@ -155,11 +157,28 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                         <span>{item.bathrooms ?? '–'} BA</span>
                     </div>
                     <span className="hidden">•</span>
-                    <div className=" items-center gap-1 whitespace-nowrap hidden">
-                        <DollarSign className="w-4 h-4" />
-                        <span>From {formatMoney(item.priceUSD)}/nt</span>
+                    <div className="flex items-center gap-1 whitespace-nowrap ml-auto">
+                        {item.priceUSD != null ? (
+                            <span className="text-foreground font-semibold text-sm">
+                                {formatMoney(item.priceUSD)}<span className="font-normal text-muted-foreground text-xs"> /nt</span>
+                            </span>
+                        ) : (
+                            <span className="text-muted-foreground text-xs italic">Price on request</span>
+                        )}
                     </div>
                 </div>
+
+                {/* Precio total estimado del período — solo cuando hay fechas */}
+                {nightCount > 0 && item.priceUSD != null && (
+                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
+                        <span className="text-xs text-muted-foreground">
+                            Est. base rate · {nightCount} {nightCount === 1 ? 'night' : 'nights'}
+                        </span>
+                        <span className="text-sm font-bold text-foreground">
+                            {formatMoney(item.priceUSD * nightCount)}
+                        </span>
+                    </div>
+                )}
 
                 {/* Property Manager */}
                 <div className="mb-4 text-xs space-y-2">
