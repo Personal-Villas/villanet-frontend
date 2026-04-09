@@ -117,7 +117,10 @@ const DESTINATIONS = [
   "Jamaica",
   "Anguilla",
   "Punta Mita, Mexico",
-  "Barbados"
+  "Barbados",
+  "Zihuatanejo, Mexico",
+  "Costa Rica",
+  "Greece"
 ];
 
 const Info = ({ className }: { className?: string }) => (
