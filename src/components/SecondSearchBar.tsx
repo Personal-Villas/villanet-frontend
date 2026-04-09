@@ -165,7 +165,11 @@ const CARIBBEAN_DESTINATIONS = [
   "Anguilla",
 ];
 
-const MEXICO_DESTINATIONS = ["Punta Mita, Mexico", "Puerto Vallarta, Mexico", "Riviera Maya, Mexico"];
+const MEXICO_DESTINATIONS = ["Punta Mita, Mexico", "Puerto Vallarta, Mexico", "Riviera Maya, Mexico", "Zihuatanejo, Mexico"];
+
+const CENTRAL_AMERICA_DESTINATIONS = ["Costa Rica"];
+
+const EUROPE_DESTINATIONS = ["Greece"];
 
 const parseISODateLocal = (s: string) => {
   const [y, m, d] = s.split("-").map(Number);
@@ -175,7 +179,7 @@ const parseISODateLocal = (s: string) => {
 // Agrupa destinos por región (sin falsos positivos por palabras sueltas como "punta")
 const groupDestinationsByRegion = (
   destinations: string[]
-): { caribbean: string[]; mexico: string[] } => {
+): { caribbean: string[]; mexico: string[]; centralAmerica: string[]; europe: string[] } => {
   const normalizeString = (str: string): string => {
     return str
       .toLowerCase()
@@ -191,6 +195,8 @@ const groupDestinationsByRegion = (
 
   const caribbeanResults: Set<string> = new Set();
   const mexicoResults: Set<string> = new Set();
+  const centralAmericaResults: Set<string> = new Set();
+  const europeResults: Set<string> = new Set();
 
   // Para ordenar bien aunque el destino venga como "Punta Mita, Mexico"
   const caribbeanOrder = new Map(
@@ -199,11 +205,25 @@ const groupDestinationsByRegion = (
   const mexicoOrder = new Map(
     MEXICO_DESTINATIONS.map((d, i) => [normalizeString(d), i] as const)
   );
+  const centralAmericaOrder = new Map(
+    CENTRAL_AMERICA_DESTINATIONS.map((d, i) => [normalizeString(d), i] as const)
+  );
+  const europeOrder = new Map(
+    EUROPE_DESTINATIONS.map((d, i) => [normalizeString(d), i] as const)
+  );
 
-  // 1) Regla por país (si el texto trae el país, esto es lo más fiable)
+  // 1) Regla por país/región (si el texto trae el país, esto es lo más fiable)
   for (const { original, normalized } of normalizedDestinations) {
     if (/\bmexico\b/.test(normalized)) {
       mexicoResults.add(original);
+      continue;
+    }
+    if (/\bcosta rica\b/.test(normalized)) {
+      centralAmericaResults.add(original);
+      continue;
+    }
+    if (/\bgreece\b/.test(normalized)) {
+      europeResults.add(original);
       continue;
     }
     // sumá acá países del Caribe si te llegan así en el string:
@@ -226,6 +246,8 @@ const groupDestinationsByRegion = (
   }
 
   // 2) Match por frase completa (NO por palabras sueltas)
+  const allSets = [caribbeanResults, mexicoResults, centralAmericaResults, europeResults];
+
   const matchByRefList = (
     refList: string[],
     results: Set<string>
@@ -234,9 +256,8 @@ const groupDestinationsByRegion = (
       const normalizedRef = normalizeString(refDest);
 
       normalizedDestinations.forEach(({ original, normalized }) => {
-        // si ya lo clasificó por país, no lo pises
-        if (results === caribbeanResults && mexicoResults.has(original)) return;
-        if (results === mexicoResults && caribbeanResults.has(original)) return;
+        // si ya lo clasificó en otro grupo, no lo pises
+        if (allSets.some(s => s !== results && s.has(original))) return;
 
         // Match seguro: "punta mita mexico" incluye "punta mita"
         // o caso al revés si viene corto
@@ -249,6 +270,8 @@ const groupDestinationsByRegion = (
 
   matchByRefList(CARIBBEAN_DESTINATIONS, caribbeanResults);
   matchByRefList(MEXICO_DESTINATIONS, mexicoResults);
+  matchByRefList(CENTRAL_AMERICA_DESTINATIONS, centralAmericaResults);
+  matchByRefList(EUROPE_DESTINATIONS, europeResults);
 
   // 3) Orden: primero según lista base si matchea, sino alfabético
   const sortWithOrder = (orderMap: Map<string, number>) => (a: string, b: string) => {
@@ -266,10 +289,12 @@ const groupDestinationsByRegion = (
     return a.localeCompare(b);
   };
 
-  const caribbean = Array.from(caribbeanResults).sort(sortWithOrder(caribbeanOrder));
-  const mexico = Array.from(mexicoResults).sort(sortWithOrder(mexicoOrder));
+  const caribbean    = Array.from(caribbeanResults).sort(sortWithOrder(caribbeanOrder));
+  const mexico       = Array.from(mexicoResults).sort(sortWithOrder(mexicoOrder));
+  const centralAmerica = Array.from(centralAmericaResults).sort(sortWithOrder(centralAmericaOrder));
+  const europe       = Array.from(europeResults).sort(sortWithOrder(europeOrder));
 
-  return { caribbean, mexico };
+  return { caribbean, mexico, centralAmerica, europe };
 };
 
 // ✅ Helper para bedrooms
@@ -806,7 +831,7 @@ export default function PropertiesHeaderCompact({
         !minPrice && maxPrice ? `Up to $${Number(maxPrice).toLocaleString()}` :
           `$${Number(minPrice).toLocaleString()} - $${Number(maxPrice).toLocaleString()}`);
 
-  const { caribbean, mexico } = useMemo(
+  const { caribbean, mexico, centralAmerica, europe } = useMemo(
     () => groupDestinationsByRegion(destinations),
     [destinations]
   );
@@ -1676,6 +1701,24 @@ export default function PropertiesHeaderCompact({
                   </div>
                 </div>
               )}
+
+              {centralAmerica.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground font-medium">Central America</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {centralAmerica.map(renderDestinationButton)}
+                  </div>
+                </div>
+              )}
+
+              {europe.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground font-medium">Europe</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {europe.map(renderDestinationButton)}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1948,6 +1991,28 @@ export default function PropertiesHeaderCompact({
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {mexico.map((dest) => renderDestinationButton(dest))}
+                  </div>
+                </div>
+              )}
+
+              {centralAmerica.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium mb-2">
+                    Central America
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {centralAmerica.map((dest) => renderDestinationButton(dest))}
+                  </div>
+                </div>
+              )}
+
+              {europe.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium mb-2">
+                    Europe
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {europe.map((dest) => renderDestinationButton(dest))}
                   </div>
                 </div>
               )}

@@ -50,6 +50,15 @@ const MEXICO: { code: string; name: string }[] = [
   { code: 'MX-PTM',  name: 'Punta Mita, Mexico' },
   { code: 'MX-PVR',  name: 'Puerto Vallarta, Mexico' },
   { code: 'MX-RMY',  name: 'Riviera Maya, Mexico' },
+  { code: 'MX-ZIH',  name: 'Zihuatanejo, Mexico' },
+];
+
+const CENTRAL_AMERICA: { code: string; name: string }[] = [
+  { code: 'CR',      name: 'Costa Rica' },
+];
+
+const EUROPE: { code: string; name: string }[] = [
+  { code: 'GR',      name: 'Greece' },
 ];
 
 // Código → nombre para el API / Properties
@@ -70,6 +79,8 @@ const DEST_CODE_TO_NAME: Record<string, string> = {
   'MX-PTM':  'Punta Mita, Mexico',
   'MX-RMY':  'Riviera Maya, Mexico',
   'MX-ZIH':  'Zihuatanejo, Mexico',
+  'CR':      'Costa Rica',
+  'GR':      'Greece',
 };
 
 const BEDROOM_OPTIONS = [3, 4, 5, 6, 7, 8, 9];
@@ -495,8 +506,8 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 md:px-10 py-12">
-          <div className="w-full max-w-lg">
+        <div className="flex-1 overflow-y-auto flex flex-col items-center px-6 md:px-10 py-12">
+          <div className="w-full max-w-lg my-auto">
 
             {/* ── INTRO ─────────────────────────────────────────────────── */}
             {screen === -1 && (
@@ -754,7 +765,7 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
                 {data.destinations.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-5">
                     {data.destinations.map(code => {
-                      const name = [...CARIBBEAN, ...MEXICO].find(d => d.code === code)?.name || code;
+                      const name = [...CARIBBEAN, ...MEXICO, ...CENTRAL_AMERICA, ...EUROPE].find(d => d.code === code)?.name || code;
                       return (
                         <span
                           key={code}
@@ -812,6 +823,62 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
                     <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Mexico</p>
                     <div className="grid grid-cols-2 gap-2">
                       {MEXICO.map(dest => {
+                        const selected = data.destinations.includes(dest.code);
+                        return (
+                          <button
+                            key={dest.code}
+                            onClick={() => setData(d => ({
+                              ...d,
+                              destinations: selected
+                                ? d.destinations.filter(c => c !== dest.code)
+                                : [...d.destinations, dest.code],
+                            }))}
+                            className={`flex items-center px-4 py-3 border rounded-xl text-sm text-left transition-all ${
+                              selected
+                                ? 'border-neutral-900 bg-neutral-900 text-white font-medium'
+                                : 'border-neutral-200 text-neutral-700 hover:border-neutral-400'
+                            }`}
+                          >
+                            {dest.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── Central America ── */}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Central America</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {CENTRAL_AMERICA.map(dest => {
+                        const selected = data.destinations.includes(dest.code);
+                        return (
+                          <button
+                            key={dest.code}
+                            onClick={() => setData(d => ({
+                              ...d,
+                              destinations: selected
+                                ? d.destinations.filter(c => c !== dest.code)
+                                : [...d.destinations, dest.code],
+                            }))}
+                            className={`flex items-center px-4 py-3 border rounded-xl text-sm text-left transition-all ${
+                              selected
+                                ? 'border-neutral-900 bg-neutral-900 text-white font-medium'
+                                : 'border-neutral-200 text-neutral-700 hover:border-neutral-400'
+                            }`}
+                          >
+                            {dest.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── Europe ── */}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-neutral-900 mb-3">Europe</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {EUROPE.map(dest => {
                         const selected = data.destinations.includes(dest.code);
                         return (
                           <button
