@@ -506,8 +506,8 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 md:px-10 py-12">
-          <div className="w-full max-w-lg">
+        <div className="flex-1 overflow-y-auto flex flex-col items-center px-6 md:px-10 py-12">
+          <div className="w-full max-w-lg my-auto">
 
             {/* ── INTRO ─────────────────────────────────────────────────── */}
             {screen === -1 && (
