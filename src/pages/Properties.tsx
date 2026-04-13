@@ -98,7 +98,8 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE_DEFAULT = 12;
+const ITEMS_PER_PAGE_OPTIONS = [12, 24, 48, 96] as const;
 const PLACEHOLDER = '/assets/hero-villa-Cl4d2Edi.jpg';
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdrJh0sAAAAAPy3DKaQXrWS_YLJeEtRCN4E4wNj';
 
@@ -276,9 +277,9 @@ export default function Properties() {
   const searchStartRef = useRef<number>(0);
   const uxPhaseRef = useRef<UxPhase>('idle'); // ref para leer uxPhase sin dependencia reactiva
 
-  // 🔥 "slots" para render fijo (12 cards siempre). null = skeleton
+  // 🔥 "slots" para render fijo. null = skeleton
   const [slots, setSlots] = useState<(Listing | null)[]>(
-    Array.from({ length: ITEMS_PER_PAGE }, () => null)
+    Array.from({ length: ITEMS_PER_PAGE_DEFAULT }, () => null)
   );
 
   //Estado para ExpansionModal
@@ -333,6 +334,28 @@ export default function Properties() {
       window.clearTimeout(t3);
     };
   }, []);
+
+  // Items per page: 0 = "All" (sin paginación)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(ITEMS_PER_PAGE_DEFAULT);
+  // effectiveLimit: límite real enviado al API. 0 → usamos un techo alto (999)
+  const effectiveLimit = itemsPerPage === 0 ? 999 : itemsPerPage;
+  // Ref para que el fetch siempre lea el límite correcto sin stale closure
+  const effectiveLimitRef = useRef<number>(effectiveLimit);
+  useEffect(() => { effectiveLimitRef.current = effectiveLimit; }, [effectiveLimit]);
+
+  const handleItemsPerPageChange = useCallback((value: number) => {
+    filterChangedRef.current = true;
+    startSearchUx();
+    setItemsPerPage(value);
+    setCurrentPage(1);
+    setItems([]);
+    setAvailabilityCursor(0);
+    setAvailabilitySession(null);
+    setPage1Filled(false);
+    setAutoFillDone(false);
+    const slotCount = value === 0 ? ITEMS_PER_PAGE_DEFAULT : value;
+    setSlots(Array.from({ length: slotCount }, () => null));
+  }, [startSearchUx]);
 
   useEffect(() => {
     return () => {
@@ -563,7 +586,7 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
-    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+    setSlots(Array.from({ length: effectiveLimit }, () => null));
   }, [startSearchUx, setQuoteDates]);
 
   const handleClearAllFilters = useCallback(() => {
@@ -598,7 +621,7 @@ export default function Properties() {
     setAutoFillDone(false);
     setQuoteDates('', '');
 
-    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+    setSlots(Array.from({ length: effectiveLimit }, () => null));
   }, [startSearchUx, setQuoteDates]);
 
   const applyFiltersImmediately = useCallback((newFilters: typeof filters) => {
@@ -613,7 +636,7 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
-    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+    setSlots(Array.from({ length: effectiveLimit }, () => null));
   }, [startSearchUx]);
 
   const handleBadgeToggle = useCallback((badgeId: string) => {
@@ -680,7 +703,7 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
-    setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+    setSlots(Array.from({ length: effectiveLimit }, () => null));
 
     window.history.replaceState({}, '', '/properties');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -832,7 +855,7 @@ export default function Properties() {
     if (page1Filled || autoFillDone) return;
 
     // ✅ si ya tenemos 12, cortar y marcar
-    if (items.length >= ITEMS_PER_PAGE) {
+    if (items.length >= effectiveLimit) {
       setPage1Filled(true);
       setAutoFillDone(true);
       return;
@@ -861,12 +884,12 @@ export default function Properties() {
 
   useEffect(() => {
     // Cuando cambia la página, resetear slots
-    if (!loading && items.length > 0 && items.length < ITEMS_PER_PAGE) {
+    if (!loading && items.length > 0 && items.length < effectiveLimit) {
       // Si hay menos de 12 items, ajustar slots al número exacto
       setSlots(items.map(item => item));
     } else {
       // Caso normal: 12 slots (pueden ser null o items)
-      setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
+      setSlots(Array.from({ length: effectiveLimit }, () => null));
     }
   }, [currentPage]);
 
@@ -896,8 +919,8 @@ useEffect(() => {
   setUxPhase('results');
   setProgress(100);
 
-  const finalSlotCount = Math.min(items.length, ITEMS_PER_PAGE);
-  const slotsNeeded = loading ? ITEMS_PER_PAGE : finalSlotCount;
+  const finalSlotCount = Math.min(items.length, effectiveLimit);
+  const slotsNeeded = loading ? effectiveLimit : finalSlotCount;
 
   setSlots(prev => {
     if (prev.length === slotsNeeded) return prev;
@@ -1039,12 +1062,12 @@ useEffect(() => {
           queryString: qs.toString()
         });
 
-        qs.set('limit', String(ITEMS_PER_PAGE));
+        qs.set('limit', String(effectiveLimitRef.current));
 
         // 🔥 CORRECCIÓN IMPORTANTE: Usar cursor real en modo availability
         if (hasAvailabilityFilter) {
           // Usar el cursor real (no calcular basado en página)
-          const pageCursor = (currentPage - 1) * ITEMS_PER_PAGE;
+          const pageCursor = (currentPage - 1) * effectiveLimitRef.current;
 
           // ✅ si estamos rellenando página 1 con autofill, usamos availabilityCursor real
           const cursorToUse =
@@ -1124,7 +1147,7 @@ useEffect(() => {
             "priceUSD first 6:",
             normalized.slice(0, 6).map(x => x.priceUSD)
           );
-          const pageCursor = (currentPage - 1) * ITEMS_PER_PAGE;
+          const pageCursor = (currentPage - 1) * effectiveLimitRef.current;
 
           const cursorToUse =
             hasAvailabilityFilter && currentPage === 1 && availabilityCursor > 0
@@ -1140,12 +1163,12 @@ useEffect(() => {
           setItems(prev => {
             if (!isAutoFillChunk) return normalized;
 
-            // ✅ append pero CAP a 12
+            // ✅ append pero CAP al límite activo
             const merged = [...prev, ...normalized];
-            const capped = merged.slice(0, ITEMS_PER_PAGE);
+            const capped = merged.slice(0, effectiveLimitRef.current);
 
-            // ✅ cuando llegó a 12, marcamos y frenamos autofill
-            if (capped.length >= ITEMS_PER_PAGE) {
+            // ✅ cuando llegó al límite, marcamos y frenamos autofill
+            if (capped.length >= effectiveLimitRef.current) {
               setPage1Filled(true);
               setAutoFillDone(true);
             }
@@ -1159,11 +1182,11 @@ useEffect(() => {
             // Modo availability: usar lógica basada en cursor
             if (data.totalAvailable !== undefined) {
               setTotal(data.totalAvailable);
-              const calculatedPages = Math.ceil(data.totalAvailable / ITEMS_PER_PAGE);
+              const calculatedPages = Math.ceil(data.totalAvailable / effectiveLimitRef.current);
               setTotalPages(calculatedPages || 1);
             } else {
               // Estimación basada en returned y exhausted
-              const hasMoreData = !data.exhausted || (data.returned === ITEMS_PER_PAGE);
+              const hasMoreData = !data.exhausted || (data.returned === effectiveLimitRef.current);
               setTotalPages(currentPage + (hasMoreData ? 1 : 0));
               setTotal(data.returned || normalized.length);
             }
@@ -1189,7 +1212,7 @@ useEffect(() => {
           } else {
             // Modo normal
             setTotal(data.total || 0);
-            setTotalPages(data.totalPages || Math.ceil((data.total || 0) / ITEMS_PER_PAGE));
+            setTotalPages(data.totalPages || Math.ceil((data.total || 0) / effectiveLimitRef.current));
           }
 
           setRetryCount(0);
@@ -1266,6 +1289,7 @@ useEffect(() => {
     hasAvailabilityFilter,
     availabilityCursor,
     autoFillTick,
+    itemsPerPage,
   ]);
 
   const handlePrevImage = useCallback((e: React.MouseEvent, listingId: string, totalImages: number) => {
@@ -1337,7 +1361,7 @@ useEffect(() => {
   const renderList = (showSkeletons || slotsAreEmpty) ? EMPTY_SLOTS : slots;
 
   const showNextButton = hasAvailabilityFilter
-    ? items.length === ITEMS_PER_PAGE || currentPage < totalPages
+    ? items.length === effectiveLimit || currentPage < totalPages
     : currentPage < totalPages;
 
   return (
@@ -1419,6 +1443,8 @@ useEffect(() => {
           onEditQuote={handleEditQuote}
           currency={currency}
           onCurrencyChange={setCurrency}
+          itemsPerPage={itemsPerPage}
+          onItemsPerPageChange={handleItemsPerPageChange}
         />
 
         <main className="w-full px-4 md:px-8">
@@ -1508,20 +1534,22 @@ useEffect(() => {
               }}
             />
 
-            <PaginationControls
-              currentPage={currentPage}
-              totalPages={totalPages}
-              hasAvailabilityFilter={hasAvailabilityFilter}
-              showNextButton={showNextButton}
-              onPageChange={(newPage: number) => {
-                filterChangedRef.current = true;
-                startSearchUx();
-                setItems([]);
-                setSlots(Array.from({ length: ITEMS_PER_PAGE }, () => null));
-                setCurrentPage(newPage);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
+            {itemsPerPage !== 0 && (
+              <PaginationControls
+                currentPage={currentPage}
+                totalPages={totalPages}
+                hasAvailabilityFilter={hasAvailabilityFilter}
+                showNextButton={showNextButton}
+                onPageChange={(newPage: number) => {
+                  filterChangedRef.current = true;
+                  startSearchUx();
+                  setItems([]);
+                  setSlots(Array.from({ length: effectiveLimit }, () => null));
+                  setCurrentPage(newPage);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
+            )}
           </>}
         </main>
 
