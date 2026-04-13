@@ -331,6 +331,8 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
   //   screen  4 = Step 5/5 Destinations
   const [screen, setScreen] = useState<-1 | 0 | 1 | 2 | 3 | 4>(-1);
   const [data, setData] = useState<QuoteData>(INITIAL);
+  // Budget text-input display value (formatted string, e.g. "15,000")
+  const [budgetInputRaw, setBudgetInputRaw] = useState<string>(INITIAL.budget.toLocaleString());
 
   // Loader shown after "Generate Quote" while Properties loads
 
@@ -348,6 +350,7 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
       document.body.style.overflow = '';
       setScreen(-1);
       setData(INITIAL);
+      setBudgetInputRaw(INITIAL.budget.toLocaleString());
       setShowCalendar(false);
       setCalendarTarget('checkIn');
     }
@@ -646,7 +649,11 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
                     max={100}
                     step={0.1}
                     value={budgetToSlider(data.budget)}
-                    onChange={e => setData(d => ({ ...d, budget: sliderToBudget(Number(e.target.value)) }))}
+                    onChange={e => {
+                      const next = sliderToBudget(Number(e.target.value));
+                      setData(d => ({ ...d, budget: next }));
+                      setBudgetInputRaw(next.toLocaleString());
+                    }}
                     className="w-full accent-neutral-900"
                     style={{ height: 4 }}
                   />
@@ -658,17 +665,39 @@ export function NewQuoteModal({ onBrowseAll }: { onBrowseAll?: () => void } = {}
 
                 <div className="flex items-center gap-3 mb-6">
                   <span className="text-sm text-neutral-500 whitespace-nowrap">Or enter amount:</span>
-                  <input
-                    type="number"
-                    value={data.budget}
-                    min={BUDGET_MIN}
-                    max={BUDGET_MAX}
-                    onChange={e => {
-                      const v = Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, Number(e.target.value)));
-                      setData(d => ({ ...d, budget: v }));
-                    }}
-                    className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900"
-                  />
+                  <div className="flex-1 flex items-center border border-neutral-200 rounded-lg focus-within:border-neutral-900 transition-colors px-3 py-2 gap-1">
+                    <span className="text-sm text-neutral-500 select-none">$</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={budgetInputRaw}
+                      onChange={e => {
+                        // Strip everything except digits
+                        const digits = e.target.value.replace(/\D/g, '');
+                        if (digits === '') {
+                          setBudgetInputRaw('');
+                          return;
+                        }
+                        const numeric = Math.min(BUDGET_MAX, Math.max(0, Number(digits)));
+                        setBudgetInputRaw(numeric.toLocaleString());
+                        // Only commit to data if within valid range
+                        if (numeric >= BUDGET_MIN) {
+                          setData(d => ({ ...d, budget: numeric }));
+                        }
+                      }}
+                      onBlur={() => {
+                        // On blur, clamp and sync display with actual budget value
+                        const digits = budgetInputRaw.replace(/\D/g, '');
+                        const numeric = digits
+                          ? Math.min(BUDGET_MAX, Math.max(BUDGET_MIN, Number(digits)))
+                          : BUDGET_MIN;
+                        setData(d => ({ ...d, budget: numeric }));
+                        setBudgetInputRaw(numeric.toLocaleString());
+                      }}
+                      className="flex-1 text-sm focus:outline-none bg-transparent min-w-0"
+                      placeholder="15,000"
+                    />
+                  </div>
                 </div>
 
                 <Toggle
