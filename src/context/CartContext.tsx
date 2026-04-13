@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 
 export type Listing = {
   id: string;
@@ -11,8 +11,11 @@ export type Listing = {
   priceUSD?: number | null;
   heroImage?: string | null;
   images_json?: string[];
-  rank?: number | null; 
+  rank?: number | null;
 };
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+export type ToastEntry = { id: number; villaName: string };
 
 type CartContextType = {
   items: Listing[];
@@ -27,17 +30,19 @@ type CartContextType = {
   isCartModalOpen: boolean;
   openCartModal: () => void;
   closeCartModal: () => void;
-  // Fechas de búsqueda activas — persisten para quotes desde cualquier página
+  // Dates
   quoteCheckIn: string;
   quoteCheckOut: string;
   setQuoteDates: (checkIn: string, checkOut: string) => void;
+  // Toast queue (consumed by ToastContainer)
+  toasts: ToastEntry[];
+  dismissToast: (id: number) => void;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<Listing[]>(() => {
-    // Cargar del localStorage al iniciar
     const saved = localStorage.getItem('villa-cart');
     return saved ? JSON.parse(saved) : [];
   });
@@ -45,13 +50,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
 
-  // Fechas persistidas para quotes — sobreviven navegación a /property/:id
-  const [quoteCheckIn, setQuoteCheckIn] = useState<string>(() =>
-    localStorage.getItem('quoteCheckIn') || ''
+  const [quoteCheckIn, setQuoteCheckIn] = useState<string>(
+    () => localStorage.getItem('quoteCheckIn') || ''
   );
-  const [quoteCheckOut, setQuoteCheckOut] = useState<string>(() =>
-    localStorage.getItem('quoteCheckOut') || ''
+  const [quoteCheckOut, setQuoteCheckOut] = useState<string>(
+    () => localStorage.getItem('quoteCheckOut') || ''
   );
+
+  // ─── Toast state ────────────────────────────────────────────────────────────
+  const [toasts, setToasts] = useState<ToastEntry[]>([]);
+  // useRef para el ID — nunca queda stale en closures y no provoca re-renders
+  const toastSeqRef = useRef(0);
+
+  const pushToast = useCallback((villaName: string) => {
+    toastSeqRef.current += 1;
+    const id = toastSeqRef.current;
+    setToasts(prev => [...prev, { id, villaName }]);
+    // Auto-dismiss after 2.5 s
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 2500);
+  }, []); // sin dependencias — el ref nunca queda stale
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // ─── Persist cart ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    localStorage.setItem('villa-cart', JSON.stringify(items));
+  }, [items]);
 
   const setQuoteDates = (checkIn: string, checkOut: string) => {
     setQuoteCheckIn(checkIn);
@@ -62,23 +88,29 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     else localStorage.removeItem('quoteCheckOut');
   };
 
-  // Persistir en localStorage cuando cambia
-  useEffect(() => {
-    localStorage.setItem('villa-cart', JSON.stringify(items));
-  }, [items]);
-
   const isInCart = (id: string) => items.some(item => item.id === id);
 
+  // ── CA1: toggleItem NEVER opens the sidebar ──────────────────────────────
+  // IMPORTANT: pushToast must be called OUTSIDE the setItems updater.
+  // React Strict Mode runs updater functions twice to detect side effects —
+  // any side effect (toast, log, analytics) inside an updater will fire twice.
   const toggleItem = (listing: Listing) => {
+    let wasAdded = false;
+
     setItems(prev => {
       const exists = prev.some(item => item.id === listing.id);
       if (exists) {
         return prev.filter(item => item.id !== listing.id);
       } else {
-        setIsCartOpen(true);
+        wasAdded = true;
         return [...prev, listing];
       }
     });
+
+    // Toast fires here — outside the updater — so Strict Mode double-invoke has no effect
+    if (wasAdded) {
+      pushToast(listing.name);
+    }
   };
 
   const removeItem = (id: string) => {
@@ -113,6 +145,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         quoteCheckIn,
         quoteCheckOut,
         setQuoteDates,
+        toasts,
+        dismissToast,
       }}
     >
       {children}

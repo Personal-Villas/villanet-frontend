@@ -48,6 +48,7 @@ import AccordeonBooking from '../components/AccordeonBooking';
 //import CartButton from '../components/CartButton';
 import CartModal from '../components/CartModal';
 import CartSidebar from '../components/CartSidebar';
+import AddToQuoteToast from '../components/AddToQuoteToast';
 import { useCart } from '../context/CartContext';
 import PropertyMap from '../components/PropertyMap';
 import QuoteCalculator from '../components/QuoteCalculator';
@@ -735,6 +736,7 @@ export default function PropertyDetail() {
 
       {/* Cart Sidebar */}
       <CartSidebar />
+      <AddToQuoteToast />
 
       {/* Cart Modal */}
       <CartModal isOpen={isCartModalOpen} onClose={closeCartModal} defaultCheckIn={quoteCheckIn} defaultCheckOut={quoteCheckOut} />
