@@ -9,6 +9,7 @@ import { UnifiedHeader } from "../components/Header";
 import PropertiesHeaderCompact, { type CrudBadge } from '../components/SecondSearchBar';
 import { useCart } from '../context/CartContext';
 import CartSidebar from '../components/CartSidebar';
+import AddToQuoteToast from '../components/AddToQuoteToast';
 import CartModal from '../components/CartModal';
 import { ListingCardSkeleton } from '../ui/ListingCardSkeleton';
 import { PropertyCard } from '../components/PropertyCard';
@@ -1554,6 +1555,7 @@ useEffect(() => {
         </main>
 
         <CartSidebar />
+        <AddToQuoteToast />
         {!isUSD && rateNote && (
           <p className="text-center text-xs text-muted-foreground mt-4 pb-2 px-4">
             {rateNote}
