@@ -89,6 +89,10 @@ type PropertiesHeaderCompactProps = {
   cartCount?: number;
   onCartClick?: () => void;
 
+  // Items per page
+  itemsPerPage?: number;
+  onItemsPerPageChange?: (value: number) => void;
+
   //Currency display
   currency?: SupportedCurrency;
   onCurrencyChange?: (c: SupportedCurrency) => void;
@@ -787,6 +791,8 @@ export default function PropertiesHeaderCompact({
   onCartClick,
   currency = 'USD',
   onCurrencyChange,
+  itemsPerPage = 12,
+  onItemsPerPageChange,
 }: PropertiesHeaderCompactProps) {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -1625,12 +1631,33 @@ export default function PropertiesHeaderCompact({
                 <option value="bedrooms">Bedrooms (Most → Least)</option>
               </select>
 
+              {onItemsPerPageChange && (
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+                  className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  aria-label="Items per page"
+                >
+                  <option value={12}>Show: 12</option>
+                  <option value={24}>Show: 24</option>
+                  <option value={48}>Show: 48</option>
+                  <option value={96}>Show: 96</option>
+                </select>
+              )}
+
               {onCurrencyChange && (
-                <CurrencySelector
+                <select
                   value={currency}
-                  onChange={onCurrencyChange}
-                  compact
-                />
+                  onChange={(e) => onCurrencyChange(e.target.value as typeof currency)}
+                  className="px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  aria-label="Currency"
+                >
+                  <option value="USD">$ USD</option>
+                  <option value="CAD">$ CAD</option>
+                  <option value="EUR">€ EUR</option>
+                  <option value="GBP">£ GBP</option>
+                  <option value="MXN">$ MXN</option>
+                </select>
               )}
 
               <CartButton
@@ -1969,6 +1996,22 @@ export default function PropertiesHeaderCompact({
                 <option value="bedrooms">Bedrooms (Most → Least)</option>
               </select>
             </div>
+
+            {onItemsPerPageChange && (
+              <div>
+                <label className="block text-sm font-medium mb-2">Results per page</label>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+                  className="w-full px-3 py-2.5 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value={12}>12 per page</option>
+                  <option value={24}>24 per page</option>
+                  <option value={48}>48 per page</option>
+                  <option value={96}>96 per page</option>
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium mb-3">Locations</label>
