@@ -157,21 +157,11 @@ export default function Properties() {
     navigate('/properties?quoteFlow=true');
   }, [navigate]);
 
-  // ── Auto-open NewQuoteModal al entrar en /properties ─────────────────────
-  // Solo corre al montar. Pone quoteFlow=true para abrir el modal, salvo que:
-  // - ya haya quoteFlow en la URL (true o false — false lo manda PropertyDetail)
-  // - venga fromQuote=true (wizard completado, los filtros se aplican aparte)
-  useEffect(() => {
-    const quoteFlow = searchParams.get('quoteFlow');
-    const isFromQuote = searchParams.get('fromQuote') === 'true';
-
-    if (!isFromQuote && quoteFlow === null) {
-      const next = new URLSearchParams(searchParams);
-      next.set('quoteFlow', 'true');
-      setSearchParams(next, { replace: true });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // ── Auto-open NewQuoteModal ───────────────────────────────────────────────
+  // El modal solo se abre cuando la URL contiene explícitamente quoteFlow=true.
+  // No se inyecta quoteFlow=true automáticamente al montar la página,
+  // para que usuarios que lleguen desde el logo o navegación normal
+  // no vean el modal de cotización sin haberlo pedido. (CA2)
 
   // ── Aplicar filtros cuando viene fromQuote=true ───────────────────────────
   // El wizard navega a /properties?fromQuote=true&destination=...&checkIn=...
