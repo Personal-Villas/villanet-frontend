@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";                    // ← agregar useNavigate
+import React, { useState, useCallback } from "react";
 import { useAuth } from "../auth/useAuth"; 
 import {
   Hero,
@@ -28,15 +27,8 @@ interface AuthModalState {
 export const Home: React.FC = () => {
   const [authModal, setAuthModal] = useState<AuthModalState>({ open: false });
   const [showRankModal, setShowRankModal] = useState(false);
-  const { user, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/properties', { replace: true });
-    }
-  }, [user, authLoading, navigate]);
-    
   // Abre el modal en modo password normal (desde el header → botón "Login")
   const openAuthModal = useCallback(() =>
     setAuthModal({ open: true, initialMode: 'password' }), []);
