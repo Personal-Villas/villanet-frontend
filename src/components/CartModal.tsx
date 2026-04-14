@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, RefreshCw, Wifi, Lock, TrendingUp } from 'lucide-react';
+import { X, Send, Loader2, CheckCircle, AlertCircle, Calendar, Users, RefreshCw, Wifi, Lock } from 'lucide-react';
 import { useCurrency, type SupportedCurrency } from '../hooks/useCurrency';
-import { CurrencySelector } from './CurrencySelector';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../auth/useAuth';
 import { api } from '../api/api';
@@ -99,7 +98,7 @@ const CartModal: React.FC<CartModalProps> = ({
       ? localStorage.getItem('villanet_preferred_currency') as SupportedCurrency | null
       : null
   ) ?? 'USD';
-  const { currency, setCurrency, format: formatPrice, isUSD } = useCurrency(savedCurrency);
+  const { currency, format: formatPrice, isUSD } = useCurrency(savedCurrency);
 
   // ── helpers ──────────────────────────────────────────────────────────────
   const getImageUrl = (villa: any) =>
@@ -672,91 +671,6 @@ const CartModal: React.FC<CartModalProps> = ({
                     })}
                   </div>
                 </div>
-
-                {/* ── Quote Summary + Currency selector ───────────────────── */}
-                {hasDates && (() => {
-                  const readyItems = (items as any[]).filter((v: any) => breakdownMap[v.id]?.status === 'ready');
-                  const loadingCount = (items as any[]).filter((v: any) => {
-                    const s = breakdownMap[v.id]?.status;
-                    return s === 'loading' || s === 'idle';
-                  }).length;
-                  const hasAnyReady = readyItems.length > 0;
-                  const allReady = loadingCount === 0 && readyItems.length === (items as any[]).length;
-
-                  const quoteBase     = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.base ?? 0), 0);
-                  const quoteCleaning = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.cleaning ?? 0), 0);
-                  const quoteFees     = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.feesTotal ?? 0), 0);
-                  const quoteTaxes    = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.taxes ?? 0), 0);
-                  const quoteTotal    = readyItems.reduce((s: number, v: any) => s + (breakdownMap[v.id]?.data?.total ?? 0), 0);
-
-                  return (
-                    <div className="mx-6 mt-4 mb-2 rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
-                      {/* Header row */}
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4 text-neutral-500" />
-                          <span className="text-sm font-semibold text-neutral-800">Quote Summary</span>
-                          {loadingCount > 0 && (
-                            <span className="flex items-center gap-1 text-xs text-neutral-400">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              {loadingCount} loading…
-                            </span>
-                          )}
-                        </div>
-                        {/* Currency selector */}
-                        <CurrencySelector
-                          value={currency}
-                          onChange={setCurrency}
-                          compact
-                        />
-                      </div>
-
-                      {/* Breakdown rows */}
-                      {hasAnyReady && (
-                        <div className="px-4 py-3 space-y-1.5">
-                          <div className="flex justify-between text-xs text-neutral-600">
-                            <span>Base rate</span>
-                            <span>{formatPrice(quoteBase)}</span>
-                          </div>
-                          {quoteCleaning > 0 && (
-                            <div className="flex justify-between text-xs text-neutral-600">
-                              <span>Cleaning fees</span>
-                              <span>{formatPrice(quoteCleaning)}</span>
-                            </div>
-                          )}
-                          {quoteFees > 0 && (
-                            <div className="flex justify-between text-xs text-neutral-600">
-                              <span>Additional fees</span>
-                              <span>{formatPrice(quoteFees)}</span>
-                            </div>
-                          )}
-                          {quoteTaxes > 0 && (
-                            <div className="flex justify-between text-xs text-neutral-600">
-                              <span>Taxes</span>
-                              <span>{formatPrice(quoteTaxes)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-sm font-bold text-neutral-900 pt-1.5 border-t border-neutral-200">
-                            <span>Quote Total{!allReady ? ' (partial)' : ''}</span>
-                            <span>{formatPrice(quoteTotal)}</span>
-                          </div>
-                          {!isUSD && (
-                            <p className="text-[10px] text-neutral-400 text-right pt-0.5">
-                              * Indicative exchange rate — billing always in USD
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {!hasAnyReady && loadingCount > 0 && (
-                        <div className="px-4 py-3 flex items-center gap-2 text-xs text-neutral-400">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>Fetching price details from Guesty…</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
 
                 {/* ── Message banner ──────────────────────────────────────── */}
                 {message && (
