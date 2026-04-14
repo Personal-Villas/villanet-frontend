@@ -1655,8 +1655,6 @@ export default function PropertiesHeaderCompact({
                   <option value="USD">$ USD</option>
                   <option value="CAD">$ CAD</option>
                   <option value="EUR">€ EUR</option>
-                  <option value="GBP">£ GBP</option>
-                  <option value="MXN">$ MXN</option>
                 </select>
               )}
 
