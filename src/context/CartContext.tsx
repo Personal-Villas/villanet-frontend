@@ -91,24 +91,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const isInCart = (id: string) => items.some(item => item.id === id);
 
   // ── CA1: toggleItem NEVER opens the sidebar ──────────────────────────────
-  // IMPORTANT: pushToast must be called OUTSIDE the setItems updater.
-  // React Strict Mode runs updater functions twice to detect side effects —
-  // any side effect (toast, log, analytics) inside an updater will fire twice.
+  // `isAdding` se calcula de forma síncrona ANTES de setItems, por lo que
+  // es confiable inmediatamente — sin depender de que el updater async haya corrido.
+  // pushToast sigue fuera del updater para evitar doble-disparo en Strict Mode.
   const toggleItem = (listing: Listing) => {
-    let wasAdded = false;
+    const isAdding = !items.some(item => item.id === listing.id);
 
-    setItems(prev => {
-      const exists = prev.some(item => item.id === listing.id);
-      if (exists) {
-        return prev.filter(item => item.id !== listing.id);
-      } else {
-        wasAdded = true;
-        return [...prev, listing];
-      }
-    });
+    setItems(prev =>
+      isAdding
+        ? [...prev, listing]
+        : prev.filter(item => item.id !== listing.id)
+    );
 
-    // Toast fires here — outside the updater — so Strict Mode double-invoke has no effect
-    if (wasAdded) {
+    if (isAdding) {
       pushToast(listing.name);
     }
   };
