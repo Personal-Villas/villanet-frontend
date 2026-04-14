@@ -523,7 +523,7 @@ const CartModal: React.FC<CartModalProps> = ({
                   <h3 className="text-sm font-semibold text-neutral-700 mb-4 uppercase tracking-wide">
                     Selected Villas
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-2 items-stretch">
                     {(items as any[]).map((villa) => {
                       const avStatus = avMap[villa.id]?.status ?? 'idle';
                       const avReason = avMap[villa.id]?.reason;
@@ -531,7 +531,7 @@ const CartModal: React.FC<CartModalProps> = ({
                       return (
                         <div
                           key={villa.id}
-                          className="relative group rounded-xl border border-neutral-200 overflow-hidden bg-white"
+                          className="relative group rounded-xl border border-neutral-200 overflow-hidden bg-white flex flex-col h-full"
                         >
                           <div className="relative">
                             <img
@@ -589,7 +589,7 @@ const CartModal: React.FC<CartModalProps> = ({
                             )}
                           </div>
 
-                          <div className="p-4">
+                          <div className="p-4 flex flex-col flex-1">
                             <h5 className="font-semibold text-neutral-900 mb-1 line-clamp-1">{villa.name}</h5>
                             <p className="text-xs text-neutral-500 mb-2 line-clamp-1">{getLocation(villa)} · {villa.bedrooms} BD · {villa.bathrooms} BA</p>
 
@@ -627,41 +627,45 @@ const CartModal: React.FC<CartModalProps> = ({
                               const nights = bd.nights;
 
                               return (
-                                <div className="mt-2 pt-2 border-t border-neutral-100 space-y-1">
-                                  <div className="flex justify-between text-xs text-neutral-600">
-                                    <span>Base rate ({nights} nt)</span>
-                                    <span>{formatPrice(bd.base)}</span>
-                                  </div>
-                                  {bd.cleaning > 0 && (
+                                <div className="mt-2 pt-2 border-t border-neutral-100 flex flex-col flex-1">
+                                  <div className="space-y-1">
                                     <div className="flex justify-between text-xs text-neutral-600">
-                                      <span>Cleaning fee</span>
-                                      <span>{formatPrice(bd.cleaning)}</span>
+                                      <span>Base rate ({nights} nt)</span>
+                                      <span>{formatPrice(bd.base)}</span>
                                     </div>
-                                  )}
-                                  {(bd.feeBreakdown?.length > 0
-                                    ? bd.feeBreakdown.filter((f) => f.amount > 0)
-                                    : bd.feesTotal > 0 ? [{ title: 'Fees', amount: bd.feesTotal }] : []
-                                  ).map((f, i) => (
-                                    <div key={i} className="flex justify-between text-xs text-neutral-600">
-                                      <span>{f.title}</span>
-                                      <span>{formatPrice(f.amount)}</span>
-                                    </div>
-                                  ))}
-                                  {bd.taxes > 0 && (
-                                    <div className="flex justify-between text-xs text-neutral-600">
-                                      <span>Taxes</span>
-                                      <span>{formatPrice(bd.taxes)}</span>
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between text-xs font-semibold text-neutral-900 pt-1 border-t border-neutral-100">
-                                    <span>Total ({nights} nt)</span>
-                                    <span>{formatPrice(bd.total)}</span>
+                                    {bd.cleaning > 0 && (
+                                      <div className="flex justify-between text-xs text-neutral-600">
+                                        <span>Cleaning fee</span>
+                                        <span>{formatPrice(bd.cleaning)}</span>
+                                      </div>
+                                    )}
+                                    {(bd.feeBreakdown?.length > 0
+                                      ? bd.feeBreakdown.filter((f) => f.amount > 0)
+                                      : bd.feesTotal > 0 ? [{ title: 'Fees', amount: bd.feesTotal }] : []
+                                    ).map((f, i) => (
+                                      <div key={i} className="flex justify-between text-xs text-neutral-600">
+                                        <span>{f.title}</span>
+                                        <span>{formatPrice(f.amount)}</span>
+                                      </div>
+                                    ))}
+                                    {bd.taxes > 0 && (
+                                      <div className="flex justify-between text-xs text-neutral-600">
+                                        <span>Taxes</span>
+                                        <span>{formatPrice(bd.taxes)}</span>
+                                      </div>
+                                    )}
                                   </div>
-                                  {!isUSD && (
-                                    <p className="text-[10px] text-neutral-400 text-right pt-0.5">
-                                      * Indicative rate · billing in USD
-                                    </p>
-                                  )}
+                                  <div className="mt-auto pt-1 border-t border-neutral-100">
+                                    <div className="flex justify-between text-xs font-semibold text-neutral-900 pt-1">
+                                      <span>Total ({nights} nt)</span>
+                                      <span>{formatPrice(bd.total)}</span>
+                                    </div>
+                                    {!isUSD && (
+                                      <p className="text-[10px] text-neutral-400 text-right pt-0.5">
+                                        * Indicative rate · billing in USD
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })()}
