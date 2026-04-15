@@ -28,6 +28,12 @@ interface PropertyCardProps {
     nightCount: number;
 }
 
+// Ensures a space between the currency symbol and the numeric value.
+// Works with any symbol prefix (US$, $, €, etc.) regardless of how
+// the parent's formatMoney formats the string.
+const addCurrencySpace = (formatted: string): string =>
+    formatted.replace(/^([^0-9\s]+)(\d)/, '$1\u00A0$2');
+
 export const PropertyCard: React.FC<PropertyCardProps> = ({
     item,
     cardIndex,
@@ -42,6 +48,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
     formatRank,
     nightCount,
 }) => {
+    // Wrap the prop so every price rendered in this card has the correct spacing
+    const fmt = (n: number | null) => addCurrencySpace(formatMoney(n));
     const images = item.images_json?.length > 0 ? item.images_json : [item.heroImage];
 
     const isLcpCandidate = cardIndex === 0;
@@ -160,7 +168,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                     <div className="flex items-center gap-1 whitespace-nowrap ml-auto">
                         {item.priceUSD != null ? (
                             <span className="text-foreground font-semibold text-sm">
-                                {formatMoney(item.priceUSD)}<span className="font-normal text-muted-foreground text-xs"> /nt</span>
+                                {fmt(item.priceUSD)}<span className="font-normal text-muted-foreground text-xs"> /nt</span>
                             </span>
                         ) : (
                             <span className="text-muted-foreground text-xs italic">Price on request</span>
@@ -175,7 +183,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                             Est. base rate · {nightCount} {nightCount === 1 ? 'night' : 'nights'}
                         </span>
                         <span className="text-sm font-bold text-foreground">
-                            {formatMoney(item.priceUSD * nightCount)}
+                            {fmt(item.priceUSD * nightCount)}
                         </span>
                     </div>
                 )}

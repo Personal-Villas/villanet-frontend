@@ -110,6 +110,12 @@ const CartModal: React.FC<CartModalProps> = ({
 
   const hasDates = !!checkIn && !!checkOut;
 
+  // ── Currency spacing helper ───────────────────────────────────────────────
+  // Ensures a non-breaking space between the currency symbol and the number
+  // (e.g. "US$34,300" → "US$ 34,300") regardless of how formatPrice formats it.
+  const fmt = (amount: number | null | undefined) =>
+    formatPrice(amount).replace(/^([^0-9\s]+)(\d)/, '$1\u00A0$2');
+
   // ── Fetch price breakdowns from /quotes/calculate ─────────────────────────
   const fetchBreakdowns = useCallback(async (ciDate: string, coDate: string, gNum: number | null) => {
     if (!ciDate || !coDate) return;
@@ -602,7 +608,7 @@ const CartModal: React.FC<CartModalProps> = ({
                                 return (
                                   <div className="flex items-center justify-between text-xs">
                                     <span className="text-neutral-400">Add dates to see full pricing</span>
-                                    <span className="font-semibold text-neutral-900">{formatPrice(villa.priceUSD)}/nt</span>
+                                    <span className="font-semibold text-neutral-900">{fmt(villa.priceUSD)}&nbsp;/nt</span>
                                   </div>
                                 );
                               }
@@ -619,7 +625,7 @@ const CartModal: React.FC<CartModalProps> = ({
                               if (bdState.status === 'error') {
                                 return (
                                   <div className="text-xs text-neutral-400">
-                                    <span className="font-semibold text-neutral-700">{formatPrice(villa.priceUSD)}/nt</span>
+                                    <span className="font-semibold text-neutral-700">{fmt(villa.priceUSD)}&nbsp;/nt</span>
                                     <span className="ml-1 text-neutral-400">(est.)</span>
                                   </div>
                                 );
@@ -633,12 +639,12 @@ const CartModal: React.FC<CartModalProps> = ({
                                   <div className="space-y-1">
                                     <div className="flex justify-between text-xs text-neutral-600">
                                       <span>Base rate ({nights} nt)</span>
-                                      <span>{formatPrice(bd.base)}</span>
+                                      <span>{fmt(bd.base)}</span>
                                     </div>
                                     {bd.cleaning > 0 && (
                                       <div className="flex justify-between text-xs text-neutral-600">
                                         <span>Cleaning fee</span>
-                                        <span>{formatPrice(bd.cleaning)}</span>
+                                        <span>{fmt(bd.cleaning)}</span>
                                       </div>
                                     )}
                                     {(bd.feeBreakdown?.length > 0
@@ -647,13 +653,13 @@ const CartModal: React.FC<CartModalProps> = ({
                                     ).map((f, i) => (
                                       <div key={i} className="flex justify-between text-xs text-neutral-600">
                                         <span>{f.title}</span>
-                                        <span>{formatPrice(f.amount)}</span>
+                                        <span>{fmt(f.amount)}</span>
                                       </div>
                                     ))}
                                     {bd.taxes > 0 && (
                                       <div className="flex justify-between text-xs text-neutral-600">
                                         <span>Taxes</span>
-                                        <span>{formatPrice(bd.taxes)}</span>
+                                        <span>{fmt(bd.taxes)}</span>
                                       </div>
                                     )}
                                   </div>
@@ -666,13 +672,13 @@ const CartModal: React.FC<CartModalProps> = ({
                                           Your Commission ({bd.commissionRate}%)
                                         </span>
                                         <span className="text-xs font-bold text-blue-900">
-                                          {formatPrice(Math.round(bd.base * (bd.commissionRate / 100) * 100) / 100)}
+                                          {fmt(Math.round(bd.base * (bd.commissionRate / 100) * 100) / 100)}
                                         </span>
                                       </div>
                                     )}
                                     <div className="flex justify-between text-xs font-semibold text-neutral-900 pt-1 border-t border-neutral-100">
                                       <span>Total ({nights} nt)</span>
-                                      <span>{formatPrice(bd.total)}</span>
+                                      <span>{fmt(bd.total)}</span>
                                     </div>
                                     {!isUSD && (
                                       <p className="text-[10px] text-neutral-400 text-right">
