@@ -219,13 +219,16 @@ export default function QuoteCalculator({
   }
 
   const formatMoney = (amount: number) => {
-    if (formatPrice) return formatPrice(amount);
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: quoteServer.currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
+    const raw = formatPrice
+      ? formatPrice(amount)
+      : new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: quoteServer.currency,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(amount);
+    // Ensure a non-breaking space between currency symbol and digits
+    return raw.replace(/^([^0-9\s]+)(\d)/, '$1\u00A0$2');
   };
 
   return (
