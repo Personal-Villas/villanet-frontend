@@ -281,30 +281,42 @@ export default function Properties() {
   // Señal para mostrar skeletons inmediatamente al cambiar filtros
   const filterChangedRef = useRef<boolean>(false);
 
-  // paddingTop dinámico para el grid: solo la altura del panel absoluto + gap
-  // El sticky bar (80px) ya ocupa espacio en el flujo del documento.
-  const [panelHeight, setPanelHeight] = useState(291); // offsetHeight medido en dev
-  useEffect(() => {
-    let ro: ResizeObserver | null = null;
-    const attach = () => {
-      const panel = document.querySelector<HTMLElement>(
-        '.sticky.top-16 > div[class*="absolute"]'
-      );
-      if (!panel) return false;
-      ro = new ResizeObserver(() => {
-        const isVisible = !panel.classList.contains('opacity-0');
-        setPanelHeight(isVisible ? panel.scrollHeight : 0);
-      });
-      ro.observe(panel);
-      const isVisible = !panel.classList.contains('opacity-0');
-      setPanelHeight(isVisible ? panel.scrollHeight : 0);
-      return true;
-    };
-    if (!attach()) {
-      const t = setTimeout(attach, 300);
-      return () => clearTimeout(t);
+  // paddingTop dinámico para el grid: mide la altura del panel de filtros
+  // expandido usando un ref real (sin selectores CSS frágiles).
+  const [panelHeight, setPanelHeight] = useState(0);
+  const filterPanelRef = useRef<HTMLDivElement | null>(null);
+  const filterPanelRoRef = useRef<ResizeObserver | null>(null);
+
+  const handlePanelRef = useCallback((el: HTMLDivElement | null) => {
+    // Desconectar observer anterior si el elemento cambia
+    filterPanelRoRef.current?.disconnect();
+    filterPanelRef.current = el;
+
+    if (!el) {
+      setPanelHeight(0);
+      return;
     }
-    return () => ro?.disconnect();
+
+    const measure = () => {
+      // Si el panel está oculto (opacity-0 + pointer-events-none) su altura
+      // visual es 0, aunque scrollHeight tenga contenido.
+      const isHidden = el.classList.contains('opacity-0');
+      setPanelHeight(isHidden ? 0 : el.scrollHeight);
+    };
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    filterPanelRoRef.current = ro;
+
+    // También observar cambios de clase (collapse toggle) con MutationObserver
+    const mo = new MutationObserver(measure);
+    mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+
+    measure(); // medición inicial
+
+    // Guardamos el MutationObserver en el mismo cleanup
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { ro.disconnect(); mo.disconnect(); };
   }, []);
 
   const startSearchUx = useCallback(() => {
@@ -1436,6 +1448,7 @@ useEffect(() => {
           onCurrencyChange={setCurrency}
           itemsPerPage={itemsPerPage}
           onItemsPerPageChange={handleItemsPerPageChange}
+          onPanelRef={handlePanelRef}
         />
 
         <main className="w-full px-4 md:px-8">

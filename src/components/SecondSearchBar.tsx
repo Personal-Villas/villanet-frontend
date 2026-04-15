@@ -96,6 +96,13 @@ type PropertiesHeaderCompactProps = {
   //Currency display
   currency?: SupportedCurrency;
   onCurrencyChange?: (c: SupportedCurrency) => void;
+
+  /**
+   * Callback que recibe el ref del panel de filtros expandido (desktop).
+   * Properties.tsx lo usa en un ResizeObserver para calcular el paddingTop
+   * del grid sin depender de selectores CSS frágiles.
+   */
+  onPanelRef?: (el: HTMLDivElement | null) => void;
 };
 
 // Mapea slugs/icon strings de tu CRUD a íconos lucide
@@ -293,10 +300,10 @@ const groupDestinationsByRegion = (
     return a.localeCompare(b);
   };
 
-  const caribbean    = Array.from(caribbeanResults).sort(sortWithOrder(caribbeanOrder));
-  const mexico       = Array.from(mexicoResults).sort(sortWithOrder(mexicoOrder));
+  const caribbean = Array.from(caribbeanResults).sort(sortWithOrder(caribbeanOrder));
+  const mexico = Array.from(mexicoResults).sort(sortWithOrder(mexicoOrder));
   const centralAmerica = Array.from(centralAmericaResults).sort(sortWithOrder(centralAmericaOrder));
-  const europe       = Array.from(europeResults).sort(sortWithOrder(europeOrder));
+  const europe = Array.from(europeResults).sort(sortWithOrder(europeOrder));
 
   return { caribbean, mexico, centralAmerica, europe };
 };
@@ -508,12 +515,12 @@ const GuestyCalendar = ({
 
   // Mantener el mes del check-in visible
   useEffect(() => {
-  if (selected?.from) {
-    setCurrentMonth(
-      new Date(selected.from.getFullYear(), selected.from.getMonth(), 1)
-    );
-  }
-}, [selected?.from?.getTime()]); 
+    if (selected?.from) {
+      setCurrentMonth(
+        new Date(selected.from.getFullYear(), selected.from.getMonth(), 1)
+      );
+    }
+  }, [selected?.from?.getTime()]);
 
   const daysOfWeek = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -793,6 +800,7 @@ export default function PropertiesHeaderCompact({
   onCurrencyChange,
   itemsPerPage = 12,
   onItemsPerPageChange,
+  onPanelRef,
 }: PropertiesHeaderCompactProps) {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -952,40 +960,25 @@ export default function PropertiesHeaderCompact({
   };
 
   useEffect(() => {
-    let lastScrollY = window.scrollY;
     let ticking = false;
 
     const handleScroll = () => {
-      lastScrollY = window.scrollY;
+      if (ticking) return;
+      ticking = true;
 
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const shouldCollapse = lastScrollY > 100;
-
-          if (shouldCollapse !== isCollapsed) {
-            setIsCollapsed(shouldCollapse);
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
+      window.requestAnimationFrame(() => {
+        const shouldCollapse = window.scrollY > 25;
+        if (shouldCollapse !== isCollapsed) {
+          setIsCollapsed(shouldCollapse);
+        }
+        ticking = false;
+      });
     };
 
-    const throttledScroll = () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      scrollTimeoutRef.current = setTimeout(handleScroll, 50);
-    };
-
-    window.addEventListener("scroll", throttledScroll, { passive: true });
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
-      window.removeEventListener("scroll", throttledScroll);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
+      window.removeEventListener("scroll", handleScroll);
     };
   }, [isCollapsed]);
 
@@ -1669,8 +1662,13 @@ export default function PropertiesHeaderCompact({
         </div>
 
         <div
-          className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm ${isCollapsed ? "pointer-events-none opacity-0" : "pointer-events-auto opacity-100"
-            } transition-opacity duration-200`}
+          ref={(el) => {
+            onPanelRef?.(el);
+          }}
+          className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm transition-all duration-300 ease-in-out ${isCollapsed
+              ? "pointer-events-none opacity-0 -translate-y-3"
+              : "pointer-events-auto opacity-100 translate-y-0"
+            }`}
         >
           <div className="container mx-auto px-6 py-4 space-y-4">
             <div className="space-y-3">
