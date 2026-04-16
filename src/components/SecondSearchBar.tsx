@@ -1303,7 +1303,7 @@ export default function PropertiesHeaderCompact({
       {/* DESKTOP */}
       <div className="hidden md:block sticky top-16 z-40 bg-background border-b border-border">
         {/* Contenedor principal con dos filas */}
-        <div className="container mx-auto px-6 py-3">
+        <div className="container mx-auto px-6 py-2">
           {/* PRIMERA LÍNEA: Título + filtros rápidos */}
           <div className="flex items-center gap-2 text-sm flex-wrap">
             <h1 className="text-xl font-semibold text-foreground">
@@ -1395,7 +1395,7 @@ export default function PropertiesHeaderCompact({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="h-8 px-2 py-0 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="h-8 px-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="rank">Sort: Villa Rank (High → Low)</option>
                 <option value="price_low">Price (Low → High)</option>
@@ -1407,7 +1407,7 @@ export default function PropertiesHeaderCompact({
                 <select
                   value={itemsPerPage}
                   onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-                  className="h-8 px-2 py-0 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="h-8 px-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   aria-label="Items per page"
                 >
                   <option value={12}>Show: 12</option>
@@ -1421,7 +1421,7 @@ export default function PropertiesHeaderCompact({
                 <select
                   value={currency}
                   onChange={(e) => onCurrencyChange(e.target.value as typeof currency)}
-                  className="h-8 px-2 py-0 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="h-8 px-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   aria-label="Currency"
                 >
                   <option value="USD">$ USD</option>
@@ -1432,19 +1432,12 @@ export default function PropertiesHeaderCompact({
             </div>
 
             <div className="flex items-center gap-2">
-              {onEditQuote && (
-                <button
-                  onClick={onEditQuote}
-                  className="h-8 px-3 text-sm border border-input rounded-md hover:bg-muted transition-colors font-medium"
-                >
-                  View quote
-                </button>
-              )}
               <CartButton
                 count={cartCount}
                 onClick={onCartClick}
                 variant="default"
                 showLabel={true}
+                className="h-8"
               />
             </div>
           </div>
@@ -1460,9 +1453,9 @@ export default function PropertiesHeaderCompact({
               : "pointer-events-auto opacity-100 translate-y-0"
             }`}
         >
-          <div className="container mx-auto px-6 py-4 space-y-4">
+          <div className="container mx-auto px-6 py-2 space-y-3">
             {/* Sección de ubicaciones - Grid de 4 columnas */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Include location(s) for your search
@@ -1488,8 +1481,8 @@ export default function PropertiesHeaderCompact({
                 </div>
               </div>
 
-              <div className="grid grid-cols-5 gap-6 items-start">
-                {renderRegionColumn('Caribbean', 'caribbean', caribbean, 'col-span-2')}
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 items-start">
+                {renderRegionColumn('Caribbean', 'caribbean', caribbean, 'lg:col-span-2')}
                 {renderRegionColumn('Mexico', 'mexico', mexico)}
                 {renderRegionColumn('Central America', 'centralAmerica', centralAmerica)}
                 {renderRegionColumn('Europe', 'europe', europe)}
