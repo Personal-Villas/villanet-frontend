@@ -731,6 +731,10 @@ export default function PropertiesHeaderCompact({
   const guestSelectorRef = useRef<HTMLDivElement>(null);
   const bedroomsSelectorRef = useRef<HTMLDivElement>(null);
   const priceSelectorRef = useRef<HTMLDivElement>(null);
+  // Internal ref to the expandable filter panel — used to exclude its height
+  // from the scrollable content check, preventing the collapse/expand loop
+  // that happens when there are few results and collapsing shrinks the page.
+  const filterPanelInternalRef = useRef<HTMLDivElement | null>(null);
 
   const [localGuestsForModal, setLocalGuestsForModal] = useState(guests && guests > 0 ? guests : 1);
   const [localMinPrice, setLocalMinPrice] = useState(minPrice);
@@ -856,7 +860,14 @@ export default function PropertiesHeaderCompact({
       if (ticking) return;
       ticking = true;
       window.requestAnimationFrame(() => {
-        const shouldCollapse = window.scrollY > 25;
+        // Guard against the collapse/expand loop on pages with few results:
+        // measure scrollable height *excluding* the filter panel itself,
+        // so collapsing the panel doesn't shrink the page below scrollY.
+        const panelH = filterPanelInternalRef.current?.scrollHeight ?? 0;
+        const scrollableWithoutPanel =
+          document.body.scrollHeight - panelH - window.innerHeight;
+        const canStayCollapsed = scrollableWithoutPanel > 10;
+        const shouldCollapse = canStayCollapsed && window.scrollY > 25;
         if (shouldCollapse !== isCollapsed) {
           setIsCollapsed(shouldCollapse);
         }
@@ -1446,6 +1457,7 @@ export default function PropertiesHeaderCompact({
         {/* PANEL EXPANDIBLE: Regiones (grid de 4 columnas) + Popular Filters */}
         <div
           ref={(el) => {
+            filterPanelInternalRef.current = el;
             onPanelRef?.(el);
           }}
           className={`absolute top-full left-0 right-0 z-30 bg-background border-b border-border shadow-sm transition-all duration-300 ${isCollapsed
