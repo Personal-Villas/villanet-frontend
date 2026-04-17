@@ -15,6 +15,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
+const API_URL=import.meta.env.VITE_API_URL
+
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type SupportedCurrency = 'USD' | 'EUR' | 'CAD';
@@ -90,7 +92,7 @@ async function loadRates() {
 
   _fetchPromise = (async () => {
     try {
-      const res = await fetch('/api/currency/rates');
+      const res = await fetch(`${API_URL}/api/currency/rates`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: RatesResponse = await res.json();
 
