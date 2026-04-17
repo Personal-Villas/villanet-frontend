@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AdvisorSignupData } from '../types/advisor';
 import { advisorService } from '../services/advisorService';
+import { type SupportedCurrency } from './useCurrency';
 
 interface AuthResponse {
   accessToken: string;
@@ -29,13 +30,13 @@ export const useAdvisorSignup = () => {
       password: ''
     },
     agencyLogo: null,
+    // ✅ NUEVO: moneda preferida — por defecto USD
+    preferred_currency: 'USD' as SupportedCurrency,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // ✅ Cargar datos del localStorage al montar, pero NUNCA saltear el step1.
-  // El localStorage sirve para no perder lo que el usuario ya escribió si recarga,
-  // pero no debe avanzar el paso automáticamente — eso causaba que se saltee el formulario.
   useEffect(() => {
     const savedData = localStorage.getItem(STORAGE_KEY);
     if (savedData) {
@@ -43,14 +44,14 @@ export const useAdvisorSignup = () => {
         const data = JSON.parse(savedData) as AdvisorSignupData;
         setFormData(() => ({
           ...data,
+          // ✅ Preservar preferred_currency guardado, si existe
+          preferred_currency: data.preferred_currency ?? ('USD' as SupportedCurrency),
           personalInfo: {
             ...data.personalInfo,
             // ✅ El email de la URL siempre tiene prioridad sobre el guardado
             email: emailFromUrl || data.personalInfo.email,
           }
         }));
-        // ✅ Eliminado: el bloque que hacía setCurrentStep('welcome') automáticamente.
-        // El usuario siempre arranca en step1 y avanza manualmente.
       } catch (error) {
         console.error('Error loading saved data:', error);
       }
@@ -79,7 +80,13 @@ export const useAdvisorSignup = () => {
     try {
       const result = await advisorService.submitAdvisorSignup(formData);
 
-      // Limpiar localStorage después del envío exitoso
+      // ✅ NUEVO: persistir la moneda elegida en localStorage para que
+      // Properties.tsx la lea inmediatamente al redirigir al dashboard.
+      if (formData.preferred_currency) {
+        localStorage.setItem('villanet_preferred_currency', formData.preferred_currency);
+      }
+
+      // Limpiar datos del signup (pero NO villanet_preferred_currency)
       localStorage.removeItem(STORAGE_KEY);
 
       return result;

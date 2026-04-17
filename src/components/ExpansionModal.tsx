@@ -58,14 +58,6 @@ export default function ExpansionModal({
       if (user.full_name) {
         // Usuario regular (tabla users)
         userName = user.full_name;
-      } else if (user.company_name) {
-        // Property Manager (tabla property_managers)
-        userName = user.company_name;
-      } else if (user.first_name && user.last_name) {
-        // Advisor (tabla advisors)
-        userName = `${user.first_name} ${user.last_name}`;
-      } else if (user.first_name) {
-        userName = user.first_name;
       }
 
       setFullName(userName);

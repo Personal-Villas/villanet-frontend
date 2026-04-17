@@ -86,6 +86,9 @@ export const advisorService = {
       website: data.professionalInfo?.website,
       agreed_to_terms: data.professionalInfo?.agreesToTerms,
       
+      // Preferencia de moneda
+      preferred_currency: data.preferred_currency ?? 'USD',
+
       // Metadata
       profile_completion_percentage: this.calculateCompletionPercentage(data),
     };

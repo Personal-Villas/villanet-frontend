@@ -143,6 +143,7 @@ export default function Properties() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // ── Multi-currency display ──────────────────────────────────────────────
+  // Read once at mount; advisor signup already writes this key via useAdvisorSignup.
   const savedCurrency = (localStorage.getItem('villanet_preferred_currency') as SupportedCurrency) || 'USD';
   const {
     currency,
@@ -151,6 +152,13 @@ export default function Properties() {
     rateNote,
     isUSD,
   } = useCurrency(savedCurrency);
+
+  // Persist currency changes (from the filter panel) back to localStorage so
+  // the selection survives page reloads and is picked up by AdvisorProfile.
+  const handleCurrencyChange = useCallback((c: SupportedCurrency) => {
+    setCurrency(c);
+    localStorage.setItem('villanet_preferred_currency', c);
+  }, [setCurrency]);
 
   // Navigate back to quote wizard
   const handleEditQuote = useCallback(() => {
@@ -1445,7 +1453,7 @@ useEffect(() => {
           onApplyFilters={handleApplyFilters}
           onEditQuote={handleEditQuote}
           currency={currency}
-          onCurrencyChange={setCurrency}
+          onCurrencyChange={handleCurrencyChange}
           itemsPerPage={itemsPerPage}
           onItemsPerPageChange={handleItemsPerPageChange}
           onPanelRef={handlePanelRef}

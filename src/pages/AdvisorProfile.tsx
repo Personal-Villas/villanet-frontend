@@ -76,11 +76,14 @@ export const AdvisorProfile: React.FC = () => {
         setLastName(data.profile.last_name ?? '');
         setWebsite(data.profile.website ?? '');
         setAvatarUrl(data.profile.avatar_url ?? null);
-        // Cargar preferencia de moneda desde el perfil
-        const savedCurrency = data.profile.preferred_currency as SupportedCurrency | null;
-        if (savedCurrency) {
-          setPreferredCurrency(savedCurrency);
-          localStorage.setItem('villanet_preferred_currency', savedCurrency);
+        // Cargar preferencia de moneda: backend tiene prioridad,
+        // pero si aún no tiene el campo (perfiles viejos), respetar localStorage.
+        const backendCurrency = data.profile.preferred_currency as SupportedCurrency | null;
+        const localCurrency = localStorage.getItem('villanet_preferred_currency') as SupportedCurrency | null;
+        const currencyToUse = backendCurrency ?? localCurrency;
+        if (currencyToUse) {
+          setPreferredCurrency(currencyToUse);
+          localStorage.setItem('villanet_preferred_currency', currencyToUse);
         }
       } catch {
         setError('Could not load your profile. Please try again.');
@@ -365,17 +368,6 @@ export const AdvisorProfile: React.FC = () => {
                 onChange={handleSaveCurrency}
               />
             </div>
-
-            {/* Nota referencial */}
-            {preferredCurrency !== 'USD' && (
-              <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <span className="text-amber-500 text-base leading-none mt-0.5">ℹ</span>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  Prices are shown in {preferredCurrency} for reference only, using an indicative exchange rate (Apr 2025).
-                  All bookings and billing are processed in USD.
-                </p>
-              </div>
-            )}
 
             {currencySaving && (
               <p className="text-xs text-gray-400 mt-3">Saving preference…</p>

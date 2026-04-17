@@ -1,3 +1,5 @@
+import { type SupportedCurrency } from '../hooks/useCurrency';
+
 export interface AdvisorPersonalInfo {
     firstName: string;
     lastName: string;
@@ -19,6 +21,7 @@ export interface AdvisorPersonalInfo {
     personalInfo: AdvisorPersonalInfo;
     professionalInfo?: AdvisorProfessionalInfo;
     agencyLogo?: File | null;
+    preferred_currency?: SupportedCurrency;
   }
   
   export interface AdvisorSignupStepProps {

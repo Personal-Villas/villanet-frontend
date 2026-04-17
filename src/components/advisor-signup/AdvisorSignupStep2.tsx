@@ -1,6 +1,7 @@
 // components/advisor-signup/AdvisorSignupStep2.tsx
 import React, { useState, useEffect } from 'react';
 import { AdvisorSignupStepProps } from '../../types/advisor';
+import { CURRENCY_OPTIONS, type SupportedCurrency } from '../../hooks/useCurrency';
 
 const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => void }> = ({
   data,
@@ -19,6 +20,11 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
   const [progress, setProgress] = useState(20);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
+
+  // ✅ NUEVO: estado local para la moneda preferida
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(
+    data.preferred_currency ?? 'USD'
+  );
 
   const advisorTypes = [
     'Independent travel advisor',
@@ -58,22 +64,7 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
     'PayPal'
   ];
 
-  // 🆕 Usar useCallback para memoizar la función de actualización
-  /*const updateProfessionalInfo = useCallback(() => {
-    updateData({
-      professionalInfo: {
-        advisorType: selectedAdvisorType,
-        travelRegions: selectedRegions,
-        groupSize: selectedGroupSize,
-        villaBudget: selectedBudget,
-        commissionPreference: selectedCommission,
-        website: website,
-        agreesToTerms: agreesToTerms
-      }
-    });
-  }, [selectedAdvisorType, selectedRegions, selectedGroupSize, selectedBudget, selectedCommission, website, agreesToTerms, updateData]);
-*/
-  // 🆕 Calcular progreso sin actualizar formData automáticamente
+  // Calcular progreso sin actualizar formData automáticamente
   useEffect(() => {
     let completed = 0;
     const totalFields = 7;
@@ -91,7 +82,6 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
     setProgress(newProgress);
   }, [selectedAdvisorType, selectedRegions, selectedGroupSize, selectedBudget, selectedCommission, website, agreesToTerms]);
 
-  // 🆕 Actualizar formData solo cuando se interactúa con los campos
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setLogoError(null);
@@ -175,6 +165,12 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
     });
   };
 
+  // ✅ NUEVO: handler para cambio de moneda
+  const handleCurrencyChange = (currency: SupportedCurrency) => {
+    setSelectedCurrency(currency);
+    updateData({ preferred_currency: currency });
+  };
+
   const handleWebsiteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setWebsite(value);
@@ -204,8 +200,9 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
   };
 
   const handleSkip = () => {
-    // Actualizar datos finales antes de enviar
+    // ✅ Asegurar que preferred_currency quede en formData antes de enviar
     updateData({
+      preferred_currency: selectedCurrency,
       professionalInfo: {
         advisorType: selectedAdvisorType,
         travelRegions: selectedRegions,
@@ -276,7 +273,7 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
                     ? 'bg-black text-white border-black'
                     : 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
                 }`}
-                onClick={() => handleAdvisorTypeChange(type)} // 🆕 Usar handler específico
+                onClick={() => handleAdvisorTypeChange(type)}
               >
                 {type}
                 {selectedAdvisorType === type && (
@@ -350,7 +347,7 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
                     ? 'bg-black text-white border-black'
                     : 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
                 }`}
-                onClick={() => handleRegionToggle(region)} // 🆕 Usar handler específico
+                onClick={() => handleRegionToggle(region)}
               >
                 {region}
                 {selectedRegions.includes(region) && (
@@ -378,7 +375,7 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
                     ? 'bg-black text-white border-black'
                     : 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
                 }`}
-                onClick={() => handleGroupSizeChange(size)} // 🆕 Usar handler específico
+                onClick={() => handleGroupSizeChange(size)}
               >
                 {size}
                 {selectedGroupSize === size && (
@@ -406,7 +403,7 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
                     ? 'bg-black text-white border-black'
                     : 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
                 }`}
-                onClick={() => handleBudgetChange(budget)} // 🆕 Usar handler específico
+                onClick={() => handleBudgetChange(budget)}
               >
                 {budget}
                 {selectedBudget === budget && (
@@ -417,6 +414,43 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
               </button>
             ))}
           </div>
+        </div>
+
+        {/* ✅ NUEVO: Preferred Currency */}
+        <div className="mb-10">
+          <label className="text-sm font-medium text-gray-900 mb-1 block">
+            Preferred price display currency
+          </label>
+          <p className="text-sm text-gray-500 mb-4">
+            Prices across the platform will be shown in this currency. You can change it anytime from your profile.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {CURRENCY_OPTIONS.map((option) => (
+              <button
+                key={option.code}
+                type="button"
+                className={`inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium transition-all duration-200 active:scale-95 whitespace-nowrap border-2 ${
+                  selectedCurrency === option.code
+                    ? 'bg-black text-white border-black'
+                    : 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
+                }`}
+                onClick={() => handleCurrencyChange(option.code)}
+              >
+                <span>{option.flag}</span>
+                <span>{option.code}</span>
+                {selectedCurrency === option.code && (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+          {selectedCurrency !== 'USD' && (
+            <p className="text-xs text-amber-600 mt-2">
+              * Prices shown in {selectedCurrency} are indicative. All bookings are billed in USD.
+            </p>
+          )}
         </div>
 
         {/* Commission Preference */}
@@ -434,7 +468,7 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
                     ? 'bg-black text-white border-black'
                     : 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
                 }`}
-                onClick={() => handleCommissionChange(preference)} // 🆕 Usar handler específico
+                onClick={() => handleCommissionChange(preference)}
               >
                 {preference}
                 {selectedCommission === preference && (
@@ -457,7 +491,7 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
             className="flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-base placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent h-12"
             placeholder="https://yourwebsite.com"
             value={website}
-            onChange={handleWebsiteChange} // 🆕 Usar handler específico
+            onChange={handleWebsiteChange}
           />
         </div>
 
@@ -468,7 +502,7 @@ const AdvisorSignupStep2: React.FC<AdvisorSignupStepProps & { onBack?: () => voi
               type="checkbox"
               id="terms"
               checked={agreesToTerms}
-              onChange={handleTermsChange} // 🆕 Usar handler específico
+              onChange={handleTermsChange}
               className="h-4 w-4 shrink-0 rounded border-gray-300 text-black focus:ring-2 focus:ring-black mt-1 cursor-pointer"
             />
             <label htmlFor="terms" className="text-sm text-gray-900 leading-relaxed cursor-pointer">
