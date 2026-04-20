@@ -1541,7 +1541,7 @@ export default function Properties() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900 mx-auto"></div>
+          <div className="mx-auto mb-4 h-10 w-10 rounded-full border-2 border-neutral-900 border-b-transparent animate-spin" />
           <p className="mt-4 text-neutral-600">Loading...</p>
         </div>
       </div>
@@ -1765,7 +1765,7 @@ export default function Properties() {
             {isInfiniteMode && (
               <div ref={sentinelCallbackRef} className="h-16 flex items-center justify-center mt-4">
                 {loading && (
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neutral-400" />
+                  <div className="mx-auto mb-4 h-10 w-10 rounded-full border-2 border-neutral-900 border-b-transparent animate-spin" />
                 )}
               </div>
             )}
