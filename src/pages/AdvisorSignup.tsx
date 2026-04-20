@@ -1,15 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAdvisorSignup } from '../hooks/useAdvisorSignup';
 import { AdvisorSignupStep1 } from '../components/advisor-signup/AdvisorSignupStep1';
 import AdvisorSignupStep2 from '../components/advisor-signup/AdvisorSignupStep2';
-import { WelcomeStep } from '../components/advisor-signup/WelcomeStep';
+import { SuccessScreen } from '../components/SuccessScreen';
+
+// WelcomeStep removed: it showed a false success screen (green check, "You're in!")
+// before the account was actually created (that only happens on step2 submit).
+// Step1 now goes directly to step2.
 
 export const AdvisorSignup: React.FC = () => {
   const {
     currentStep,
     formData,
     updateFormData,
-    goToWelcome,
     goBackToStep1,
     goToStep2,
     submitForm,
@@ -18,8 +21,11 @@ export const AdvisorSignup: React.FC = () => {
     clearStorage
   } = useAdvisorSignup();
 
-  // ✅ Limpiar cualquier dato guardado de sesiones anteriores al entrar a la página.
-  // Evita que un usuario que ya visitó el signup arranque con datos viejos pre-cargados.
+  // Shows the real success screen only after submitForm() resolves successfully.
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Clean up any data saved from previous sessions on mount.
+  // Prevents a returning visitor from seeing pre-filled stale data.
   useEffect(() => {
     clearStorage();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -29,21 +35,34 @@ export const AdvisorSignup: React.FC = () => {
     try {
       const result = await submitForm();
 
-      // ✅ Guardar token en localStorage
+      // Save token and notify AuthContext
       localStorage.setItem('access', result.accessToken);
-
-      // ✅ Disparar evento para que el AuthContext se actualice automáticamente
       window.dispatchEvent(new Event('authStateChange'));
 
-      // ✅ Pequeño delay para asegurar que el contexto se actualice antes de redirigir
-      setTimeout(() => {
-        window.location.href = '/properties';
-      }, 100);
+      // Account created successfully — now show the success screen
+      setShowSuccess(true);
 
     } catch (error) {
       console.error('Signup submission error:', error);
     }
   };
+
+  const handleReturnHome = () => {
+    window.location.href = '/properties';
+  };
+
+  // Success screen only renders after a confirmed successful submit
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <SuccessScreen
+          title="You're in. Welcome to Villa Net."
+          subtitle="Your advisor account is ready. You now have access to our full catalog of vetted luxury villas."
+          onReturnHome={handleReturnHome}
+        />
+      </div>
+    );
+  }
 
   const renderStep = () => {
     switch (currentStep) {
@@ -63,14 +82,11 @@ export const AdvisorSignup: React.FC = () => {
             <AdvisorSignupStep1
               data={formData}
               updateData={updateFormData}
-              onComplete={goToWelcome}
+              onComplete={goToStep2}
             />
           </div>
         );
-      case 'welcome':
-        return (
-          <WelcomeStep onContinue={goToStep2} />
-        );
+
       case 'step2':
         return (
           <>
@@ -95,6 +111,7 @@ export const AdvisorSignup: React.FC = () => {
             />
           </>
         );
+
       default:
         return null;
     }
