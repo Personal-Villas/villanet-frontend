@@ -101,6 +101,9 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const ITEMS_PER_PAGE_DEFAULT = 12;
 const ITEMS_PER_PAGE_OPTIONS = [12, 24, 48, 96] as const;
+// Batch size for infinite scroll — backend receives this as `limit` per request.
+// NOT 999: we page the backend the same as classic mode, just load next page automatically.
+const INFINITE_SCROLL_BATCH = 48;
 const PLACEHOLDER = '/assets/hero-villa-Cl4d2Edi.jpg';
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LdrJh0sAAAAAPy3DKaQXrWS_YLJeEtRCN4E4wNj';
 
@@ -217,7 +220,7 @@ export default function Properties() {
     // Limpiar params del wizard de la URL
     const cleanParams = new URLSearchParams(searchParams);
     ['fromQuote', 'destination', 'destinations', 'bedrooms', 'guests',
-     'checkIn', 'checkOut', 'maxPrice', 'maxTotalBudget', 'flexibleRange'].forEach(k => cleanParams.delete(k));
+      'checkIn', 'checkOut', 'maxPrice', 'maxTotalBudget', 'flexibleRange'].forEach(k => cleanParams.delete(k));
     setSearchParams(cleanParams, { replace: true });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -277,9 +280,19 @@ export default function Properties() {
   const uxPhaseRef = useRef<UxPhase>('idle'); // ref para leer uxPhase sin dependencia reactiva
 
   // 🔥 "slots" para render fijo. null = skeleton
-  const [slots, setSlots] = useState<(Listing | null)[]>(
-    Array.from({ length: ITEMS_PER_PAGE_DEFAULT }, () => null)
-  );
+  const [slots, setSlots] = useState<(Listing | null)[]>(() => {
+    // Match the initial slot count to the actual itemsPerPage so we never show
+    // wrong-sized skeleton grids on first render.
+    try {
+      const stored = localStorage.getItem('villanet_items_per_page');
+      if (stored !== null) {
+        const parsed = parseInt(stored, 10);
+        const count = parsed === 0 ? ITEMS_PER_PAGE_DEFAULT : (parsed || ITEMS_PER_PAGE_DEFAULT);
+        return Array.from({ length: count }, () => null);
+      }
+    } catch { /* ignore */ }
+    return Array.from({ length: ITEMS_PER_PAGE_DEFAULT }, () => null);
+  });
 
   //Estado para ExpansionModal
   const [showExpansionModal, setShowExpansionModal] = useState(false);
@@ -346,24 +359,136 @@ export default function Properties() {
     };
   }, []);
 
-  // Items per page: 0 = "All" (sin paginación)
-  const [itemsPerPage, setItemsPerPage] = useState<number>(ITEMS_PER_PAGE_DEFAULT);
-  // effectiveLimit: límite real enviado al API. 0 → usamos un techo alto (999)
-  const effectiveLimit = itemsPerPage === 0 ? 999 : itemsPerPage;
-  // Ref para que el fetch siempre lea el límite correcto sin stale closure
-  const effectiveLimitRef = useRef<number>(effectiveLimit);
-  useEffect(() => { effectiveLimitRef.current = effectiveLimit; }, [effectiveLimit]);
+  // Items per page: 0 = "All" (scroll infinito)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    // Read persisted value immediately so the first fetch uses the correct limit,
+    // avoiding the spurious limit=12 request when the user had "All" selected.
+    try {
+      const stored = localStorage.getItem('villanet_items_per_page');
+      if (stored !== null) {
+        const parsed = parseInt(stored, 10);
+        if (ITEMS_PER_PAGE_OPTIONS.includes(parsed as typeof ITEMS_PER_PAGE_OPTIONS[number]) || parsed === 0) {
+          return parsed;
+        }
+      }
+    } catch { /* ignore */ }
+    return ITEMS_PER_PAGE_DEFAULT;
+  });
+
+  // effectiveLimit: cuántos items muestra la grilla a la vez.
+  // En modo All usamos INFINITE_SCROLL_BATCH — NO cambia el comportamiento del
+  // backend, simplemente define el tamaño de lote por request de scroll infinito.
+  const effectiveLimit = itemsPerPage === 0 ? INFINITE_SCROLL_BATCH : itemsPerPage;
+
+  // ── Scroll infinito (modo "All") ────────────────────────────────────────────
+  // isInfiniteMode se deriva del state, NO de un ref, para que el JSX y los
+  // efectos que lo leen siempre vean el valor del render actual.
+  const isInfiniteMode = itemsPerPage === 0;
+
+  // infiniteScrollPage: página que debe pedir el fetch en modo infinito.
+  // Cuando el sentinel entra en viewport, se incrementa → dispara el fetch.
+  const [infiniteScrollPage, setInfiniteScrollPage] = useState(1);
+
+  // Ref del sentinel div para el IntersectionObserver
+  const infiniteScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Tracks whether the backend has more pages to load in infinite mode.
+  // Initialized to true so the first fetch always runs; set to false when
+  // the backend signals no more results (hasMore: false or returned < limit).
+  const [hasMorePages, setHasMorePages] = useState(true);
+
+  // ── Scroll infinito: refs estables ──────────────────────────────────────────
+  // El sentinel div vive dentro de {uxPhase==='results' && items.length>0}, por
+  // lo que NO existe en el DOM cuando el componente monta. Un useEffect normal
+  // con infiniteScrollRef.current === null nunca conecta el observer.
+  //
+  // Solución: callback ref en el sentinel. React llama al callback cada vez que
+  // el nodo entra o sale del DOM, lo que nos permite conectar/desconectar el
+  // IntersectionObserver en el momento exacto en que el div existe.
+  const loadingRef = useRef(false);
+  const hasMoreRef = useRef(true);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Sincronizar refs con state (sin causar re-renders en el observer)
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
+  useEffect(() => { hasMoreRef.current = hasMorePages; }, [hasMorePages]);
+
+  // Cuando se sale del modo All (o se cambia de filtros), resetear infiniteScrollPage
+  useEffect(() => {
+    if (isInfiniteMode) {
+      setInfiniteScrollPage(1);
+      setHasMorePages(true);
+      hasMoreRef.current = true;
+    }
+  }, [isInfiniteMode]);
+
+  // Callback ref: se llama con el nodo cuando el sentinel monta, con null cuando desmonta.
+  // Esto resuelve el problema raíz: el observer se conecta exactamente cuando el div existe.
+  const sentinelCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    // Desconectar observer anterior si lo hay
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    // Guardar el nodo en infiniteScrollRef por si algún código lo necesita
+    infiniteScrollRef.current = node;
+
+    if (!node || !isInfiniteMode) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingRef.current && hasMoreRef.current) {
+          setInfiniteScrollPage(prev => prev + 1);
+        }
+      },
+      { rootMargin: '300px' }
+    );
+
+    observer.observe(node);
+    observerRef.current = observer;
+  // isInfiniteMode en deps: si cambia, el sentinel se desmonta/remonta y el
+  // callback se vuelve a llamar automáticamente — no necesitamos reconectar manualmente.
+  }, [isInfiniteMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Efecto "post-fetch": cuando loading pasa true→false y el sentinel ya está en
+  // viewport (el observer no re-dispara si el elemento nunca salió de la vista),
+  // verificar si hay que cargar la siguiente página.
+  useEffect(() => {
+    if (loading) return;
+    if (!isInfiniteMode || !hasMorePages) return;
+
+    const sentinel = infiniteScrollRef.current;
+    if (!sentinel) return;
+
+    // Chequeo manual de visibilidad: getBoundingClientRect es síncrono y fiable
+    const rect = sentinel.getBoundingClientRect();
+    const isVisible = rect.top <= window.innerHeight + 300; // mismo margen que rootMargin
+
+    if (isVisible) {
+      const t = window.setTimeout(() => {
+        if (!loadingRef.current && hasMoreRef.current) {
+          setInfiniteScrollPage(prev => prev + 1);
+        }
+      }, 80);
+      return () => window.clearTimeout(t);
+    }
+  }, [loading, isInfiniteMode, hasMorePages]);
 
   const handleItemsPerPageChange = useCallback((value: number) => {
     filterChangedRef.current = true;
     startSearchUx();
     setItemsPerPage(value);
+    try { localStorage.setItem('villanet_items_per_page', String(value)); } catch { /* ignore */ }
     setCurrentPage(1);
     setItems([]);
     setAvailabilityCursor(0);
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
+    // Resetear siempre la página del scroll infinito al cambiar el selector
+    setInfiniteScrollPage(1);
+    setHasMorePages(true);
     const slotCount = value === 0 ? ITEMS_PER_PAGE_DEFAULT : value;
     setSlots(Array.from({ length: slotCount }, () => null));
   }, [startSearchUx]);
@@ -397,7 +522,7 @@ export default function Properties() {
     );
 
     if (hasActiveFilters) {
-      console.log('💾 Guardando filtros en localStorage:', filters); // ← AGREGAR
+      console.log('💾 Guardando filtros en localStorage:', filters);
       localStorage.setItem('searchFilters', JSON.stringify(filters));
     }
   }, [appliedFilters]);
@@ -450,11 +575,11 @@ export default function Properties() {
 
   // Métricas LCP CLS
   useEffect(() => {
-  const cleanup = initPerformanceMetrics({
-    debug: import.meta.env.DEV,  // logs en consola solo en desarrollo
-  });
-  return cleanup;
-}, []);
+    const cleanup = initPerformanceMetrics({
+      debug: import.meta.env.DEV,  // logs en consola solo en desarrollo
+    });
+    return cleanup;
+  }, []);
 
   // Message modal
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -597,8 +722,10 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
+    setInfiniteScrollPage(1);
+    setHasMorePages(true);
     setSlots(Array.from({ length: effectiveLimit }, () => null));
-  }, [startSearchUx, setQuoteDates]);
+  }, [startSearchUx, setQuoteDates, effectiveLimit]);
 
   const handleClearAllFilters = useCallback(() => {
     filterChangedRef.current = true;
@@ -630,10 +757,12 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
+    setInfiniteScrollPage(1);
+    setHasMorePages(true);
     setQuoteDates('', '');
 
     setSlots(Array.from({ length: effectiveLimit }, () => null));
-  }, [startSearchUx, setQuoteDates]);
+  }, [startSearchUx, setQuoteDates, effectiveLimit]);
 
   const applyFiltersImmediately = useCallback((newFilters: typeof filters) => {
     console.log('🔵 [UX] applyFiltersImmediately → destination:', newFilters.selectedDestination, '| badges:', newFilters.selectedBadges);
@@ -647,8 +776,10 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
+    setInfiniteScrollPage(1);
+    setHasMorePages(true);
     setSlots(Array.from({ length: effectiveLimit }, () => null));
-  }, [startSearchUx]);
+  }, [startSearchUx, effectiveLimit]);
 
   const handleBadgeToggle = useCallback((badgeId: string) => {
     const newBadges = filters.selectedBadges.includes(badgeId)
@@ -714,6 +845,7 @@ export default function Properties() {
     setAvailabilitySession(null);
     setPage1Filled(false);
     setAutoFillDone(false);
+    setInfiniteScrollPage(1);
     setSlots(Array.from({ length: effectiveLimit }, () => null));
 
     window.history.replaceState({}, '', '/properties');
@@ -854,7 +986,7 @@ export default function Properties() {
     document.body.appendChild(script);
   }, []);
 
-  // 🔥 Autofill: solo para completar la page 1 hasta 12 y cortar
+  // 🔥 Autofill: solo para completar la page 1 hasta el límite y cortar
   useEffect(() => {
     if (!hasAvailabilityFilter) return;
     if (loading) return;
@@ -865,7 +997,7 @@ export default function Properties() {
     // ✅ si ya se completó, nunca más
     if (page1Filled || autoFillDone) return;
 
-    // ✅ si ya tenemos 12, cortar y marcar
+    // ✅ si ya tenemos suficientes, cortar y marcar
     if (items.length >= effectiveLimit) {
       setPage1Filled(true);
       setAutoFillDone(true);
@@ -891,69 +1023,88 @@ export default function Properties() {
     currentPage,
     page1Filled,
     autoFillDone,
+    effectiveLimit,
   ]);
 
   useEffect(() => {
     // Cuando cambia la página, resetear slots
     if (!loading && items.length > 0 && items.length < effectiveLimit) {
-      // Si hay menos de 12 items, ajustar slots al número exacto
+      // Si hay menos items que el límite, ajustar slots al número exacto
       setSlots(items.map(item => item));
     } else {
-      // Caso normal: 12 slots (pueden ser null o items)
+      // Caso normal: slots vacíos del tamaño del límite
       setSlots(Array.from({ length: effectiveLimit }, () => null));
     }
-  }, [currentPage]);
+  }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
-// 🔥 Reemplazo progresivo: slots → cards reales
-// IMPORTANTE: uxPhase NO está en las dependencias — se lee via uxPhaseRef
-// para evitar el ciclo: startSearchUx→'loader'→efecto corre→setea 'results'→loader desaparece
-useEffect(() => {
-  const phase = uxPhaseRef.current;
+  // 🔥 Reemplazo progresivo: slots → cards reales
+  // IMPORTANTE: uxPhase NO está en las dependencias — se lee via uxPhaseRef
+  // para evitar el ciclo: startSearchUx→'loader'→efecto corre→setea 'results'→loader desaparece
+  useEffect(() => {
+    const phase = uxPhaseRef.current;
 
-  // Si el loader está activo, no interferir — el fetch tiene el control
-  // El fetch transicionará a 'results' cuando lleguen datos
-  if (phase === 'loader' || phase === 'skeleton') return;
+    // Si el loader está activo, no interferir — el fetch tiene el control
+    // El fetch transicionará a 'results' cuando lleguen datos
+    if (phase === 'loader' || phase === 'skeleton') return;
 
-  // Sin items
-  if (!items.length) {
-    if (!loading && phase !== 'idle') {
-      uxPhaseRef.current = 'results';
-      setUxPhase('results');
-      setProgress(100);
-      setSlots([]);
+    // Sin items
+    if (!items.length) {
+      if (!loading && phase !== 'idle') {
+        uxPhaseRef.current = 'results';
+        setUxPhase('results');
+        setProgress(100);
+        setSlots([]);
+      }
+      return;
     }
-    return;
-  }
 
-  // Hay items → mostrar
-  uxPhaseRef.current = 'results';
-  setUxPhase('results');
-  setProgress(100);
+    // Hay items → mostrar
+    uxPhaseRef.current = 'results';
+    setUxPhase('results');
+    setProgress(100);
 
-  const finalSlotCount = Math.min(items.length, effectiveLimit);
-  const slotsNeeded = loading ? effectiveLimit : finalSlotCount;
+    // En modo scroll infinito: mostrar TODOS los items acumulados, sin capar a effectiveLimit.
+    // effectiveLimit es el tamaño de LOTE por request (48), no el total a mostrar.
+    // En modo clásico: respetar el límite de página.
+    const isInfiniteScrollMode = itemsPerPage === 0;
+    const finalSlotCount = isInfiniteScrollMode ? items.length : Math.min(items.length, effectiveLimit);
+    const slotsNeeded = loading
+      ? (isInfiniteScrollMode ? items.length : effectiveLimit)
+      : finalSlotCount;
 
-  setSlots(prev => {
-    if (prev.length === slotsNeeded) return prev;
-    return Array.from({ length: slotsNeeded }, (_, i) => prev[i] ?? null);
-  });
+    // En modo infinito, solo animar los items NUEVOS del último lote.
+    // Animar todos los items acumulados (ej: 1200) con timers de 65ms cada uno
+    // bloquearía el render por minutos.
+    const prevCount = (isInfiniteScrollMode && items.length > effectiveLimit)
+      ? items.length - INFINITE_SCROLL_BATCH
+      : 0;
 
-  const timers: number[] = [];
-  for (let i = 0; i < finalSlotCount; i++) {
-    timers.push(
-      window.setTimeout(() => {
-        setSlots(prev => {
-          if (prev[i] != null) return prev;
-          const next = [...prev];
-          next[i] = items[i];
-          return next;
-        });
-      }, i * 65)
-    );
-  }
+    setSlots(prev => {
+      // Si ya tenemos todos los slots rellenos y el tamaño coincide, no tocar
+      if (prev.length === slotsNeeded && prev.every(s => s !== null)) return prev;
+      // Preservar items ya renderizados (prevCount) y marcar los nuevos como null
+      return Array.from({ length: slotsNeeded }, (_, i) =>
+        i < prevCount ? items[i] : (prev[i] ?? null)
+      );
+    });
 
-  return () => timers.forEach(t => window.clearTimeout(t));
-}, [items, loading]); // ← uxPhase NO está aquí, se lee via uxPhaseRef
+    const timers: number[] = [];
+    for (let i = prevCount; i < finalSlotCount; i++) {
+      const delay = (i - prevCount) * 30; // 30ms por item nuevo — más rápido que el modo clásico
+      timers.push(
+        window.setTimeout(() => {
+          setSlots(prev => {
+            if (prev[i] != null) return prev;
+            const next = [...prev];
+            next[i] = items[i];
+            return next;
+          });
+        }, delay)
+      );
+    }
+
+    return () => timers.forEach(t => window.clearTimeout(t));
+  }, [items, loading, itemsPerPage, effectiveLimit]); // ← uxPhase NO está aquí, se lee via uxPhaseRef
 
   // ✅ Fetch principal - se ejecuta cuando cambian filtros O página
   useEffect(() => {
@@ -962,12 +1113,21 @@ useEffect(() => {
     const controller = new AbortController();
     let phaseTimer: number | null = null;
 
-    // 🔥 Usar ref en vez del state directamente
+    // 🔥 Capturar valores del closure al momento de ejecutar el efecto.
+    // Esto es crítico: NO leer de refs que se sincronizan asincrónicamente
+    // (como effectiveLimitRef) — usar los valores del render actual directamente.
     const sessionToUse = availabilitySessionRef.current;
+
+    // FIX: Calcular limitToUse directamente desde itemsPerPage (valor del closure),
+    // no desde effectiveLimitRef que puede estar stale en el primer render tras el cambio.
+    const limitToUse = itemsPerPage === 0 ? INFINITE_SCROLL_BATCH : itemsPerPage;
+
+    // FIX: Capturar isInfiniteMode del closure para evitar stale dentro del async.
+    const isInfiniteScrollMode = itemsPerPage === 0;
 
     // Capturar ANTES del async — si el efecto se re-ejecuta, el valor ya está fijo
     const isNewSearch = filterChangedRef.current || items.length === 0;
-    console.log('🟡 [Fetch] useEffect run → filterChangedRef:', filterChangedRef.current, '| items.length:', items.length, '| isNewSearch:', isNewSearch, '| cursor:', availabilityCursor, '| dest:', appliedFilters.selectedDestination);
+    console.log('🟡 [Fetch] useEffect run → filterChangedRef:', filterChangedRef.current, '| items.length:', items.length, '| isNewSearch:', isNewSearch, '| cursor:', availabilityCursor, '| dest:', appliedFilters.selectedDestination, '| isInfiniteMode:', isInfiniteScrollMode, '| infiniteScrollPage:', infiniteScrollPage);
     if (isNewSearch) filterChangedRef.current = false; // consumir antes del async
 
     (async () => {
@@ -975,8 +1135,8 @@ useEffect(() => {
       setLoading(true);
       setError(null);
 
-      // Activar loader en búsquedas nuevas (filtro cambiado), no en autoFill continuations
-      if (isNewSearch) {
+      // Activar loader en búsquedas nuevas (filtro cambiado), no en autoFill ni scroll infinito
+      if (isNewSearch && infiniteScrollPage === 1) {
         uxCleanupRef.current?.();
         searchStartRef.current = Date.now();
         uxPhaseRef.current = 'loader';
@@ -1028,10 +1188,10 @@ useEffect(() => {
 
         // ✅ Bathrooms - FALTABA APLICAR
         //if (appliedFilters.bathrooms.length > 0) {
-          //qs.set('bathrooms', appliedFilters.bathrooms.join(','));
+        //qs.set('bathrooms', appliedFilters.bathrooms.join(','));
         //}
 
-        // ✅ Price Range - CORREGIR VALIDACIÓN
+        // ✅ Price Range
         if (appliedFilters.minPrice && appliedFilters.minPrice.trim()) {
           const minVal = Number(appliedFilters.minPrice);
           if (!isNaN(minVal) && minVal > 0) {
@@ -1051,7 +1211,6 @@ useEffect(() => {
           }
         }
 
-        // Resto del código continúa igual...
         if (appliedFilters.selectedBadges.length) {
           qs.set('badges', appliedFilters.selectedBadges.join(','));
         }
@@ -1064,7 +1223,6 @@ useEffect(() => {
           qs.set('guests', String(appliedFilters.guests));
         }
 
-        // Agregar console.log para debug
         console.log('🔍 Query params being sent:', {
           bedrooms: appliedFilters.bedrooms,
           bathrooms: appliedFilters.bathrooms,
@@ -1073,12 +1231,14 @@ useEffect(() => {
           queryString: qs.toString()
         });
 
-        qs.set('limit', String(effectiveLimitRef.current));
+        // FIX: Usar limitToUse (capturado del closure) en lugar de effectiveLimitRef.current
+        // que puede estar stale si el ref sync useEffect no corrió aún.
+        qs.set('limit', String(limitToUse));
 
         // 🔥 CORRECCIÓN IMPORTANTE: Usar cursor real en modo availability
         if (hasAvailabilityFilter) {
           // Usar el cursor real (no calcular basado en página)
-          const pageCursor = (currentPage - 1) * effectiveLimitRef.current;
+          const pageCursor = (currentPage - 1) * limitToUse;
 
           // ✅ si estamos rellenando página 1 con autofill, usamos availabilityCursor real
           const cursorToUse =
@@ -1088,7 +1248,6 @@ useEffect(() => {
 
           qs.set('cursor', String(cursorToUse));
 
-
           if (appliedFilters.checkIn) qs.set('checkIn', appliedFilters.checkIn);
           if (appliedFilters.checkOut) qs.set('checkOut', appliedFilters.checkOut);
 
@@ -1096,8 +1255,10 @@ useEffect(() => {
             qs.set('availabilitySession', sessionToUse);
           }
         } else {
-          // Modo normal: usar page param
-          qs.set('page', String(currentPage));
+          // Modo normal: usar page param.
+          // En modo scroll infinito la página la maneja infiniteScrollPage (no currentPage).
+          const pageToRequest = isInfiniteScrollMode ? infiniteScrollPage : currentPage;
+          qs.set('page', String(pageToRequest));
         }
 
         const endpoint = user ? '/listings' : '/public/listings';
@@ -1121,10 +1282,10 @@ useEffect(() => {
 
             const rawName = item.name || '';
             const cleanedName = normalizePropertyName(rawName);
-            
+
             return {
               ...item,
-              name: cleanedName,   
+              name: cleanedName,
               priceUSD: Number.isFinite(priceUSD as any) ? priceUSD : null,
               id: item.id || `temp-${Math.random().toString(36).slice(2)}`,
               images_json: images,
@@ -1154,11 +1315,13 @@ useEffect(() => {
               villanetResortCollectionName: item.villanetResortCollectionName ?? null,
             };
           });
+
           console.log(
             "priceUSD first 6:",
             normalized.slice(0, 6).map(x => x.priceUSD)
           );
-          const pageCursor = (currentPage - 1) * effectiveLimitRef.current;
+
+          const pageCursor = (currentPage - 1) * limitToUse;
 
           const cursorToUse =
             hasAvailabilityFilter && currentPage === 1 && availabilityCursor > 0
@@ -1172,14 +1335,20 @@ useEffect(() => {
             cursorToUse > 0;
 
           setItems(prev => {
+            // FIX: Modo scroll infinito — siempre acumular cuando no es la primera página.
+            // isInfiniteScrollMode está capturado del closure, nunca stale.
+            if (isInfiniteScrollMode && infiniteScrollPage > 1) {
+              return [...prev, ...normalized];
+            }
+
             if (!isAutoFillChunk) return normalized;
 
             // ✅ append pero CAP al límite activo
             const merged = [...prev, ...normalized];
-            const capped = merged.slice(0, effectiveLimitRef.current);
+            const capped = merged.slice(0, limitToUse);
 
             // ✅ cuando llegó al límite, marcamos y frenamos autofill
-            if (capped.length >= effectiveLimitRef.current) {
+            if (capped.length >= limitToUse) {
               setPage1Filled(true);
               setAutoFillDone(true);
             }
@@ -1187,17 +1356,16 @@ useEffect(() => {
             return capped;
           });
 
-
           // ✅ CORRECCIÓN: Manejar diferente paginación según el modo
           if (hasAvailabilityFilter && data.availabilityApplied) {
             // Modo availability: usar lógica basada en cursor
             if (data.totalAvailable !== undefined) {
               setTotal(data.totalAvailable);
-              const calculatedPages = Math.ceil(data.totalAvailable / effectiveLimitRef.current);
+              const calculatedPages = Math.ceil(data.totalAvailable / limitToUse);
               setTotalPages(calculatedPages || 1);
             } else {
               // Estimación basada en returned y exhausted
-              const hasMoreData = !data.exhausted || (data.returned === effectiveLimitRef.current);
+              const hasMoreData = !data.exhausted || (data.returned === limitToUse);
               setTotalPages(currentPage + (hasMoreData ? 1 : 0));
               setTotal(data.returned || normalized.length);
             }
@@ -1223,19 +1391,31 @@ useEffect(() => {
           } else {
             // Modo normal
             setTotal(data.total || 0);
-            setTotalPages(data.totalPages || Math.ceil((data.total || 0) / effectiveLimitRef.current));
+            setTotalPages(data.totalPages || Math.ceil((data.total || 0) / limitToUse));
+
+            // FIX: Actualizar hasMorePages en modo scroll infinito.
+            // El ciclo infinito ocurría porque nunca se frenaba el observer.
+            // Frenamos cuando: el backend dice hasMore=false, o devolvió menos
+            // ítems que el límite pedido (última página parcial).
+            if (isInfiniteScrollMode) {
+              const backendSaysNoMore = data.hasMore === false;
+              const receivedLessThanRequested = normalized.length < limitToUse;
+              if (backendSaysNoMore || receivedLessThanRequested) {
+                setHasMorePages(false);
+              }
+            }
           }
 
           setRetryCount(0);
 
           // Transicionar explícitamente loader/skeleton → results cuando llegan datos
-          if (['loader','skeleton','idle'].includes(uxPhaseRef.current)) {
+          if (['loader', 'skeleton', 'idle'].includes(uxPhaseRef.current)) {
             uxPhaseRef.current = 'results';
             setUxPhase('results');
           }
           setProgress(100);
 
-          console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items, total items: ${items.length + normalized.length}`);
+          console.log(`✅ Page ${currentPage} loaded: ${normalized.length} items | infiniteScrollPage: ${infiniteScrollPage} | isInfiniteScrollMode: ${isInfiniteScrollMode}`);
           console.log(`📊 Availability mode: ${hasAvailabilityFilter}, session: ${data.availabilitySession?.slice(0, 12)}...`);
           console.log(`📝 Partial: ${data.partial}, HasMore: ${data.hasMore}, NextCursor: ${data.nextCursor}`);
         }
@@ -1280,10 +1460,16 @@ useEffect(() => {
           }
         }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
-        setLoading(false);
-        setProgress(100);
-
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setProgress(100);
+          // FIX: Seguro anti-loader-colgado — si el fetch termina (éxito o error)
+          // y la UX todavía está en loader/skeleton, forzar transición a results.
+          if (uxPhaseRef.current === 'loader' || uxPhaseRef.current === 'skeleton') {
+            uxPhaseRef.current = 'results';
+            setUxPhase('results');
+          }
+        }
       }
     })();
 
@@ -1300,7 +1486,8 @@ useEffect(() => {
     hasAvailabilityFilter,
     availabilityCursor,
     autoFillTick,
-    itemsPerPage,
+    itemsPerPage,        // dispara el fetch cuando cambia el selector (incluido → 0)
+    infiniteScrollPage,  // dispara el fetch cuando el sentinel llega al viewport
   ]);
 
   const handlePrevImage = useCallback((e: React.MouseEvent, listingId: string, totalImages: number) => {
@@ -1367,9 +1554,20 @@ useEffect(() => {
   const EMPTY_SLOTS = Array.from({ length: 12 }, (): null => null);
   // Durante loader/skeleton: siempre skeletons (cubre items viejos en memoria)
   const showSkeletons = uxPhase === 'loader' || uxPhase === 'skeleton' || (uxPhase === 'idle' && items.length === 0);
-  // slots se usa para el revelado progresivo; si todos son null aún, usar EMPTY_SLOTS
-  const slotsAreEmpty = slots.length > 0 && slots.every(s => s === null);
-  const renderList = (showSkeletons || slotsAreEmpty) ? EMPTY_SLOTS : slots;
+
+  // En modo scroll infinito, el sistema de slots/animación progresiva no aplica:
+  // los items se acumulan de a lotes y el array de slots con timers causaría
+  // skeletons intermitentes en cada página. Renderizamos items directamente.
+  // En modo clásico mantenemos el revelado progresivo original.
+  const isInfiniteScrollModeForRender = itemsPerPage === 0;
+  const slotsAreEmpty = !isInfiniteScrollModeForRender && slots.length > 0 && slots.every(s => s === null);
+  const renderList: (Listing | null)[] = showSkeletons
+    ? EMPTY_SLOTS
+    : isInfiniteScrollModeForRender
+      ? items          // todos los items acumulados, sin animación
+      : slotsAreEmpty
+        ? EMPTY_SLOTS
+        : slots;       // revelado progresivo para modo clásico
 
   const showNextButton = hasAvailabilityFilter
     ? items.length === effectiveLimit || currentPage < totalPages
@@ -1497,7 +1695,6 @@ useEffect(() => {
                 return <ListingCardSkeleton key={`sk-${idx}`} />;
               }
 
-
               return (
                 <PropertyCard
                   key={`${item.id}-${idx}`}
@@ -1528,7 +1725,7 @@ useEffect(() => {
             </div>
           )}
 
-          {/* Botón de expansión y paginación — solo cuando hay resultados reales */}
+          {/* Botón de expansión, paginación y sentinel de scroll infinito */}
           {uxPhase === 'results' && items.length > 0 && <>
             <ExpansionButton
               resultsCount={total}
@@ -1546,7 +1743,8 @@ useEffect(() => {
               }}
             />
 
-            {itemsPerPage !== 0 && (
+            {/* Paginación clásica — solo cuando NO es modo "All" */}
+            {!isInfiniteMode && (
               <PaginationControls
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -1561,6 +1759,15 @@ useEffect(() => {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               />
+            )}
+
+            {/* Sentinel para scroll infinito — visible solo en modo "All" */}
+            {isInfiniteMode && (
+              <div ref={sentinelCallbackRef} className="h-16 flex items-center justify-center mt-4">
+                {loading && (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neutral-400" />
+                )}
+              </div>
             )}
           </>}
         </main>

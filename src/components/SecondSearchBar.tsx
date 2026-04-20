@@ -854,23 +854,52 @@ export default function PropertiesHeaderCompact({
     onApplyFilters?.(overrides);
   };
 
+  // Detectar dirección del scroll para colapsar/expandir el panel de filtros.
+  // Lógica:
+  //   - Scroll DOWN  → colapsar (ocultar el panel expandible)
+  //   - Scroll UP    → expandir  (mostrar el panel para cambiar filtros)
+  //   - Cerca del top (scrollY < 25) → siempre expandido
+  // Se usa un ref para lastScrollY en lugar de state para no generar re-renders.
+  const lastScrollYRef = useRef(0);
+  // Cuántos px tiene que scrollear el usuario hacia arriba para que reaparezca el panel.
+  // Un umbral pequeño evita que un micro-bounce lo abra accidentalmente.
+  const SCROLL_UP_THRESHOLD = 60;
+  const scrollUpAccumRef = useRef(0); // px acumulados de scroll up desde el último reset
+
   useEffect(() => {
     let ticking = false;
     const handleScroll = () => {
       if (ticking) return;
       ticking = true;
       window.requestAnimationFrame(() => {
-        // Guard against the collapse/expand loop on pages with few results:
-        // measure scrollable height *excluding* the filter panel itself,
-        // so collapsing the panel doesn't shrink the page below scrollY.
+        const currentY = window.scrollY;
+        const delta = currentY - lastScrollYRef.current; // positivo = down, negativo = up
+        lastScrollYRef.current = currentY;
+
+        // Guard contra el collapse/expand loop en páginas con pocos resultados:
+        // medir la altura scrollable excluyendo el propio panel.
         const panelH = filterPanelInternalRef.current?.scrollHeight ?? 0;
         const scrollableWithoutPanel =
           document.body.scrollHeight - panelH - window.innerHeight;
         const canStayCollapsed = scrollableWithoutPanel > 10;
-        const shouldCollapse = canStayCollapsed && window.scrollY > 25;
-        if (shouldCollapse !== isCollapsed) {
-          setIsCollapsed(shouldCollapse);
+
+        if (currentY < 25) {
+          // Cerca del top → siempre expandido
+          scrollUpAccumRef.current = 0;
+          if (isCollapsed) setIsCollapsed(false);
+        } else if (delta > 0) {
+          // Scrolleando hacia abajo → resetear acumulador de "up" y colapsar
+          scrollUpAccumRef.current = 0;
+          if (canStayCollapsed && !isCollapsed) setIsCollapsed(true);
+        } else if (delta < 0) {
+          // Scrolleando hacia arriba → acumular px
+          scrollUpAccumRef.current += Math.abs(delta);
+          if (scrollUpAccumRef.current >= SCROLL_UP_THRESHOLD && isCollapsed) {
+            scrollUpAccumRef.current = 0;
+            setIsCollapsed(false);
+          }
         }
+
         ticking = false;
       });
     };
@@ -1425,6 +1454,7 @@ export default function PropertiesHeaderCompact({
                   <option value={24}>Show: 24</option>
                   <option value={48}>Show: 48</option>
                   <option value={96}>Show: 96</option>
+                  <option value={0}>Show: All</option>
                 </select>
               )}
 
@@ -1493,7 +1523,7 @@ export default function PropertiesHeaderCompact({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 items-start">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-4 items-start">
                 {renderRegionColumn('Caribbean', 'caribbean', caribbean, 'lg:col-span-2')}
                 {renderRegionColumn('Mexico', 'mexico', mexico)}
                 {renderRegionColumn('Central America', 'centralAmerica', centralAmerica)}
@@ -1754,6 +1784,7 @@ export default function PropertiesHeaderCompact({
                   <option value={24}>24 per page</option>
                   <option value={48}>48 per page</option>
                   <option value={96}>96 per page</option>
+                  <option value={0}>All (infinite scroll)</option>
                 </select>
               </div>
             )}
