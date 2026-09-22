@@ -2,13 +2,8 @@ import React from "react";
 
 const Logo = () => (
   <div className="flex items-center gap-3">
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
-      <circle cx="20" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
-      <circle cx="14" cy="20" r="3" stroke="#111111" strokeWidth="1.5" />
-      <path d="M10.5 9.5L14 17L17.5 9.5" stroke="#111111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-    <span className="text-[#111111] font-bold text-xl tracking-[0.02em] leading-[1]">villanet</span>
+    <img src="/logo-square.png" alt="Personal Villas" className="w-10 h-10" />
+    <span className="text-[#111111] font-bold text-xl tracking-[0.02em] leading-[1]">Personal Villas</span>
   </div>
 );
 

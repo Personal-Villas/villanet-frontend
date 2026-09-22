@@ -22,17 +22,7 @@
     <priority>0.8</priority>
     <changefreq>monthly</changefreq>
   </url>
-  <url>
-    <loc>https://www.thevillanet.com/trust-framework</loc>
-    <priority>0.8</priority>
-    <changefreq>monthly</changefreq>
-  </url>
 
-  <url>
-    <loc>https://www.thevillanet.com/about</loc>
-    <priority>0.7</priority>
-    <changefreq>monthly</changefreq>
-  </url>
   <url>
     <loc>https://www.thevillanet.com/advisor-signup</loc>
     <priority>0.6</priority>

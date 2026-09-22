@@ -40,7 +40,6 @@ import {
 } from 'lucide-react';
 import { api } from '../api/api';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
 import BookingModal from '../components/BookingModal';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import VillaNetRankModal from '../components/VillaNetRankModal';
@@ -1816,10 +1815,6 @@ export default function PropertyDetail() {
         prefilledGuests={guests}
       />
       <VillaNetRankModal isOpen={showRankModal} onClose={closeRankModal} />
-
-      <div className="lg:hidden mb-[50px] bottom-0 left-0 right-0">
-        <Footer />
-      </div>
 
       <style>
         {`

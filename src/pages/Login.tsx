@@ -29,13 +29,8 @@ export default function Login({ auth }: any) {
         {/* Logo Section */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 mb-8">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
-              <circle cx="20" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
-              <circle cx="14" cy="20" r="3" stroke="#111111" strokeWidth="1.5" />
-              <path d="M10.5 9.5L14 17L17.5 9.5" stroke="#111111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="text-2xl font-bold">villanet</span>
+            <img src="/logo-square.png" alt="Personal Villas" className="w-10 h-10" />
+            <span className="text-2xl font-bold">Personal Villas</span>
           </div>
 
           <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 mb-2">

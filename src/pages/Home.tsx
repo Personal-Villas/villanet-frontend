@@ -8,7 +8,6 @@ import {
   FloatingButton,
   CTASection,
   RegionsSection,
-  Footer,
 } from "../components/home/index";
 import AuthModal from "../components/AuthModal";
 import { UnifiedHeader } from "../components/Header";
@@ -72,7 +71,6 @@ export const Home: React.FC = () => {
       <WhiteLabelSection />
       <RegionsSection />
       <CTASection onOpenAuthWithCode={openAuthModalWithPassword} />
-      <Footer />
       <FloatingButton onClick={openRankModal} />
 
       <VillaNetRankModal isOpen={showRankModal} onClose={closeRankModal} />

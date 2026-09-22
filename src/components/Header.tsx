@@ -125,7 +125,6 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                   )}
                   <a href="/for-travel-advisors" className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors">Advisors</a>
                   <a href="/for-property-managers" className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors">Property Managers</a>
-                  <a href="/about" className="text-sm text-gray-900 font-bold hover:text-gray-600 transition-colors">About</a>
 
                   {user ? (
                     <UserMenu user={user} onLogout={handleLogout} onAdminClick={handleAdminClick} />
@@ -190,7 +189,6 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
                 )}
                 <a href="/for-travel-advisors" className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100" onClick={() => setIsMobileMenuOpen(false)}>Advisors</a>
                 <a href="/for-property-managers" className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100" onClick={() => setIsMobileMenuOpen(false)}>Property Managers</a>
-                <a href="/about" className="block py-3 text-lg font-bold text-gray-900 hover:text-gray-600 transition-colors border-b border-gray-100" onClick={() => setIsMobileMenuOpen(false)}>About</a>
 
                 {user?.role === 'admin' && (
                   <button
@@ -264,13 +262,8 @@ export const UnifiedHeader: React.FC<UnifiedHeaderProps> = ({
 
 const Logo = () => (
   <a href="/" className="flex items-center gap-3">
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
-      <circle cx="20" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
-      <circle cx="14" cy="20" r="3" stroke="#111111" strokeWidth="1.5" />
-      <path d="M10.5 9.5L14 17L17.5 9.5" stroke="#111111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-    <span className="text-[#111111] font-bold text-xl tracking-[0.02em] leading-[1]">villanet</span>
+    <img src="/logo-square.png" alt="Personal Villas" className="w-10 h-10" />
+    <span className="text-[#111111] font-bold text-xl tracking-[0.02em] leading-[1]">Personal Villas</span>
   </a>
 );
 

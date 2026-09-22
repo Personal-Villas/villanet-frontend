@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from "react";
 import { UnifiedHeader } from "../components/Header";
-import Footer from "../components/Footer";
 import AuthModal from "../components/AuthModal";
 import {
   HeroSection,
@@ -37,7 +36,6 @@ const EarlyAccess: React.FC = () => {
       <VillanetRankSection />
       <EarlyAccessSection />
       <RequestFormSection />
-      <Footer />
 
       {showAuthModal && (
         <AuthModal

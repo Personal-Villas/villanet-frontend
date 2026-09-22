@@ -246,13 +246,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Logo (desktop only) */}
           <div className="hidden sm:flex items-center mx-auto gap-2 mb-6">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <circle cx="8" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
-              <circle cx="20" cy="8" r="3" stroke="#111111" strokeWidth="1.5" />
-              <circle cx="14" cy="20" r="3" stroke="#111111" strokeWidth="1.5" />
-              <path d="M10.5 9.5L14 17L17.5 9.5" stroke="#111111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <h2 className="text-2xl font-bold text-neutral-900">Villanet</h2>
+            <img src="/logo-square.png" alt="Personal Villas" className="w-10 h-10" />
+            <span className="text-2xl font-bold text-neutral-900">Personal Villas</span>
           </div>
 
           {/* ── MODO EMAIL — deshabilitado: el modal arranca siempre en modo password ──

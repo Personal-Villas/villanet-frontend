@@ -6,8 +6,7 @@ import {
   StorySection,
   VisionSection,
   FoundersSection,
-  CTASection,
-  Footer
+  CTASection
 } from "../components/about/index";
 import AuthModal from "../components/AuthModal";
 
@@ -39,7 +38,6 @@ export const About: React.FC = () => {
       <VisionSection />
       <FoundersSection />
       <CTASection />
-      <Footer />
 
     {/* Modal de Auth */}
     {showAuthModal && (

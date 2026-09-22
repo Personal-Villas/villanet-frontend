@@ -9,6 +9,7 @@ import Properties from './pages/Properties';
 import PropertyDetail from './pages/PropertyDetail';
 import PMCInbox from './pages/PMCInbox';
 import { Home } from './pages/Home';
+import { AgentsHome } from './pages/AgentsHome';
 import { About } from './pages/About';
 import { Advisors } from './pages/Advisors';
 import { PropertyManagers } from './pages/PropertyManagers';
@@ -24,6 +25,12 @@ import { ToastProvider } from '@radix-ui/react-toast';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { GoogleMapsProvider } from './providers/GoogleMapsProvider';
 import { QuotePreloadProvider } from './context/QuotePreloadContext';
+
+// Keep Home imported for quick rollback of "/" / "/home" (noUnusedLocals).
+void Home;
+// Keep About / TrustFramework imported for quick rollback (noUnusedLocals).
+void About;
+void TrustFramework;
 
 
 
@@ -48,14 +55,14 @@ function AppRoutes() {
   return (
     <Routes>
       {/* ✅ Rutas públicas - accesibles sin autenticación */}
-      <Route path="/" element={<Home />} />
-      <Route path="/home" element={<Home />} />
-      <Route path="/about" element={<About />} />
+      <Route path="/" element={<AgentsHome />} />
+      <Route path="/home" element={<AgentsHome />} />
+      {/* <Route path="/about" element={<About />} /> */}
       <Route path="/for-travel-advisors" element={<Advisors />} />
       <Route path="/for-property-managers" element={<PropertyManagers />} />
       <Route path="/advisor-signup" element={<AdvisorSignup />} />
       <Route path="/property-manager-signup" element={<PropertyManagerSignup />} />
-      <Route path="/trust-framework" element={<TrustFramework />} />
+      {/* <Route path="/trust-framework" element={<TrustFramework />} /> */}
       <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/properties" element={<Properties />} />

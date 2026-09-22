@@ -83,6 +83,20 @@
     --ring: 0 0% 6.7%;
     
     --radius: 0.25rem;
+
+    /* PV Agents — variables aisladas (no colisionan con --primary, --background, etc.) */
+    --agents-navy-darker: 214 60% 8%;
+    --agents-navy-deep: 214 55% 14%;
+    --agents-background: 214 45% 13%;
+    --agents-card: 214 50% 10%;
+    --agents-foreground: 40 33% 96%;
+    --agents-primary: 42 42% 56%;
+    --agents-primary-foreground: 214 45% 13%;
+    --agents-secondary: 214 35% 18%;
+    --agents-muted: 214 30% 20%;
+    --agents-muted-foreground: 215 18% 68%;
+    --agents-border: 214 25% 22%;
+    --agents-gold-light: 42 50% 70%;
   }
 
   .dark {

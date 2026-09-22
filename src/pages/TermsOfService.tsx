@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from "react";
 import { UnifiedHeader } from "../components/Header";
-import Footer from "../components/Footer";
 import AuthModal from "../components/AuthModal";
 import {
   HeroSection,
@@ -29,7 +28,6 @@ export const TermsOfService: React.FC = () => {
       <UnifiedHeader mode="simple" onAuthClick={openAuthModal} />
       <HeroSection />
       <TermsContentSection />
-      <Footer />
 
       {showAuthModal && (
         <AuthModal

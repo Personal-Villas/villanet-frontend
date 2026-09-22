@@ -13,6 +13,7 @@ export default {
           "sans-serif",
         ],
         serif: ["Playfair Display", "serif"],
+        agentsSerif: ['"Playfair Display"', "Georgia", "serif"],
         helvetica: ["Helvetica Now Text", "sans-serif"],
         manrope: ["Manrope", "sans-serif"],
       },
@@ -61,6 +62,25 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card) / <alpha-value>)",
           foreground: "hsl(var(--card-foreground) / <alpha-value>)",
+        },
+        /* PV Agents — paleta aislada; no pisa tokens globales */
+        agents: {
+          "navy-darker": "hsl(var(--agents-navy-darker) / <alpha-value>)",
+          "navy-deep": "hsl(var(--agents-navy-deep) / <alpha-value>)",
+          background: "hsl(var(--agents-background) / <alpha-value>)",
+          card: "hsl(var(--agents-card) / <alpha-value>)",
+          foreground: "hsl(var(--agents-foreground) / <alpha-value>)",
+          primary: {
+            DEFAULT: "hsl(var(--agents-primary) / <alpha-value>)",
+            foreground: "hsl(var(--agents-primary-foreground) / <alpha-value>)",
+          },
+          secondary: "hsl(var(--agents-secondary) / <alpha-value>)",
+          muted: {
+            DEFAULT: "hsl(var(--agents-muted) / <alpha-value>)",
+            foreground: "hsl(var(--agents-muted-foreground) / <alpha-value>)",
+          },
+          border: "hsl(var(--agents-border) / <alpha-value>)",
+          "gold-light": "hsl(var(--agents-gold-light) / <alpha-value>)",
         },
       },
       borderRadius: {

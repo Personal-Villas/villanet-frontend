@@ -5,8 +5,7 @@ import {
   WhySection,
   BenefitsSection,
   FeaturesSection,
-  CTASection,
-  Footer
+  CTASection
 } from "../components/advisors/index";
 import AuthModal from "../components/AuthModal";
 
@@ -37,7 +36,6 @@ export const Advisors: React.FC = () => {
       <BenefitsSection />
       <FeaturesSection />
       <CTASection />
-      <Footer />
 
       {/* Modal de Auth */}
       {showAuthModal && (

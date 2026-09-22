@@ -6,8 +6,7 @@ import {
   BenefitsSection,
   PartnershipSection,
   CriteriaSection,
-  FinalCTASection,
-  Footer
+  FinalCTASection
 } from "../components/managers/index";
 import AuthModal from "../components/AuthModal";
 
@@ -39,7 +38,6 @@ export const PropertyManagers: React.FC = () => {
       <PartnershipSection />
       <CriteriaSection />
       <FinalCTASection />
-      <Footer />
 
       {/* Modal de Auth */}
       {showAuthModal && (
