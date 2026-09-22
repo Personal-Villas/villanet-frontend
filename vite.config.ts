@@ -13,7 +13,8 @@ export default defineConfig({
       'thevillanet.com',
       'www.thevillanet.com',
       'villanet-frontend.onrender.com',
-      'villanet-frontend-dev.onrender.com'
+      'villanet-frontend-dev.onrender.com',
+      'agents.personalvillas.com'
     ]
   }
 })
