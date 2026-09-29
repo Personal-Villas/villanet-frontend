@@ -9,10 +9,10 @@ const TermsContentSection: React.FC = () => {
       content: (
         <>
           <p className="text-base text-muted-foreground leading-[1.8]">
-            These Terms of Service ("Terms") govern your access to and use of the Villa Net website, platform, communications, and related services ("Services"). Villa Net International LLC ("Villa Net," "we," "our," "us") provides a marketplace connecting guests, travel advisors, and independent property managers.
+            These Terms of Service ("Terms") govern your access to and use of the Personal Villas website, platform, communications, and related services ("Services"). Personal Villas ("Personal Villas," "we," "our," "us") provides a marketplace connecting guests, travel advisors, and independent property managers.
           </p>
           <p className="text-base text-foreground font-medium leading-[1.8] mt-4">
-            By using Villa Net, you agree to these Terms.
+            By using Personal Villas, you agree to these Terms.
           </p>
         </>
       )
@@ -23,7 +23,7 @@ const TermsContentSection: React.FC = () => {
       content: (
         <>
           <p className="text-base text-muted-foreground leading-[1.8]">
-            Villa Net is not a property owner and does not operate or manage villas directly. We:
+            Personal Villas is not a property owner and does not operate or manage villas directly. We:
           </p>
           <ul className="space-y-3 text-base text-muted-foreground leading-[1.8] pl-6 mt-4">
             <li className="flex items-start gap-3">
@@ -51,7 +51,7 @@ const TermsContentSection: React.FC = () => {
             All villas within the marketplace are operated by independent providers ("Property Partners").
           </p>
           <p className="text-base text-foreground font-medium leading-[1.8] mt-4">
-            Villa Net is not a party to the rental agreement between guest and property manager.
+            Personal Villas is not a party to the rental agreement between guest and property manager.
           </p>
         </>
       )
@@ -75,7 +75,7 @@ const TermsContentSection: React.FC = () => {
             </li>
             <li className="flex items-start gap-3">
               <span className="text-foreground mt-2">•</span>
-              <span>Villa Net is not responsible for operational performance of villas.</span>
+              <span>Personal Villas is not responsible for operational performance of villas.</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="text-foreground mt-2">•</span>
@@ -91,7 +91,7 @@ const TermsContentSection: React.FC = () => {
       content: (
         <>
           <p className="text-base text-muted-foreground leading-[1.8]">
-            In using Villa Net, you agree to:
+            In using Personal Villas, you agree to:
           </p>
           <ul className="space-y-3 text-base text-muted-foreground leading-[1.8] pl-6 mt-4">
             <li className="flex items-start gap-3">
@@ -123,7 +123,7 @@ const TermsContentSection: React.FC = () => {
     },
     {
       id: "villa-net-rank",
-      title: "5. Villa Net Rank™",
+      title: "5. Personal Villas Rank™",
       content: (
         <>
           <p className="text-base text-muted-foreground leading-[1.8]">
@@ -156,7 +156,7 @@ const TermsContentSection: React.FC = () => {
             </li>
           </ul>
           <p className="text-base text-foreground font-medium leading-[1.8] mt-4">
-            You acknowledge that Villa Net Rank™ is an advisory quality indicator, not a warranty.
+            You acknowledge that Personal Villas Rank™ is an advisory quality indicator, not a warranty.
           </p>
         </>
       )
@@ -167,7 +167,7 @@ const TermsContentSection: React.FC = () => {
       content: (
         <>
           <p className="text-base text-muted-foreground leading-[1.8]">
-            Villa Net is not liable for:
+            Personal Villas is not liable for:
           </p>
           <ul className="space-y-3 text-base text-muted-foreground leading-[1.8] pl-6 mt-4">
             <li className="flex items-start gap-3">
@@ -192,7 +192,7 @@ const TermsContentSection: React.FC = () => {
             </li>
           </ul>
           <p className="text-base text-foreground font-medium leading-[1.8] mt-4">
-            To the maximum extent allowed by law, Villa Net excludes liability for consequential, indirect, or punitive damages.
+            To the maximum extent allowed by law, Personal Villas excludes liability for consequential, indirect, or punitive damages.
           </p>
         </>
       )
@@ -203,7 +203,7 @@ const TermsContentSection: React.FC = () => {
       content: (
         <>
           <p className="text-base text-muted-foreground leading-[1.8]">
-            If payments are processed via Villa Net:
+            If payments are processed via Personal Villas:
           </p>
           <ul className="space-y-3 text-base text-muted-foreground leading-[1.8] pl-6 mt-4">
             <li className="flex items-start gap-3">
@@ -220,7 +220,7 @@ const TermsContentSection: React.FC = () => {
             </li>
           </ul>
           <p className="text-base text-muted-foreground leading-[1.8] mt-4">
-            Villa Net does not hold final discretion on refunds unless acting explicitly as merchant of record.
+            Personal Villas does not hold final discretion on refunds unless acting explicitly as merchant of record.
           </p>
         </>
       )

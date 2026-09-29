@@ -151,10 +151,10 @@ const PrivacyContentSection: React.FC = () => {
           <p className="text-base text-muted-foreground leading-[1.8] mt-4">
             Contact:{" "}
             <a 
-              href="mailto:privacy@villanet.com" 
+              href="mailto:info@personalvillas.com" 
               className="text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors"
             >
-              privacy@villanet.com
+              info@personalvillas.com
             </a>
           </p>
         </>
@@ -164,7 +164,7 @@ const PrivacyContentSection: React.FC = () => {
       title: "8. Children's Privacy",
       content: (
         <p className="text-base text-muted-foreground leading-[1.8]">
-          Villa Net is not intended for individuals under 18, and we do not knowingly collect data from minors.
+          Personal Villas is not intended for individuals under 18, and we do not knowingly collect data from minors.
         </p>
       )
     },
@@ -179,7 +179,7 @@ const PrivacyContentSection: React.FC = () => {
             <li>• United States</li>
             <li>• Canada</li>
             <li>• EU</li>
-            <li>• other jurisdictions where Villa Net operates partners or servers</li>
+            <li>• other jurisdictions where Personal Villas operates partners or servers</li>
           </ul>
           <p className="text-base text-muted-foreground leading-[1.8] mt-4">
             We will ensure compliance with international data protection frameworks.

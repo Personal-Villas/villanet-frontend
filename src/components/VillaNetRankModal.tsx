@@ -40,7 +40,7 @@ export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
         {/* Header */}
         <div className="flex flex-col space-y-1.5 text-center sm:text-left">
           <h2 className="tracking-tight text-3xl font-semibold mb-2 text-left">
-            Villa Net Rank™
+            Personal Villas Rank™
           </h2>
           <p className="text-xl text-muted-foreground text-left">
             The Standard of Trust in the Global Villa Market
@@ -66,7 +66,7 @@ export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
         {/* Content */}
         <div className="space-y-4">
           <p className="text-base leading-relaxed text-gray-900">
-            Every villa featured on Villa Net is independently verified and scored across{" "}
+            Every villa featured on Personal Villas is independently verified and scored across{" "}
             <span className="font-semibold">7 key trust pillars:</span>
           </p>
 
@@ -86,7 +86,7 @@ export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
               <span className="text-sm font-semibold">9.0+</span>
             </div>
             <p className="text-sm text-gray-900 leading-relaxed">
-              All villas on Villa Net rank{" "}
+              All villas on Personal Villas rank{" "}
               <span className="font-semibold">9.0+</span> on our internal scoring system.
             </p>
           </div>
@@ -100,7 +100,7 @@ export const VillaNetRankModal: React.FC<VillaNetRankModalProps> = ({
           className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white hover:bg-gray-700 transition-colors px-6 py-3 rounded-md text-base font-medium"
           href="/framework"
         >
-          View the Full Villa Net Framework
+          View the Full Personal Villas Framework
           <ChevronRight className="h-5 w-5" />
         </a>
         </div>
